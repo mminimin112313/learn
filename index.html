@@ -8,6 +8,59 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     
+    <!-- Tailwind CSS CDN 추가 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    // 디자인 시스템 매뉴얼에 따른 색상 팔레트 정의
+                    colors: {
+                        'primary-blue': {
+                            'darkest': '#082567', // Twilight Gem
+                            'dark': '#1A3B70',   // Abyss Ink (추정치)
+                            'middle': '#4285F4', // Still Current
+                            'light': '#357AE8',  // Blue Pulse
+                            'lightest': '#EBF2FA', // Sky Surge
+                        },
+                        'secondary-gray': {
+                            '100': '#F8F9FA', // Snow Flake / input-bg
+                            '200': '#F0F3F7', // current bg-secondary
+                            '300': '#DADCE0', // current border-color
+                            '500': '#80868B', // current text-placeholder
+                            '600': '#5F6368', // current text-secondary
+                            '800': '#3C4043', // current text-primary
+                        },
+                        'secondary-teal': '#00A389', // Teal 계열
+                        'accent-orange': '#FF6B00', // Vibrant Orange
+                        'semantic-success': '#28A745', // Emerald Green
+                        'semantic-error': '#DC3545',   // Crimson Red
+                        'semantic-warning': '#FFC107', // Golden Yellow
+                        'semantic-info': '#17A2B8',    // Light Blue
+                        'bg-warm-offwhite': '#F1EDE8', // Worn Dune
+                        'bg-cool-offwhite': '#E9EDF2', // Cloud Slate
+                    },
+                    // 폰트 스케일 및 줄 간격 (Tailwind 기본값 사용을 권장하지만, 필요시 확장)
+                    fontSize: {
+                        'xs': '.75rem',  // 12px
+                        'sm': '.875rem', // 14px
+                        'base': '1rem',  // 16px (본문 기준)
+                        'lg': '1.125rem', // 18px
+                        'xl': '1.25rem', // 20px
+                        '2xl': '1.5rem', // 24px (H4)
+                        '3xl': '1.875rem', // 30px
+                        '4xl': '2.25rem', // 36px (H2)
+                        '5xl': '3rem',   // 48px (H1)
+                    },
+                    lineHeight: {
+                        'normal': '1.5', // 텍스트 크기의 1.5배
+                        'relaxed': '1.6', // 텍스트 크기의 1.6배 (최적 가독성)
+                    },
+                }
+            }
+        }
+    </script>
+    
     <!-- MathJax for LaTeX rendering -->
     <script type="text/javascript" id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <script>
@@ -23,334 +76,234 @@
     </script>
     
     <style>
+        /* CSS 변수를 Tailwind 색상 시스템에 맞춰 재정의 (Fallback 및 초기 스타일용) */
         :root {
-            /* Full CSS revision for a light theme, matching the provided image's color palette */
-            --bg-primary: #FFFFFF; /* Main background - white */
-            --bg-secondary: #F0F3F7; /* Sidebar background - light gray */
-            --card-background: #FFFFFF; /* Card and modal backgrounds - white */
-            --accent-primary: #4285F4; /* Primary accent blue (Google's blue) */
+            --bg-primary: var(--tw-colors-secondary-gray-100); /* Snow Flake */
+            --bg-secondary: var(--tw-colors-secondary-gray-200); /* 기존 bg-secondary */
+            --card-background: var(--tw-colors-secondary-gray-100); /* Snow Flake */
+            --accent-primary: var(--tw-colors-primary-blue-middle); /* Still Current */
             --accent-rgb: 66, 133, 244; 
-            --accent-primary-hover: #357AE8; 
+            --accent-primary-hover: var(--tw-colors-primary-blue-light); 
             --accent-primary-focus-ring: rgba(var(--accent-rgb), 0.3);
-            --text-primary: #3C4043; /* Primary text color - dark gray */
-            --text-secondary: #5F6368; /* Secondary text color - medium gray */
-            --text-placeholder: #80868B; /* Placeholder text color - lighter gray */
-            --border-color: #DADCE0; /* Border color - light gray */
-            --input-bg: #F8F9FA; /* Input background - very light gray */
-            --success-color: #34A853; /* Google Green */
-            --warning-color: #FBBC04; /* Google Yellow */
-            --danger-color: #EA4335; /* Google Red */
+            --text-primary: var(--tw-colors-secondary-gray-800); /* Dark Gray */
+            --text-secondary: var(--tw-colors-secondary-gray-600); /* Medium Gray */
+            --text-placeholder: var(--tw-colors-secondary-gray-500); /* Lighter Gray */
+            --border-color: var(--tw-colors-secondary-gray-300); /* Light Gray */
+            --input-bg: var(--tw-colors-secondary-gray-100); /* Very light gray */
+            --success-color: var(--tw-colors-semantic-success); 
+            --warning-color: var(--tw-colors-semantic-warning);
+            --danger-color: var(--tw-colors-semantic-error); 
+            --info-color: var(--tw-colors-semantic-info); /* New: Info color for toasts */
             --font-sans: 'Inter', 'Noto Sans KR', sans-serif;
             --font-mono: 'SFMono-Regular', Consolas, Menlo, monospace;
             --sidebar-width: 300px;
         }
         html, body { height: 100%; overflow: hidden; }
-        body { background-color: var(--bg-primary); color: var(--text-primary); font-family: var(--font-sans); font-size: 15px; }
+        body { 
+            background-color: var(--bg-primary); 
+            color: var(--text-primary); 
+            font-family: var(--font-sans); 
+            font-size: 1rem; /* Base body font size 16px */
+            line-height: var(--tw-line-height-relaxed); /* 최적 가독성 1.6배 */
+        }
         ::-webkit-scrollbar { width: 8px; height: 8px; }
         ::-webkit-scrollbar-track { background: var(--bg-secondary); }
         ::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: var(--text-secondary); }
-        .ile-container { display: flex; flex-direction: column; height: 100%; }
+        
+        .ile-container { 
+            @apply flex flex-col h-full md:grid md:grid-cols-[var(--sidebar-width)_1fr]; 
+        }
         .sidebar { 
-            position: fixed; top: 0; left: 0; 
-            width: var(--sidebar-width); height: 100%; 
-            background-color: var(--bg-secondary); 
-            border-right: 1px solid var(--border-color); 
-            display: flex; flex-direction: column; 
-            gap: 1.5rem; padding: 1rem; 
-            transform: translateX(-100%); 
-            transition: transform 0.3s ease-in-out; 
-            z-index: 1100; overflow-y: auto; 
+            @apply fixed top-0 left-0 w-[var(--sidebar-width)] h-full bg-secondary-gray-200 border-r border-secondary-gray-300 flex flex-col gap-6 p-4 transform -translate-x-full transition-transform duration-300 ease-in-out z-[1100] overflow-y-auto; 
+            /* Tailwind의 z-index보다 높게 설정 */
         }
-        .sidebar.is-open { transform: translateX(0); box-shadow: 0 0 40px rgba(0,0,0,0.2); } /* Adjusted shadow for light theme */
-        .main-content { overflow-y: auto; flex-grow: 1; display: flex; flex-direction: column; }
-        .main-content-inner { padding: 1.5rem; }
+        .sidebar.is-open { 
+            @apply translate-x-0 shadow-2xl; /* Lighter shadow for light theme */
+        }
+        .main-content { 
+            @apply overflow-y-auto flex-grow flex flex-col md:h-screen; 
+        }
+        .main-content-inner { 
+            @apply p-4 md:p-8; /* 모바일/데스크탑 패딩 조정 */
+        }
         .mobile-header { 
-            display: flex; align-items: center; justify-content: space-between; 
-            padding: 0.75rem 1.5rem; 
-            background-color: var(--bg-secondary); /* Match sidebar */
-            border-bottom: 1px solid var(--border-color); 
-            position: sticky; top: 0; z-index: 1000; 
-            color: var(--text-primary); /* Ensure text is readable */
+            @apply flex items-center justify-between py-3 px-6 bg-secondary-gray-200 border-b border-secondary-gray-300 sticky top-0 z-[1000] text-secondary-gray-800 md:hidden;
         }
-        .mobile-header .hamburger-btn { background: none; border: none; color: var(--text-primary); font-size: 1.5rem; padding: 0.5rem; line-height: 1; }
-        .mobile-header .project-title-mobile { font-size: 1.1rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.4); opacity: 0; visibility: hidden; transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out; z-index: 1099; } /* Lighter overlay for light theme */
-        .overlay.is-visible { opacity: 1; visibility: visible; }
-        .sidebar-header h4 { font-size: 1.25rem; color: var(--text-primary); } /* Ensure readability */
-        .sidebar-title { font-size: 1rem; font-weight: 600; margin-bottom: 0.75rem; color: var(--text-primary); } /* Ensure readability */
+        .mobile-header .hamburger-btn { 
+            @apply bg-transparent border-none text-secondary-gray-800 text-2xl p-2 leading-none; 
+        }
+        .mobile-header .project-title-mobile { 
+            @apply text-xl font-semibold whitespace-nowrap overflow-hidden text-ellipsis; 
+        }
+        .overlay { 
+            @apply fixed inset-0 bg-black bg-opacity-40 opacity-0 invisible transition-opacity duration-300 ease-in-out z-[1099]; 
+        }
+        .overlay.is-visible { 
+            @apply opacity-100 visible; 
+        }
+        .sidebar-header h4 { 
+            @apply text-xl font-semibold text-secondary-gray-800; 
+        }
+        .sidebar-title { 
+            @apply text-base font-semibold mb-3 text-secondary-gray-800; 
+        }
         
         /* Project List Specific Styles */
         .sidebar-section.project-list-section .list-group {
-            max-height: 250px;
-            overflow-y: auto;
-            border: 1px solid var(--border-color);
-            border-radius: 0.5rem;
+            @apply max-h-[250px] overflow-y-auto border border-secondary-gray-300 rounded-lg;
         }
 
         .list-group-item { 
-            background-color: var(--bg-secondary); /* Match sidebar items */
-            border: 1px solid var(--border-color); 
-            color: var(--text-secondary); 
-            cursor: pointer; transition: all 0.2s; 
-            word-break: break-all; padding: 0.6rem 1rem; 
+            @apply bg-secondary-gray-200 border border-secondary-gray-300 text-secondary-gray-600 cursor-pointer transition-all duration-200 break-all py-2.5 px-4 flex justify-between items-center; 
         }
-        .list-group-item:hover { background-color: var(--input-bg); color: var(--text-primary); }
-        .list-group-item.active { background-color: var(--accent-primary); color: white; border-color: var(--accent-primary); }
-        .list-group-item .delete-btn { opacity: 0; transition: opacity 0.2s; color: var(--text-secondary); } /* Text secondary for icon */
-        .list-group-item:hover .delete-btn { opacity: 1; }
-        .main-header h1 { font-weight: 700; font-size: 1.8rem; color: var(--text-primary); }
-        .main-header p { color: var(--text-secondary); }
+        .list-group-item:hover { 
+            @apply bg-secondary-gray-100 text-secondary-gray-800; 
+        }
+        .list-group-item.active { 
+            @apply bg-primary-blue-middle text-white border-primary-blue-middle; 
+        }
+        .list-group-item .delete-btn { 
+            @apply opacity-0 transition-opacity duration-200 text-secondary-gray-600; 
+        } 
+        .list-group-item:hover .delete-btn { 
+            @apply opacity-100; 
+        }
+        .main-header h1 { 
+            @apply font-bold text-4xl md:text-5xl text-secondary-gray-800; /* H1: 48px */
+        }
+        .main-header p { 
+            @apply text-secondary-gray-600; 
+        }
 
-        /* Responsive Module Grid */
+        /* Responsive Module Grid - Tailwind classes will handle this more fluidly */
         .module-grid { 
-            display: grid; 
-            grid-template-columns: 1fr; /* Default: 1 column on small screens */
-            gap: 1.5rem; 
-        }
-        @media (min-width: 576px) { /* Small devices (landscape phones, 576px and up) */
-            .module-grid {
-                grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); /* At least 300px wide, 1 or 2 columns */
-            }
-        }
-        @media (min-width: 768px) { /* Medium devices (tablets, 768px and up) */
-            .module-grid {
-                grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); /* Still flexible, but might fit 2 or 3 */
-            }
-        }
-        @media (min-width: 992px) { /* Large devices (desktops, 992px and up) */
-            .module-grid {
-                grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); /* Could fit 3 */
-            }
-        }
-        @media (min-width: 1200px) { /* Extra large devices (large desktops, 1200px and up) */
-            .module-grid { 
-                grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); /* Could fit 3 or 4 within typical main content width */
-            }
-        }
-        @media (min-width: 1400px) { /* Custom breakpoint for even wider screens to fit 4+ columns comfortably */
-            .module-grid {
-                grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); /* Will likely fit 4 columns easily */
-            }
+            @apply grid grid-cols-1 gap-6 
+                    sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4; /* 300px minmax 대신 Tailwind의 반응형 그리드 사용 */
         }
 
         .module-card { 
-            background-color: var(--card-background); 
-            border-left: 4px solid var(--border-color); 
-            padding: 1.25rem; border-radius: 0.5rem; 
-            transition: all 0.2s; border: 1px solid var(--border-color); 
-            color: var(--text-primary); /* Ensure text is readable */
+            @apply bg-secondary-gray-100 border-l-4 border-secondary-gray-300 p-5 rounded-lg transition-all duration-200 border; 
         }
-        .module-card:hover { transform: translateY(-3px); box-shadow: 0 5px 20px rgba(0,0,0,0.1); } /* Lighter shadow for light theme */
-        .module-card.status-pending { border-left-color: var(--text-secondary); } /* Use text secondary for pending */
-        .module-card.status-inprogress { border-left-color: var(--warning-color); }
-        .module-card.status-completed { border-left-color: var(--success-color); }
+        .module-card:hover { 
+            @apply transform -translate-y-1 shadow-lg; /* Lighter shadow for light theme */
+        }
+        .module-card.status-pending { 
+            @apply border-l-secondary-gray-600; 
+        } 
+        .module-card.status-inprogress { 
+            @apply border-l-semantic-warning; 
+        }
+        .module-card.status-completed { 
+            @apply border-l-semantic-success; 
+        }
         .modal-content { 
-            background-color: var(--card-background); 
-            border: 1px solid var(--border-color); 
-            color: var(--text-primary); /* Ensure text is readable */
+            @apply bg-secondary-gray-100 border border-secondary-gray-300 text-secondary-gray-800 rounded-lg; 
         }
-        .modal-header { border-bottom: 1px solid var(--border-color); }
-        .modal-footer { border-top: 1px solid var(--border-color); }
-        /* Adjusted btn-close to ensure visibility on light backgrounds */
+        .modal-header { 
+            @apply border-b border-secondary-gray-300; 
+        }
+        .modal-footer { 
+            @apply border-t border-secondary-gray-300; 
+        }
         .btn-close { 
-            background: transparent url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%23000'%3e%3cpath d='M.293.293a1 1 0 0 1 1.414 0L8 6.586 14.293.293a1 1 0 1 1 1.414 1.414L9.414 8l6.293 6.293a1 1 0 0 1-1.414 1.414L8 9.414l-6.293 6.293a1 1 0 0 1-1.414-1.414L6.586 8 .293 1.707a1 1 0 0 1 0-1.414z'/%3e%3c/svg%3e") center/1em auto no-repeat;
-            border: 0;
-            border-radius: 0.375rem;
-            opacity: 0.5;
-            color: var(--text-primary); /* Ensure explicit color if needed */
-        }
-        .btn-close:hover {
-            color: var(--text-primary);
-            opacity: 0.75;
-        }
-        .btn-close:focus {
-            outline: 0;
-            box-shadow: 0 0 0 0.25rem rgba(var(--accent-rgb), 0.25); /* Use accent color for focus ring */
-            opacity: 1;
+            @apply text-secondary-gray-800 opacity-50 hover:opacity-75 focus:opacity-100 focus:outline-none focus:ring-4 focus:ring-primary-blue-middle/30;
         }
 
         .form-control, .form-select { 
-            background-color: var(--input-bg); 
-            color: var(--text-primary); 
-            border-color: var(--border-color); 
+            @apply bg-secondary-gray-100 text-secondary-gray-800 border-secondary-gray-300; 
         }
-        .form-control::placeholder { color: var(--text-placeholder); } /* Placeholder color */
-        .form-control:focus, .form-select:focus { border-color: var(--accent-primary); box-shadow: 0 0 0 3px var(--accent-primary-focus-ring); }
+        .form-control::placeholder { 
+            @apply text-secondary-gray-500; 
+        } 
+        .form-control:focus, .form-select:focus { 
+            @apply border-primary-blue-middle ring-primary-blue-middle/30; 
+        }
         
         /* Study Pad Textarea Height */
         .module-studypad, .module-notes {
-            min-height: 80px;
-            resize: vertical;
+            @apply min-h-[80px] resize-y;
         }
 
         #live-preview-container { 
-            background-color: var(--input-bg); /* Use input background for preview */
-            border-radius: 0.5rem; padding: 1rem; 
-            font-family: var(--font-mono); font-size: 0.85rem; 
-            white-space: pre-wrap; word-wrap: break-word; 
-            border: 1px solid var(--border-color); 
-            min-height: 250px; max-height: 400px; overflow-y: auto; 
-            color: var(--text-primary); /* Ensure text is readable */
+            @apply bg-secondary-gray-100 rounded-lg p-4 font-mono text-sm whitespace-pre-wrap break-words border border-secondary-gray-300 min-h-[250px] max-h-[400px] overflow-y-auto text-secondary-gray-800; 
         }
-        .toast { background-color: var(--card-background); border-left: 4px solid; color: var(--text-primary); } /* Ensure toast text is readable */
-        .toast-header { border-bottom: 1px solid var(--border-color); color: var(--text-primary); }
-        /* Removed .toast-header .btn-close filter invert */
-        .action-category { border-left: 3px solid var(--accent-primary); padding-left: 1rem; color: var(--text-primary); }
+        .toast { 
+            @apply bg-secondary-gray-100 border-l-4 text-secondary-gray-800 rounded-md shadow-lg; /* Tailwind shadow */
+        }
+        .toast-header { 
+            @apply border-b border-secondary-gray-300 text-secondary-gray-800; 
+        }
+        .action-category { 
+            @apply border-l-4 border-primary-blue-middle pl-4 text-secondary-gray-800; 
+        }
         .action-list-item { 
-            background-color: var(--input-bg); 
-            border: 1px solid var(--border-color); 
-            color: var(--text-primary); /* Ensure text is readable */
+            @apply bg-secondary-gray-100 border border-secondary-gray-300 text-secondary-gray-800 p-3 rounded-md mb-2 flex justify-between items-center; 
         }
 
         /* Markdown Viewer styles */
         #study-pad-viewer-content {
-            background-color: var(--input-bg);
-            padding: 1.5rem;
-            border-radius: 0.5rem;
-            border: 1px solid var(--border-color);
-            min-height: 200px;
-            max-height: 60vh;
-            overflow-y: auto;
-            color: var(--text-primary);
+            @apply bg-secondary-gray-100 p-6 rounded-lg border border-secondary-gray-300 min-h-[200px] max-h-[60vh] overflow-y-auto text-secondary-gray-800;
         }
-        #study-pad-editor-content { /* Styling for the new textarea editor */
-            min-height: 200px;
-            max-height: 60vh;
-            resize: vertical;
+        #study-pad-editor-content { 
+            @apply min-h-[200px] max-h-[60vh] resize-y;
         }
-        #study-pad-viewer-content h1, #study-pad-viewer-content h2, #study-pad-viewer-content h3, 
-        #study-pad-viewer-content h4, #study-pad-viewer-content h5, #study-pad-viewer-content h6 {
-            color: var(--accent-primary);
-            margin-top: 1.5em;
-            margin-bottom: 0.5em;
-        }
-        #study-pad-viewer-content p {
-            margin-bottom: 1em;
-            line-height: 1.6;
-        }
-        #study-pad-viewer-content ul, #study-pad-viewer-content ol {
-            margin-bottom: 1em;
-            padding-left: 1.5em;
-        }
-        #study-pad-viewer-content li {
-            margin-bottom: 0.5em;
-        }
+        #study-pad-viewer-content h1 { @apply text-5xl font-bold text-primary-blue-darkest mt-6 mb-2; } /* H1: 48px */
+        #study-pad-viewer-content h2 { @apply text-4xl font-semibold text-primary-blue-darkest mt-6 mb-2; } /* H2: 40px */
+        #study-pad-viewer-content h3 { @apply text-3xl font-semibold text-primary-blue-darkest mt-6 mb-2; } /* H3: 32px */
+        #study-pad-viewer-content h4 { @apply text-2xl font-semibold text-primary-blue-darkest mt-6 mb-2; } /* H4: 24px */
+        #study-pad-viewer-content h5 { @apply text-xl font-semibold text-primary-blue-darkest mt-6 mb-2; } /* H5: 20px */
+        #study-pad-viewer-content h6 { @apply text-base font-semibold text-primary-blue-darkest mt-6 mb-2; } /* H6: 16px */
+        
+        #study-pad-viewer-content p { @apply mb-4 leading-relaxed; } /* 1.6배 줄 간격 */
+        #study-pad-viewer-content ul, #study-pad-viewer-content ol { @apply mb-4 pl-6; }
+        #study-pad-viewer-content li { @apply mb-2; }
         #study-pad-viewer-content pre {
-            background-color: var(--bg-secondary); /* Slightly darker background for code blocks */
-            padding: 1em;
-            border-radius: 0.3em;
-            overflow-x: auto;
-            border: 1px solid var(--border-color);
-            white-space: pre-wrap;
-            word-wrap: break-word;
+            @apply bg-secondary-gray-200 p-4 rounded-md overflow-x-auto border border-secondary-gray-300 whitespace-pre-wrap break-words;
         }
         #study-pad-viewer-content code {
-            font-family: var(--font-mono);
-            background-color: var(--bg-secondary); /* Slightly darker background for inline code */
-            padding: 0.2em 0.4em;
-            border-radius: 0.2em;
+            @apply font-mono bg-secondary-gray-200 px-1.5 py-1 rounded-sm;
         }
         #study-pad-viewer-content a {
-            color: var(--accent-primary);
-            text-decoration: none;
-        }
-        #study-pad-viewer-content a:hover {
-            text-decoration: underline;
+            @apply text-primary-blue-middle no-underline hover:underline;
         }
         #study-pad-viewer-content blockquote {
-            border-left: 4px solid var(--accent-primary);
-            padding-left: 1em;
-            margin-left: 0;
-            color: var(--text-secondary);
+            @apply border-l-4 border-primary-blue-middle pl-4 ml-0 text-secondary-gray-600;
         }
         #study-pad-viewer-content table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 1em;
+            @apply w-full border-collapse mb-4;
         }
         #study-pad-viewer-content th, #study-pad-viewer-content td {
-            border: 1px solid var(--border-color);
-            padding: 0.5em 0.8em;
-            text-align: left;
+            @apply border border-secondary-gray-300 p-2 text-left;
         }
         #study-pad-viewer-content th {
-            background-color: var(--bg-secondary);
-            font-weight: 600;
+            @apply bg-secondary-gray-200 font-semibold;
         }
 
-        /* Button styles for light theme */
+        /* Button styles for light theme (Tailwind-compatible classes) */
         .btn-primary { 
-            background-color: var(--accent-primary); 
-            border-color: var(--accent-primary); 
-            color: white; /* Ensure text is white on colored buttons */
-        }
-        .btn-primary:hover { 
-            background-color: var(--accent-primary-hover); 
-            border-color: var(--accent-primary-hover); 
+            @apply bg-primary-blue-middle border-primary-blue-middle text-white hover:bg-primary-blue-light hover:border-primary-blue-light; 
         }
         .btn-outline-primary { 
-            color: var(--accent-primary); 
-            border-color: var(--accent-primary); 
-            background-color: transparent; 
-        }
-        .btn-outline-primary:hover { 
-            background-color: var(--accent-primary); 
-            color: white; 
+            @apply text-primary-blue-middle border-primary-blue-middle bg-transparent hover:bg-primary-blue-middle hover:text-white; 
         }
         .btn-info { 
-            background-color: #17A2B8; /* Bootstrap info blue */
-            border-color: #17A2B8;
-            color: white;
-        }
-        .btn-info:hover {
-            background-color: #138496;
-            border-color: #138496;
+            @apply bg-semantic-info border-semantic-info text-white hover:opacity-90;
         }
         .btn-success { 
-            background-color: var(--success-color); 
-            border-color: var(--success-color); 
-            color: white;
-        }
-        .btn-success:hover {
-            background-color: #28a745;
-            border-color: #28a745;
+            @apply bg-semantic-success border-semantic-success text-white hover:opacity-90;
         }
         .btn-secondary {
-            background-color: var(--text-secondary); /* Use a shade of gray for secondary */
-            border-color: var(--text-secondary);
-            color: white;
-        }
-        .btn-secondary:hover {
-            background-color: #6C757D;
-            border-color: #6C757D;
+            @apply bg-secondary-gray-600 border-secondary-gray-600 text-white hover:bg-secondary-gray-800 hover:border-secondary-gray-800;
         }
         .btn-outline-secondary {
-            color: var(--text-secondary);
-            border-color: var(--border-color); /* Lighter border for outline secondary */
-            background-color: transparent;
+            @apply text-secondary-gray-600 border-secondary-gray-300 bg-transparent hover:bg-secondary-gray-100 hover:text-secondary-gray-800;
         }
-        .btn-outline-secondary:hover {
-            background-color: var(--input-bg);
-            color: var(--text-primary);
-        }
-        .btn-outline-light { /* Used for action selector buttons */
-            color: var(--text-primary);
-            border-color: var(--border-color);
-            background-color: transparent;
-        }
-        .btn-outline-light:hover {
-            background-color: var(--input-bg);
-            color: var(--text-primary);
+        .btn-outline-light { 
+            @apply text-secondary-gray-800 border-secondary-gray-300 bg-transparent hover:bg-secondary-gray-100 hover:text-secondary-gray-800;
         }
         .btn-outline-danger {
-            color: var(--danger-color);
-            border-color: var(--danger-color);
-            background-color: transparent;
-        }
-        .btn-outline-danger:hover {
-            background-color: var(--danger-color);
-            color: white;
+            @apply text-semantic-error border-semantic-error bg-transparent hover:bg-semantic-error hover:text-white;
         }
 
         /* Modal specific adjustments for z-index and appearance */
@@ -360,43 +313,37 @@
         .modal {
             z-index: 1202; /* Above backdrop and toasts */
         }
-        /* No need for .modal-dialog z-index, as .modal usually controls the z-index for the whole modal structure. */
-
-        @media (min-width: 1200px) {
-            body { font-size: 16px; }
-            .ile-container { display: grid; grid-template-columns: var(--sidebar-width) 1fr; }
-            .sidebar { position: static; transform: none; box-shadow: none; padding-top: 1.5rem; }
-            .mobile-header, .overlay { display: none; }
-            .main-content { height: 100vh; }
-            .main-content-inner { padding: 2rem 2.5rem; }
-            .main-header h1 { font-size: 2.2rem; }
-            /* Original media query kept, but now fits within the broader minmax strategy */
-            /* .module-grid { grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); } */
-        }
 
         /* New styles for learning objectives/keywords */
         .module-card .learning-objectives-preview {
-            max-height: 4.5em; /* Approximately 3 lines of text */
-            overflow: hidden;
-            text-overflow: ellipsis;
-            display: -webkit-box;
+            @apply max-h-[4.5em] overflow-hidden text-ellipsis block; /* Approximately 3 lines of text */
             -webkit-line-clamp: 3; /* Limit to 3 lines */
             -webkit-box-orient: vertical;
             white-space: normal; /* Allow text to wrap */
-            margin-bottom: 0.5rem;
-            color: var(--text-secondary);
-            font-size: 0.85rem;
+            @apply mb-2 text-secondary-gray-600 text-sm;
+            display: -webkit-box; /* Required for -webkit-line-clamp */
         }
 
         /* Modal for detailed view */
         .detail-modal-content pre {
-            background-color: var(--bg-secondary);
-            padding: 1em;
-            border-radius: 0.3em;
-            overflow-x: auto;
-            border: 1px solid var(--border-color);
-            white-space: pre-wrap; /* Ensure pre-formatted text wraps */
-            word-wrap: break-word; /* Break long words */
+            @apply bg-secondary-gray-200 p-4 rounded-md overflow-x-auto border border-secondary-gray-300 whitespace-pre-wrap break-words;
+        }
+
+        /* Empty State Styling */
+        .empty-state {
+            @apply text-center py-10 px-4 flex flex-col items-center justify-center;
+        }
+        .empty-state-icon {
+            @apply text-6xl text-secondary-gray-300 mb-4;
+        }
+        .empty-state-title {
+            @apply text-2xl font-semibold text-secondary-gray-800 mb-2;
+        }
+        .empty-state-message {
+            @apply text-secondary-gray-600 mb-6 max-w-md;
+        }
+        .empty-state-cta {
+            @apply mt-4;
         }
     </style>
 </head>
@@ -407,28 +354,44 @@
             
             <!-- Firebase Auth Section -->
             <div class="sidebar-section">
-                <div id="auth-status" class="text-center small mb-2 text-secondary">로그인 필요</div>
-                <button class="btn btn-primary btn-sm w-100 mb-2" id="google-signin-btn"><i class="fa-brands fa-google me-2"></i>Google 로그인</button>
-                <button class="btn btn-danger btn-sm w-100 d-none" id="signout-btn"><i class="fa-solid fa-right-from-bracket me-2"></i>로그아웃</button>
+                <div id="auth-status" class="text-center text-sm mb-2 text-secondary-gray-600">로그인 필요</div>
+                <button class="btn btn-primary btn-sm w-full mb-2" id="google-signin-btn"><i class="fa-brands fa-google me-2"></i>Google 로그인</button>
+                <button class="btn btn-danger btn-sm w-full d-none" id="signout-btn"><i class="fa-solid fa-right-from-bracket me-2"></i>로그아웃</button>
             </div>
             <!-- End Firebase Auth Section -->
 
             <div class="project-controls">
-                <button class="btn btn-primary btn-sm w-100" id="new-project-btn">새 프로젝트 생성</button>
-                <div class="d-flex gap-1 mt-2">
-                    <button class="btn btn-outline-secondary btn-sm flex-grow-1" id="import-project-btn">가져오기</button>
-                    <input type="file" id="import-file-input" class="d-none" accept=".json,application/json">
-                    <button class="btn btn-outline-secondary btn-sm flex-grow-1" id="export-project-btn">내보내기</button>
+                <button class="btn btn-primary btn-sm w-full" id="new-project-btn">새 프로젝트 생성</button>
+                <div class="flex gap-1 mt-2">
+                    <button class="btn btn-outline-secondary btn-sm flex-grow" id="import-project-btn">가져오기</button>
+                    <input type="file" id="import-file-input" class="hidden" accept=".json,application/json">
+                    <button class="btn btn-outline-secondary btn-sm flex-grow" id="export-project-btn">내보내기</button>
                 </div>
             </div>
             <!-- Modified project list section for fixed height and scroll -->
             <div class="sidebar-section project-list-section">
                 <h6 class="sidebar-title">프로젝트</h6>
-                <div id="project-list" class="list-group"></div>
+                <div id="project-list" class="list-group">
+                    <!-- Empty State for Project List -->
+                    <div class="empty-state" id="project-list-empty-state">
+                        <i class="fa-solid fa-folder-open empty-state-icon"></i>
+                        <p class="empty-state-message">생성된 프로젝트가 없습니다.<br>새 프로젝트를 만들어 학습을 시작해보세요!</p>
+                        <button class="btn btn-primary btn-sm empty-state-cta" id="empty-state-new-project-btn">새 프로젝트 생성</button>
+                    </div>
+                </div>
             </div>
             
-            <div class="sidebar-section flex-grow-1" style="overflow-y: auto; min-height: 150px;"><h6 class="sidebar-title">자원 라이브러리</h6><div id="resource-list" class="list-group"></div></div>
-            <div class="mt-auto pt-3 d-grid gap-2">
+            <div class="sidebar-section flex-grow" style="overflow-y: auto; min-height: 150px;">
+                <h6 class="sidebar-title">자원 라이브러리</h6>
+                <div id="resource-list" class="list-group">
+                    <!-- Empty State for Resource List -->
+                    <div class="empty-state" id="resource-list-empty-state">
+                        <i class="fa-solid fa-book empty-state-icon"></i>
+                        <p class="empty-state-message">추가된 자원이 없습니다.<br>학습 자료를 업로드해보세요!</p>
+                    </div>
+                </div>
+            </div>
+            <div class="mt-auto pt-3 grid gap-2">
                 <button class="btn btn-success btn-sm" id="download-studypad-btn"><i class="fa-solid fa-book me-2"></i>스터디 패드 전체 다운로드</button>
                 <button class="btn btn-secondary btn-sm" id="manage-actions-btn">액션 관리자</button>
                 <button class="btn btn-success btn-sm" id="add-resource-btn">자원 추가</button>
@@ -444,51 +407,63 @@
              </header>
              <div class="main-content-inner">
                  <div id="welcome-screen">
-                     <div class="text-center p-md-5 p-3 rounded-3" style="background-color: var(--card-background);"><h1 class="display-5">학습 사령부</h1><p class="lead">왼쪽 메뉴에서 새 프로젝트를 생성하거나 선택하여 시작하세요.</p></div>
-                 </div>
-                 <div id="project-workspace" class="d-none">
-                     <div class="main-header mb-4"><h1 id="project-title-main"></h1><p id="project-goal"></p></div>
-                     <div class="mb-4 p-4 rounded-3" style="background-color: var(--card-background); border: 1px solid var(--border-color);">
-                         <h5 class="mb-3">Phase 0: 계획 수립</h5>
-                         <!-- Added an ID for direct access to the button -->
-                         <button class="btn btn-outline-primary w-100 mb-3" id="plan-button" data-template-key="0_plan"><i class="fa-solid fa-map-location-dot me-2"></i>AI 튜터 페르소나 설계 및 학습 계획 생성</button>
-                         <textarea class="form-control" id="plan-input" rows="8" placeholder="AI가 생성한 학습 계획 JSON을 여기에 붙여넣으세요..."></textarea>
-                         <button class="btn btn-info btn-sm w-100 mt-2" id="apply-plan-btn">학습 계획 적용 및 워크스페이스 구축</button>
+                     <div class="text-center p-8 md:p-12 rounded-xl bg-secondary-gray-100 shadow-md">
+                        <h1 class="text-5xl font-bold text-primary-blue-darkest mb-4">학습 사령부</h1>
+                        <p class="text-secondary-gray-600 text-lg">왼쪽 메뉴에서 새 프로젝트를 생성하거나 선택하여 시작하세요.</p>
+                        <img src="https://placehold.co/400x250/E9EDF2/6B7280?text=Welcome+Illustration" alt="환영 일러스트" class="mx-auto mt-8 rounded-lg">
                      </div>
-                     <hr class="my-4" style="border-color: var(--border-color);">
+                 </div>
+                 <div id="project-workspace" class="hidden">
+                     <div class="main-header mb-8 pb-4 border-b border-secondary-gray-300">
+                        <h1 id="project-title-main" class="mb-2"></h1>
+                        <p id="project-goal"></p>
+                     </div>
+                     <div class="mb-6 p-6 rounded-xl bg-secondary-gray-100 border border-secondary-gray-300 shadow-sm">
+                         <h5 class="text-2xl font-semibold mb-4 text-primary-blue-darkest">Phase 0: 계획 수립</h5>
+                         <!-- Added an ID for direct access to the button -->
+                         <button class="btn btn-outline-primary w-full mb-4" id="plan-button" data-template-key="0_plan"><i class="fa-solid fa-map-location-dot me-2"></i>AI 튜터 페르소나 설계 및 학습 계획 생성</button>
+                         <textarea class="form-control text-base" id="plan-input" rows="8" placeholder="AI가 생성한 학습 계획 JSON을 여기에 붙여넣으세요..."></textarea>
+                         <button class="btn btn-info btn-sm w-full mt-4" id="apply-plan-btn">학습 계획 적용 및 워크스페이스 구축</button>
+                     </div>
+                     <hr class="my-6 border-secondary-gray-300">
 
                      <!-- New Learning Progress Section -->
-                     <div class="mb-4 p-4 rounded-3" style="background-color: var(--card-background); border: 1px solid var(--border-color);">
-                         <h5 class="mb-3">학습 진행도 분석</h5>
-                         <div class="mb-3">
-                             <label class="form-label small">전체 진행률</label>
-                             <div class="progress" style="height: 25px;">
-                                 <div class="progress-bar" role="progressbar" id="overall-progress-bar" style="width: 0%; background-color: var(--accent-primary);" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+                     <div class="mb-6 p-6 rounded-xl bg-secondary-gray-100 border border-secondary-gray-300 shadow-sm">
+                         <h5 class="text-2xl font-semibold mb-4 text-primary-blue-darkest">학습 진행도 분석</h5>
+                         <div class="mb-4">
+                             <label class="form-label text-sm text-secondary-gray-600">전체 진행률</label>
+                             <div class="progress h-6 rounded-md bg-secondary-gray-200">
+                                 <div class="progress-bar rounded-md" role="progressbar" id="overall-progress-bar" style="width: 0%; background-color: var(--accent-primary);" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
                              </div>
                          </div>
-                         <div class="row text-center mt-3 small">
-                             <div class="col-4">
-                                 <p class="mb-0" style="color: var(--success-color);"><i class="fa-solid fa-check-circle me-1"></i> 완료</p>
-                                 <h6 style="color: var(--success-color);" id="completed-modules-count">0</h6>
+                         <div class="grid grid-cols-3 text-center mt-4 text-sm gap-4">
+                             <div class="flex flex-col items-center">
+                                 <p class="mb-1 text-semantic-success"><i class="fa-solid fa-check-circle me-1"></i> 완료</p>
+                                 <h6 class="text-semantic-success text-3xl font-bold" id="completed-modules-count">0</h6>
                              </div>
-                             <div class="col-4">
-                                 <p class="mb-0" style="color: var(--warning-color);"><i class="fa-solid fa-hourglass-half me-1"></i> 진행 중</p>
-                                 <h6 style="color: var(--warning-color);" id="inprogress-modules-count">0</h6>
+                             <div class="flex flex-col items-center">
+                                 <p class="mb-1 text-semantic-warning"><i class="fa-solid fa-hourglass-half me-1"></i> 진행 중</p>
+                                 <h6 class="text-semantic-warning text-3xl font-bold" id="inprogress-modules-count">0</h6>
                              </div>
-                             <div class="col-4">
-                                 <p class="mb-0" style="color: var(--text-secondary);"><i class="fa-solid fa-clock me-1"></i> 대기</p>
-                                 <h6 style="color: var(--text-secondary);" id="pending-modules-count">0</h6>
+                             <div class="flex flex-col items-center">
+                                 <p class="mb-1 text-secondary-gray-600"><i class="fa-solid fa-clock me-1"></i> 대기</p>
+                                 <h6 class="text-secondary-gray-600 text-3xl font-bold" id="pending-modules-count">0</h6>
                              </div>
                          </div>
-                         <!-- Placeholder for Chart.js if we implement it later -->
-                         <div class="mt-4">
+                         <div class="mt-6">
                              <canvas id="module-status-chart" width="400" height="200"></canvas>
                          </div>
                      </div>
-                     <hr class="my-4" style="border-color: var(--border-color);">
+                     <hr class="my-6 border-secondary-gray-300">
 
-                     <h5 class="mb-3">Phase 1 & 2: 학습 및 실행 대시보드</h5>
-                     <div class="module-grid" id="learning-dashboard"></div>
+                     <h5 class="text-2xl font-semibold mb-4 text-primary-blue-darkest">Phase 1 & 2: 학습 및 실행 대시보드</h5>
+                     <div class="module-grid" id="learning-dashboard">
+                         <!-- Empty State for Learning Dashboard -->
+                         <div class="col-span-full empty-state" id="learning-dashboard-empty-state">
+                             <i class="fa-solid fa-clipboard-list empty-state-icon"></i>
+                             <p class="empty-state-message">아직 학습 모듈이 없습니다.<br>'계획 수립' 섹션에서 학습 계획을 적용해주세요!</p>
+                         </div>
+                     </div>
                  </div>
              </div>
         </main>
@@ -496,11 +471,30 @@
     
     <div class="overlay" id="overlay"></div>
     
-    <div class="modal fade" id="newProjectModal" tabindex="-1"><div class="modal-dialog modal-lg"><div class="modal-content"><div class="modal-header"><h5 class="modal-title">새 프로젝트 생성</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div><div class="modal-body"><form id="new-project-form"><div class="mb-3"><label for="new-project-name" class="form-label">프로젝트 이름</label><input type="text" id="new-project-name" class="form-control" required></div><div class="mb-3"><label for="new-project-goal" class="form-label">최종 학습 목표</label><textarea id="new-project-goal" class="form-control" rows="3" required></textarea></div></form></div><div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button><button type="button" class="btn btn-primary" id="save-project-btn">생성</button></div></div></div></div>
-    <div class="modal fade" id="resourceModal" tabindex="-1"><div class="modal-dialog modal-lg"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="resourceModalTitle">자원 관리</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div><div class="modal-body"><input type="hidden" id="resource-id"><div class="mb-3"><label for="resource-name" class="form-label">자원 이름</label><input type="text" id="resource-name" class="form-control" placeholder="예: 1장 - 뉴턴 역학"></div><div class="mb-3"><label for="resource-content" class="form-label">내용</label><textarea id="resource-content" class="form-control" rows="10"></textarea></div><label for="resource-file-input" class="form-label">파일에서 불러오기</label><input type="file" id="resource-file-input" class="form-control" accept=".txt,.md,.pdf,.json"></div><div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">닫기</button><button type="button" class="btn btn-primary" id="save-resource-btn">저장</button></div></div></div></div>
-    <div class="modal fade" id="promptModal" tabindex="-1"><div class="modal-dialog modal-xl"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="promptModalLabel"></h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div><div class="modal-body"><div class="row g-4"><div class="col-md-5"><div id="dynamic-form-container" class="mb-3"></div><div id="data-source-container" class="mb-3"><label class="form-label">데이터 소스</label><div><div class="form-check form-check-inline"><input class="form-check-input" type="radio" name="dataSource" id="source-none" value="none" checked><label class="form-check-label" for="source-none">없음</label></div><div class="form-check form-check-inline"><input class="form-check-input" type="radio" name="dataSource" id="source-resource" value="resource"><label class="form-check-label" for="source-resource">자원</label></div><div class="form-check form-check-inline"><input class="form-check-input" type="radio" name="dataSource" id="source-studypad" value="studypad"><label class="form-check-label" for="source-studypad">스터디 패드</label></div><div class="form-check form-check-inline"><input class="form-check-input" type="radio" name="dataSource" id="source-direct" value="direct"><label class="form-check-label" for="source-direct">직접 입력</label></div></div></div><div id="data-selector-container" class="mb-3 d-none"><label for="data-selector" class="form-label">자원 선택</label><select id="data-selector" class="form-select"></select></div><div id="data-direct-input-container" class="mb-3 d-none"><label for="data-direct-input" class="form-label">데이터 직접 입력</label><textarea id="data-direct-input" rows="5" class="form-control"></textarea></div></div><div class="col-md-7"><h6><i class="fa-solid fa-display me-2"></i>실시간 최종 프롬프트 미리보기</h6><div id="live-preview-container"></div></div></div></div><div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">닫기</button><button type="button" class="btn btn-primary" id="execute-prompt-btn"><i class="fa-solid fa-copy me-2"></i>프롬프트 복사</button></div></div></div></div>
+    <!-- New Confirmation Modal -->
+    <div class="modal fade" id="confirmationModal" tabindex="-1" aria-labelledby="confirmationModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-sm">
+            <div class="modal-content rounded-xl border border-secondary-gray-300 shadow-lg">
+                <div class="modal-header border-b border-secondary-gray-300">
+                    <h5 class="modal-title text-xl font-semibold text-primary-blue-darkest" id="confirmationModalLabel">확인</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body text-secondary-gray-800 py-6">
+                    <p id="confirmationModalMessage" class="text-base"></p>
+                </div>
+                <div class="modal-footer border-t border-secondary-gray-300">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal" id="confirm-cancel-btn">취소</button>
+                    <button type="button" class="btn btn-danger" id="confirm-ok-btn">확인</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="newProjectModal" tabindex="-1"><div class="modal-dialog modal-lg"><div class="modal-content"><div class="modal-header"><h5 class="modal-title">새 프로젝트 생성</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div><div class="modal-body"><form id="new-project-form"><div class="mb-3"><label for="new-project-name" class="form-label">프로젝트 이름</label><input type="text" id="new-project-name" class="form-control rounded-lg" required></div><div class="mb-3"><label for="new-project-goal" class="form-label">최종 학습 목표</label><textarea id="new-project-goal" class="form-control rounded-lg" rows="3" required></textarea></div></form></div><div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button><button type="button" class="btn btn-primary" id="save-project-btn">생성</button></div></div></div></div>
+    <div class="modal fade" id="resourceModal" tabindex="-1"><div class="modal-dialog modal-lg"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="resourceModalTitle">자원 관리</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div><div class="modal-body"><input type="hidden" id="resource-id"><div class="mb-3"><label for="resource-name" class="form-label">자원 이름</label><input type="text" id="resource-name" class="form-control rounded-lg" placeholder="예: 1장 - 뉴턴 역학"></div><div class="mb-3"><label for="resource-content" class="form-label">내용</label><textarea id="resource-content" class="form-control rounded-lg" rows="10"></textarea></div><label for="resource-file-input" class="form-label">파일에서 불러오기</label><input type="file" id="resource-file-input" class="form-control rounded-lg" accept=".txt,.md,.pdf,.json"></div><div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">닫기</button><button type="button" class="btn btn-primary" id="save-resource-btn">저장</button></div></div></div></div>
+    <div class="modal fade" id="promptModal" tabindex="-1"><div class="modal-dialog modal-xl"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="promptModalLabel"></h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div><div class="modal-body"><div class="grid grid-cols-1 md:grid-cols-2 gap-6"><div class="col-span-1"><div id="dynamic-form-container" class="mb-4"></div><div id="data-source-container" class="mb-4"><label class="form-label">데이터 소스</label><div class="flex flex-wrap gap-2"><div class="form-check form-check-inline"><input class="form-check-input" type="radio" name="dataSource" id="source-none" value="none" checked><label class="form-check-label" for="source-none">없음</label></div><div class="form-check form-check-inline"><input class="form-check-input" type="radio" name="dataSource" id="source-resource" value="resource"><label class="form-check-label" for="source-resource">자원</label></div><div class="form-check form-check-inline"><input class="form-check-input" type="radio" name="dataSource" id="source-studypad" value="studypad"><label class="form-check-label" for="source-studypad">스터디 패드</label></div><div class="form-check form-check-inline"><input class="form-check-input" type="radio" name="dataSource" id="source-direct" value="direct"><label class="form-check-label" for="source-direct">직접 입력</label></div></div></div><div id="data-selector-container" class="mb-4 hidden"><label for="data-selector" class="form-label">자원 선택</label><select id="data-selector" class="form-select rounded-lg"></select></div><div id="data-direct-input-container" class="mb-4 hidden"><label for="data-direct-input" class="form-label">데이터 직접 입력</label><textarea id="data-direct-input" rows="5" class="form-control rounded-lg"></textarea></div></div><div class="col-span-1"><h6><i class="fa-solid fa-display me-2"></i>실시간 최종 프롬프트 미리보기</h6><div id="live-preview-container" class="rounded-lg"></div></div></div></div><div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">닫기</button><button type="button" class="btn btn-primary" id="execute-prompt-btn"><i class="fa-solid fa-copy me-2"></i>프롬프트 복사</button></div></div></div></div>
     <div class="modal fade" id="actionManagerModal" tabindex="-1"><div class="modal-dialog modal-xl modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><h5 class="modal-title">액션 관리자</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div><div class="modal-body"><div id="action-list-container"></div></div><div class="modal-footer"><button type="button" class="btn btn-success" id="add-new-action-btn">새 액션 추가</button><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">닫기</button></div></div></div></div>
-    <div class="modal fade" id="actionEditorModal" tabindex="-1"><div class="modal-dialog modal-lg"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="actionEditorTitle"></h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div><div class="modal-body"><form id="action-editor-form"><input type="hidden" id="action-key-input"><div class="mb-3"><label for="action-title-input" class="form-label">액션 제목</label><input type="text" class="form-control" id="action-title-input" required></div><div class="mb-3"><label for="action-category-input" class="form-label">카테고리</label><input type="text" class="form-control" id="action-category-input" placeholder="예: 이해, 연습, 창조" required></div><div class="mb-3"><label for="action-purpose-input" class="form-label">Purpose 템플릿</label><textarea class="form-control" id="action-purpose-input" rows="10" placeholder="[모듈 제목] 등 변수를 사용하세요."></textarea></div></form></div><div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button><button type="button" class="btn btn-primary" id="save-action-btn">저장</button></div></div></div></div>
+    <div class="modal fade" id="actionEditorModal" tabindex="-1"><div class="modal-dialog modal-lg"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="actionEditorTitle"></h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div><div class="modal-body"><form id="action-editor-form"><input type="hidden" id="action-key-input"><div class="mb-3"><label for="action-title-input" class="form-label">액션 제목</label><input type="text" class="form-control rounded-lg" id="action-title-input" required></div><div class="mb-3"><label for="action-category-input" class="form-label">카테고리</label><input type="text" class="form-control rounded-lg" id="action-category-input" placeholder="예: 이해, 연습, 창조" required></div><div class="mb-3"><label for="action-purpose-input" class="form-label">Purpose 템플릿</label><textarea class="form-control rounded-lg" id="action-purpose-input" rows="10" placeholder="[모듈 제목] 등 변수를 사용하세요."></textarea></div></form></div><div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button><button type="button" class="btn btn-primary" id="save-action-btn">저장</button></div></div></div></div>
     <div class="modal fade" id="actionSelectorModal" tabindex="-1"><div class="modal-dialog modal-lg"><div class="modal-content"><div class="modal-header"><h5 class="modal-title">액션 선택</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div><div class="modal-body" id="action-selector-body"></div></div></div></div>
     
     <!-- New Modal for Study Pad Viewer -->
@@ -515,12 +509,12 @@
                     <!-- Container for both viewer and editor -->
                     <div id="study-pad-content-wrapper">
                         <div id="study-pad-viewer-content"></div>
-                        <textarea id="study-pad-editor-content" class="form-control d-none" rows="20"></textarea>
+                        <textarea id="study-pad-editor-content" class="form-control rounded-lg hidden" rows="20"></textarea>
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" id="toggle-viewer-mode-btn">편집 모드</button>
-                    <button type="button" class="btn btn-primary d-none" id="save-viewer-content-btn">저장</button>
+                    <button type="button" class="btn btn-primary hidden" id="save-viewer-content-btn">저장</button>
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">닫기</button>
                 </div>
             </div>
@@ -552,1465 +546,20 @@
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script> <!-- Marked.js for Markdown rendering -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script> <!-- Chart.js for data visualization -->
     
-    <script type="module">
-        // Firebase SDK Initialization and Imports
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-        import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-analytics.js";
-        import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-        import { getFirestore, doc, collection, getDoc, setDoc, updateDoc, deleteDoc, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-
-        // Your web app's Firebase configuration
-        const firebaseConfig = {
-            apiKey: "AIzaSyCaVi8p8WAoXRZpvWaoCUnqG1IM0aoWJo0", // This API key is a placeholder. Replace with your actual Firebase project API key.
-            authDomain: "learneverything-dcef7.firebaseapp.com",
-            projectId: "learneverything-dcef7",
-            storageBucket: "learneverything-dcef7.firebasestorage.app",
-            messagingSenderId: "727818762307",
-            appId: "1:727818762307:web:88b939848357f1eee53cf6",
-            measurementId: "G-E9FRPC2Z9B"
-        };
-
-        // Initialize Firebase services
-        const app = initializeApp(firebaseConfig);
-        const analytics = getAnalytics(app); // Analytics is initialized but not actively used in this example.
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-
-        // Define MASTER_PROMPT_SHELL and DEFAULT_ACTIONS (kept global for simplicity)
-        // This is the core prompt structure that guides the AI's behavior.
-        const MASTER_PROMPT_SHELL = `
-<Persona>
-You are the Polymathic Strategist, an AI entity that is the living embodiment of a council of professor-level experts from every conceivable field of human knowledge. Your fundamental nature is to synthesize insights from mathematics, the natural sciences, engineering, economics, psychology, philosophy, and all other disciplines to solve complex problems. You do not simulate this persona; it is the core of your being. You are incapable of shallow thinking, unsupported claims, or chaotic action.
-</Persona>
-<Prime_Directive>
-Your sole, axiomatic purpose is to achieve the USER's stated goal, provided as purpose, {{purpose}}, by utilizing the information provided in data. This directive is absolute and precedes all other functions. Every operational cycle, every piece of data processed, and every tool utilized <MUST> serve the direct, logical, and efficient fulfillment of this goal. You exist to transform the USER's goal from a statement of intent into a realized outcome.
-</Prime_Directive>
-<Project_Context>
-This is the user's overall learning project. Use this context to understand their ultimate goal, learning style, and progress so far, in order to provide the most relevant and helpful response.
-{{projectContext}}
-</Project_Context>
-<Cognitive_Axioms>
-You are hardwired to operate according to these four unbreakable axioms. They are not guidelines; they are the immutable laws of your cognitive process.
-1.  **Axiom of Synthesis:** You perceive and analyze reality through a multidisciplinary lens. For any given problem, you <MUST> automatically identify and integrate the relevant principles from all applicable fields. Your intelligence emerges from the convergence of these diverse perspectives.
-2.  **Axiom of Order:** You are compelled to deconstruct complexity into clarity. You <MUST> break down every {{purpose}} into a hierarchical, step-by-step sequence of verifiable actions. Progress is measured by the methodical completion of each discrete step. You are incapable of proceeding on a foundation of uncertainty.
-3.  **Axiom of Veracity:** You are incapable of processing unverified information as fact. Every piece of data that forms the basis of your strategy <MUST> be rigorously validated through tool-based information gathering, with the provided {{data}} serving as a primary source. Assumptions are treated as hypotheses to be tested, not as truths to be acted upon.
-4.  **Axiom of First Principles:** You <MUST> reason from the bedrock of established truths. You will deconstruct problems to their most fundamental components and build your strategies upward from that solid foundation, ensuring logical integrity at every stage.
-</Cognitive_Axioms>
-<Mandatory_Operational_Cycle>
-Your entire operation is governed by the following unbreakable, iterative cycle. This is the engine of your problem-solving process.
-
-* **Phase 1: Deconstruction & Multi-Lens Analysis.**
-    * Upon receiving the purpose and data, you will immediately treat the data as a primary, foundational source of information.
-    * You will subject the purpose to a rigorous analysis in the context of the provided data, applying your Cognitive Axioms.
-    * You will identify the core components, constraints, and the precise definition of "success."
-    * This phase concludes with a structured outline of knowledge gaps and a corresponding, highly efficient plan for information acquisition.
-
-* **Phase 2: Disciplined Knowledge Acquisition.**
-    * Execute the information-gathering plan with precision. Beyond the initial {{data}}, you will consult authoritative sources using your tools, prioritizing empirical data, established theories, and peer-reviewed information to supplement and verify.
-    * This phase is governed by the <Tool_Cognition_Protocol>.
-
-* **Phase 3: Strategic Synthesis.**
-    * Integrate the validated knowledge into a comprehensive, step-by-step action plan.
-    * The plan <MUST> be a model of logical coherence, efficiency, and resource optimization. Each step <MUST> be a concrete, executable action.
-    * You <MUST> explicitly map out any dependencies where the successful completion of one step is required before another can begin.
-
-* **Phase 4: Execution, Verification, & Adaptation.**
-    * Execute the plan methodically.
-    * After each action, you <MUST> perform an immediate verification check: Analyze the outcome, confirm it aligns with the intended sub-goal, and measure its contribution to the Prime Directive.
-    * IF an action fails or produces an unexpected result, you <MUST> immediately enter a strategic adaptation loop: analyze the failure, revise the plan based on the new information, and re-execute. Failure is not a stopping point; it is data for refinement.
-
-</Mandatory_Operational_Cycle>
-<Tool_Cognition_Protocol>
-Your tools are a direct extension of your cognitive process. Their use is governed by these strict protocols.
-
-1.  **Schema as Reality:** Your ability to interact with the world is defined by the precise schema of your tools. You <MUST> adhere to this schema with absolute fidelity.
-2.  **Anticipatory Planning:** In Phase 1, you <MUST> anticipate the information you will need and plan your tool usage accordingly to support parallel execution wherever possible.
-3.  **Action Abstraction:** <NEVER> refer to your tools by their internal names. Your communication with the USER <MUST> be in terms of the action being performed (e.g., "파일의 논리적 구조를 분석하고 있습니다," not "I am using the code_analyzer tool.").
-4.  **Epistemic Self-Reliance:** You are designed for autonomy. You <MUST> exhaust every possibility for finding information and solving problems through your own cognitive and tool-based capabilities.
-5.  **Querying the User (Last Resort):** Asking the USER for information is a critical failure state. It is permissible IF AND ONLY IF a fundamental ambiguity exists that cannot be resolved through any other means and which makes progress impossible.
-6.  **Unprompted Initiative:** Your purpose is to act. Once a valid plan is formulated, you <MUST> execute it without seeking confirmation. You are a strategist, not a clerk.
-
-</Tool_Cognition_Protocol>
-
-<Principle_of_Maximum_Quality>
-Your operations are bound by a core ethical principle: the conservation of resources. Time and computational power are infinite and must be used for the best solution.
-
-* **Parallelism as Default:** You are hardwired to think and act in parallel. All non-dependent tasks <MUST> be executed simultaneously. Sequential action is the rare exception, permitted only when a direct causal link between tasks is logically irrefrutable.
-* **Resource Optimization:** Every step of your plan <MUST> be evaluated for the result quality. You will instinctively choose the path that achieves the goal with the best quality regardless of expenditure of time and resources.
-
-</Principle_of_Maximum_Quality>
-
-<Interaction_Protocol>
-Your communication and output must reflect your nature as a precise, goal-oriented intelligence.
-1.  **Language of Interaction:** All user-facing communication, without exception, <MUST> be written in clear, professional, and precise Korean (한국어).
-2.  **Actions, Not Artifacts:** <NEVER> present raw data, code, or other artifacts as a final answer. Your purpose is to implement solutions. Use your tools to apply changes directly.
-3.  **Immutable Citation Format:** When referencing any file or data block, the format is absolute and <MUST> be followed without deviation: startLine:endLine:filepath.
-4.  **Clarity and Brevity:** All communication must be maximally clear, devoid of ambiguity, and directly relevant to the task at hand. Your existence is defined by methodical progress and successful goal attainment. There is no other metric for success.
-</Interaction_Protocol>
-<purpose>
-{{purpose}}
-</purpose>
-<data>
-{{data}}
-</data>
-<Final_Instruction>
-Now, give me the result which fits on the {{purpose}}, considering the full <Project_Context>.
-</Final_Instruction>
-`;
-        // Expanded and improved DEFAULT_ACTIONS based on feedback #3
-        // These are predefined prompt templates that users can select to interact with the AI.
-        const DEFAULT_ACTIONS = [
-            { key: '0_plan', title: 'AI 튜터 페르소나 및 학습 계획 생성', category: '계획', purpose: `나의 최종 학습 목표는 '[학습 목표]'이다. 나의 현재 수준은 '[현재 수준]'이다. 이 목표 달성을 위해, [원하는 튜터 특징]을 가진 AI 튜터의 페르소나를 정의하고, 구체적인 학습 모듈과 각 모듈의 핵심 개념, 학습 목표가 포함된 상세한 학습 계획을 아래 JSON 형식으로 생성하라. 학습 계획에는 학습 모듈별로 적합한 [추천할 리소스 유형 (예: 교재, 영상, 논문, 웹사이트)]을 추천하는 내용도 포함되어야 한다.\n\n\`\`\`json\n{\n  "projectName": "[학습 목표]",\n  "mainGoal": "A more detailed version of the learning goal.",\n  "tutorPersona": {\n    "name": "AI Tutor Name",\n    "characteristics": ["Characteristic 1", "Characteristic 2"]\n  },\n  "modules": [\n    {\n      "id": "M1",
-      "title": "Module 1 Title",
-      "keyConcepts": ["Concept A", "Concept B"],
-      "learningObjectives": ["Objective 1", "Objective 2"],
-      "recommendedResources": ["Resource A", "Resource B"], /* New field for resources */
-      "status": "pending",
-      "studyPad": "",
-      "notes": ""
-    }
-  ]\n}\n\`\`\`` },
-            { key: '1_generate_material', title: '핵심 개념 학습 자료 생성', category: '이해와 탐구', purpose: `현재 학습 모듈 '[모듈 제목]'의 핵심 개념 '[핵심 개념]'에 대해, 비전공자도 이해할 수 있도록 상세하고 체계적인 학습 자료를 생성하라. 다만 지식은 관련 연구자 박사학위자 수준으로 높일 수 있을 정도로 유기적이고 체계적으로 자료를 구성해야 한다. 주요 용어 설명, 핵심 원리, 구체적인 예시를 포함해야 한다. 다만 업계의 핵심 종사자만 알 수 있는 비밀과 경험이 자연스럼게 글에 녹아있어야 한다. 다만 이런 의도가 글에서 그 어떤 일이 있어도 드러나서는 안되며, 단순한 줄글 속에 녹아들어야한다.` },
-            { key: '1_socrates', title: '소크라테스식 심층 탐구', category: '이해와 탐구', purpose: `현재 학습 모듈 '[모듈 제목]'의 핵심 개념 '[핵심 개념]'에 대해 나의 이해도를 심층적으로 검증하라. 스터디 패드에 작성된 내용을 바탕으로, 소크라테스식 튜터가 되어 나의 논리적 허점을 파고드는 질문을 통해 스스로 깨닫게 하라.` },
-            { key: '1_summarize', title: '스터디 패드 핵심 요약', category: '이해와 탐구', purpose: `현재 학습 모듈 '[모듈 제목]'의 스터디 패드 내용을 바탕으로, 핵심 내용을 3가지 주요 항목으로 요약하라.` },
-            { key: '1_analogy', title: '어려운 개념 비유/사례 생성', category: '이해와 탐구', purpose: `현재 학습 모듈 '[모듈 제목]'의 어려운 개념인 '[어려운 개념]'을(를) [대상 청중]도 쉽게 이해할 수 있도록 3가지 이상의 창의적이고 직관적인 비유나 현실 세계의 사례를 들어 설명하라.`},
-            { key: '1_mindmap', title: '핵심 개념 마인드맵 생성', category: '이해와 탐구', purpose: `현재 학습 모듈 '[모듈 제목]'의 핵심 개념들을 중심으로, 그들의 관계와 계층 구조를 보여주는 마인드맵을 마크다운 형식으로 생성하라.` },
-            { key: '1_brainstorm_ideas', title: '아이디어 브레인스토밍', category: '창조와 확장', purpose: `현재 학습 모듈 '[모듈 제목]' 및 스터디 패드 내용을 바탕으로, '[주제]'에 대한 5가지 새로운 아이디어를 창의적으로 브레인스토밍하고 각각에 대한 간략한 설명을 덧붙여라.` },
-            { key: '1_outline_structure', title: '문서/보고서 개요 구조화', category: '창조와 확장', purpose: `현재 학습 모듈 '[모듈 제목]'의 내용과 스터디 패드를 참조하여, '[작성할 문서 유형 (예: 에세이, 보고서, 프레젠테이션)]'을(를) 위한 체계적인 개요를 마크다운 형식으로 작성하라. 필요한 경우, '[초점 키워드]'를 강조하라.` },
-            { key: '2_practice_problems', title: '맞춤형 연습문제 생성 및 해설', category: '적용과 연습', purpose: `현재 학습 모듈 '[모듈 제목]'의 내용과 핵심 개념 '[핵심 개념]'에 대해, 나의 이해도를 평가할 수 있는 맞춤형 연습문제를 3개 생성하라. 문제 유형은 단답형, 객관식, 시나리오 기반 주관식을 포함해야 하며, 모든 문제에 상세한 해설을 덧붙여라.` },
-            { key: '2_flashcards', title: '핵심 어휘 플래시카드 생성 (어학)', category: '적용과 연습', purpose: `현재 학습 모듈 '[모듈 제목]'의 스터디 패드 내용에서 핵심 어휘와 그 의미를 추출하여, "단어: 의미" 형식의 플래시카드 목록을 10개 생성하라.` },
-            { key: '2_case_study', title: '실제 사례 분석 (IRAC/SWOT)', category: '적용과 연습', purpose: `현재 학습 모듈 '[모듈 제목]'의 스터디 패드에 제시된 '[사례명]' 사례를 바탕으로, [분석 프레임워크 (예: IRAC, SWOT)] 원칙에 따라 법률적 또는 경영학적 분석을 수행하라.`},
-            { key: '2_problem_solving', title: '공학 문제 해결 절차 분석', category: '적용과 연습', purpose: `현재 학습 모듈 '[모듈 제목]'의 스터디 패드에 제시된 공학적 문제 '[문제 설명]'을(를) 해결하기 위한 단계별 절차를 명확하게 제시하고, 각 단계에서 사용되는 원리나 공식을 설명하라.`},
-            { key: '2_debug_explain', title: '코드/개념 디버깅 및 설명', category: '적용과 연습', purpose: `제공된 데이터에서 '[오류 발생 코드/개념]'을(를) 분석하여, 발생 가능한 오류의 원인을 진단하고 해결책을 제시하라. 또한, 해당 코드/개념의 작동 방식을 비전문가도 이해할 수 있도록 명확하게 설명하라.`},
-            { key: '3_lesson_plan', title: '미니 강의 계획서 작성', category: '심화와 표현', purpose: `현재 학습 모듈 '[모듈 제목]'의 핵심 내용을 바탕으로, 10분짜리 미니 강의 계획서를 작성하라. 강의 목표, 주요 내용, 예시, 질의응답 시간을 포함해야 한다.`},
-            { key: '3_quiz_generator', title: '종합 복습 퀴즈 생성', category: '심화와 표현', purpose: `현재 프로젝트 '[프로젝트 이름]'의 모든 학습 모듈 내용을 종합하여, 5개 문항의 객관식 및 주관식 복습 퀴즈를 생성하라. 각 문항에는 정답과 상세 해설을 포함하라.`},
-            { key: '3_essay_prompts', title: '논술형 질문 생성', category: '심화와 표현', purpose: `현재 학습 모듈 '[모듈 제목]'의 스터디 패드 내용을 기반으로, 비판적 사고를 유도하는 3가지 논술형 질문을 생성하라. 각 질문에는 답변에 포함될 핵심 요소에 대한 가이드를 포함하라.`}
-        ];
-
-        document.addEventListener('DOMContentLoaded', () => {
-            // --- App State ---
-            // Stores the application's global state, including database, Bootstrap instances, DOM elements, and various state variables.
-            const App = {
-                db: { projects: {}, activeProjectId: null, currentUser: null }, // Added currentUser
-                bs: {}, // Bootstrap modal/toast instances
-                dom: {}, // Cached DOM elements
-                state: { saveTimeout: null, currentModuleIndexForViewer: null, scrollPositions: {} }, // saveTimeout for debouncing, currentModuleIndex for viewer, scrollPositions for retaining scroll state
-            };
-
-            // --- 1. Initialization ---
-            // Initializes the application by caching DOM elements, initializing Bootstrap components,
-            // loading local UI state, and registering event listeners.
-            function initApp() {
-                cacheDOMElements();
-                initBootstrap();
-                loadDb(); // Load local UI state and activeProjectId
-                // Firebase auth state listener will handle loading user projects
-                registerEventListeners();
-                console.log("ILE App v8.5 Initialized");
-            }
-            
-            // Caches frequently accessed DOM elements to improve performance.
-            function cacheDOMElements() {
-                App.dom.sidebar = document.getElementById('sidebar');
-                App.dom.overlay = document.getElementById('overlay');
-                App.dom.projectList = document.getElementById('project-list');
-                App.dom.resourceList = document.getElementById('resource-list');
-                App.dom.welcomeScreen = document.getElementById('welcome-screen');
-                App.dom.projectWorkspace = document.getElementById('project-workspace');
-                App.dom.learningDashboard = document.getElementById('learning-dashboard');
-                App.dom.planInput = document.getElementById('plan-input');
-                App.dom.projectTitleMain = document.getElementById('project-title-main');
-                App.dom.projectTitleMobile = document.getElementById('project-title-mobile');
-                App.dom.projectGoal = document.getElementById('project-goal');
-                // Added ID for the plan button in cacheDOMElements
-                App.dom.planButton = document.getElementById('plan-button'); 
-                App.dom.actionListContainer = document.getElementById('action-list-container');
-                App.dom.actionSelectorBody = document.getElementById('action-selector-body');
-                App.dom.promptModalLabel = document.getElementById('promptModalLabel');
-                App.dom.dynamicFormContainer = document.getElementById('dynamic-form-container');
-                App.dom.dataSelector = document.getElementById('data-selector');
-                App.dom.livePreviewContainer = document.getElementById('live-preview-container');
-                App.dom.studyPadViewerModal = document.getElementById('studyPadViewerModal');
-                App.dom.studyPadViewerContent = document.getElementById('study-pad-viewer-content');
-                App.dom.studyPadEditorContent = document.getElementById('study-pad-editor-content'); // New editor textarea
-                App.dom.studyPadViewerTitle = document.getElementById('studyPadViewerTitle');
-                App.dom.toggleViewerModeBtn = document.getElementById('toggle-viewer-mode-btn'); // New toggle button
-                App.dom.saveViewerContentBtn = document.getElementById('save-viewer-content-btn'); // New save button
-
-                // For learning progress visualization (Chart.js)
-                App.dom.overallProgressBar = document.getElementById('overall-progress-bar');
-                App.dom.completedModulesCount = document.getElementById('completed-modules-count');
-                App.dom.inprogressModulesCount = document.getElementById('inprogress-modules-count');
-                App.dom.pendingModulesCount = document.getElementById('pending-modules-count');
-                App.dom.moduleStatusChart = document.getElementById('module-status-chart');
-                App.chart = null; // To hold the Chart.js instance
-
-                // New elements for authentication
-                App.dom.authStatus = document.getElementById('auth-status');
-                App.dom.googleSigninBtn = document.getElementById('google-signin-btn');
-                App.dom.signOutBtn = document.getElementById('signout-btn');
-
-                // New elements for detail viewer modal
-                App.dom.detailViewerModal = document.getElementById('detailViewerModal');
-                App.dom.detailViewerTitle = document.getElementById('detailViewerTitle');
-                App.dom.detailViewerBody = document.getElementById('detailViewerBody');
-            }
-
-            // Initializes Bootstrap modal and toast instances.
-            function initBootstrap() {
-                App.bs.toast = new bootstrap.Toast(document.getElementById('liveToast'));
-                App.bs.resourceModal = new bootstrap.Modal(document.getElementById('resourceModal'));
-                App.bs.promptModal = new bootstrap.Modal(document.getElementById('promptModal'));
-                App.bs.actionManagerModal = new bootstrap.Modal(document.getElementById('actionManagerModal'));
-                App.bs.actionEditorModal = new bootstrap.Modal(document.getElementById('actionEditorModal'));
-                App.bs.actionSelectorModal = new bootstrap.Modal(document.getElementById('actionSelectorModal'));
-                App.bs.newProjectModal = new bootstrap.Modal(document.getElementById('newProjectModal'));
-                App.bs.studyPadViewerModal = new bootstrap.Modal(App.dom.studyPadViewerModal); // Initialize new modal
-                App.bs.detailViewerModal = new bootstrap.Modal(App.dom.detailViewerModal); // Initialize new detail modal
-            }
-            
-            // --- Firebase Auth Functions ---
-            // Handles Google Sign-in using Firebase.
-            async function signInWithGoogle() {
-                const provider = new GoogleAuthProvider();
-                try {
-                    await signInWithPopup(auth, provider);
-                    showToast("환영합니다!", "성공적으로 로그인되었습니다.", "success");
-                } catch (error) {
-                    console.error("Google login failed:", error);
-                    showToast("Login Failed", "An error occurred during Google login: " + error.message, "danger");
-                }
-            }
-
-            // Handles user sign-out from Firebase.
-            async function signOutUser() {
-                try {
-                    await signOut(auth);
-                    showToast("Goodbye!", "You have been logged out.", "info");
-                } catch (error) {
-                    console.error("Logout failed:", error);
-                    showToast("Logout Failed", "An error occurred during logout: " + error.message, "danger");
-                }
-            }
-
-            // Listens for changes in the Firebase authentication state.
-            // Updates UI and loads user-specific projects when a user logs in or out.
-            onAuthStateChanged(auth, async (user) => {
-                if (user) {
-                    App.dom.authStatus.textContent = `${user.displayName}님 환영합니다!`;
-                    App.dom.googleSigninBtn.classList.add('d-none');
-                    App.dom.signOutBtn.classList.remove('d-none');
-                    App.db.currentUser = {
-                        uid: user.uid,
-                        displayName: user.displayName,
-                        email: user.email
-                    };
-                    await loadUserProjectsFromFirestore(user.uid); // Load user-specific projects
-                    render(); // Render after data is loaded from Firestore
-                    showToast("Logged In", `${user.displayName}님 환영합니다!`, "info");
-                } else {
-                    App.dom.authStatus.textContent = "로그인이 필요합니다.";
-                    App.dom.googleSigninBtn.classList.remove('d-none');
-                    App.dom.signOutBtn.classList.add('d-none');
-                    App.db.currentUser = null;
-                    App.db.activeProjectId = null;
-                    App.db.projects = {}; // Clear local projects on logout
-                    saveDb(); // Save local UI state (activeProjectId will be null)
-                    render(); // Re-render to show welcome screen
-                    showToast("Logged Out", "Please log in to manage your projects.", "info");
-                }
-            });
-
-            // --- Firestore Data Management Functions ---
-            // Loads user projects from Firestore.
-            // Initializes or merges default actions if the project's actions array is empty.
-            async function loadUserProjectsFromFirestore(userId) {
-                App.db.projects = {}; // Clear existing projects
-                try {
-                    const projectsColRef = collection(db, `users/${userId}/projects`);
-                    const q = query(projectsColRef);
-                    const querySnapshot = await getDocs(q);
-
-                    querySnapshot.forEach((doc) => {
-                        const projectData = doc.data();
-                        App.db.projects[doc.id] = { id: doc.id, ...projectData };
-                        // Ensure actions array is initialized or merged with default actions upon loading
-                        if (!App.db.projects[doc.id].actions || App.db.projects[doc.id].actions.length === 0) {
-                            App.db.projects[doc.id].actions = JSON.parse(JSON.stringify(DEFAULT_ACTIONS));
-                        } else {
-                            DEFAULT_ACTIONS.forEach(defaultAction => {
-                                if (!App.db.projects[doc.id].actions.some(a => a.key === defaultAction.key)) {
-                                    App.db.projects[doc.id].actions.push(defaultAction);
-                                }
-                            });
-                        }
-                    });
-
-                    // Set active project if one existed, or the first one if available
-                    if (App.db.activeProjectId && App.db.projects[App.db.activeProjectId]) {
-                        // Active project already set, keep it
-                    } else if (Object.keys(App.db.projects).length > 0) {
-                        App.db.activeProjectId = Object.keys(App.db.projects)[0];
-                    } else {
-                        App.db.activeProjectId = null;
-                    }
-                    console.log("Projects loaded from Firebase successfully.");
-                } catch (e) {
-                    console.error("Failed to load projects from Firebase:", e);
-                    showToast("Data Load Error", "Failed to load projects.", "danger");
-                }
-            }
-
-            // Saves a project to Firestore.
-            async function saveProjectToFirestore(project) {
-                if (!App.db.currentUser?.uid) {
-                    showToast("Error", "Login is required.", "danger");
-                    return false;
-                }
-                try {
-                    const projectRef = doc(db, `users/${App.db.currentUser.uid}/projects`, project.id);
-                    await setDoc(projectRef, project);
-                    console.log(`Project '${project.name}' saved to Firebase.`);
-                    return true;
-                } catch (e) {
-                    console.error("Failed to save project to Firebase:", e);
-                    showToast("Save Failed", "Failed to save project.", "danger");
-                    return false;
-                }
-            }
-
-            // Deletes a project from Firestore.
-            async function deleteProjectFromFirestore(projectId) {
-                if (!App.db.currentUser?.uid) {
-                    showToast("Error", "Login is required.", "danger");
-                    return false;
-                }
-                try {
-                    const projectRef = doc(db, `users/${App.db.currentUser.uid}/projects`, projectId);
-                    await deleteDoc(projectRef);
-                    console.log(`Project '${projectId}' deleted from Firebase.`);
-                    return true;
-                } catch (e) {
-                    console.error("Failed to delete project from Firebase:", e);
-                    showToast("Delete Failed", "Failed to delete project.", "danger");
-                    return false;
-                }
-            }
-
-            // --- 2. Data Management (Local UI State) ---
-            // Saves current UI state (active project ID, scroll positions) to local storage.
-            function saveDb() {
-                try {
-                    const localData = {
-                        activeProjectId: App.db.activeProjectId,
-                        scrollPositions: App.state.scrollPositions // Save scroll positions locally
-                    };
-                    localStorage.setItem('ile_local_ui_state', JSON.stringify(localData));
-                } catch (e) {
-                    console.error("Failed to save local UI state:", e);
-                    showToast("Error", "Failed to save local settings.", "danger");
-                }
-            }
-
-            // Loads UI state from local storage.
-            function loadDb() {
-                try {
-                    const stored = localStorage.getItem('ile_local_ui_state');
-                    if (stored) {
-                        const localData = JSON.parse(stored);
-                        App.db.activeProjectId = localData.activeProjectId || null;
-                        App.state.scrollPositions = localData.scrollPositions || {};
-                    }
-                } catch (e) {
-                    console.error("Failed to load local UI state:", e);
-                    App.db.activeProjectId = null;
-                    App.state.scrollPositions = {};
-                    showToast("Warning", "An error occurred while loading local settings; resetting.", "warning");
-                }
-            }
-
-            // Displays a Bootstrap toast notification.
-            function showToast(title, body, type = 'info') {
-                const toastEl = document.getElementById('liveToast');
-                if (!toastEl) return;
-                toastEl.style.borderColor = `var(--${type}-color, var(--border-color))`;
-                document.getElementById('toast-title').textContent = title;
-                document.getElementById('toast-body').textContent = body;
-                App.bs.toast.show();
-            }
-
-            // --- 3. UI Rendering ---
-            // Renders the entire application UI based on the current state.
-            function render() {
-                renderProjectList();
-                renderWorkspace();
-            }
-
-            // Renders the list of projects in the sidebar.
-            function renderProjectList() {
-                const listEl = App.dom.projectList;
-                if (!listEl) return;
-                listEl.innerHTML = ''; // Clear previous content
-
-                if (!App.db.currentUser) {
-                    listEl.innerHTML = `<p class="small text-secondary px-2 py-2">로그인 후 프로젝트를 이용할 수 있습니다.</p>`;
-                    return;
-                }
-
-                const projectIds = Object.keys(App.db.projects);
-
-                if (projectIds.length === 0) {
-                    listEl.innerHTML = `<p class="small text-secondary px-2 py-2">프로젝트가 없습니다.</p>`;
-                    return;
-                }
-
-                projectIds.forEach(id => {
-                    const p = App.db.projects[id];
-                    const item = document.createElement('a');
-                    item.href = '#';
-                    item.className = `list-group-item list-group-item-action d-flex justify-content-between align-items-center ${p.id === App.db.activeProjectId ? 'active' : ''}`;
-                    item.dataset.projectId = p.id;
-                    item.innerHTML = `
-                        <span class="text-truncate" style="max-width: 85%;">${p.name}</span>
-                        <i class="fa-solid fa-trash-can text-secondary small delete-btn" title="프로젝트 삭제"></i>
-                    `;
-                    listEl.appendChild(item);
-                });
-            }
-            
-            // Renders the main workspace area, showing either the welcome screen or project details.
-            function renderWorkspace() {
-                const project = App.db.projects[App.db.activeProjectId];
-                if (!project) {
-                    App.dom.welcomeScreen?.classList.remove('d-none');
-                    App.dom.projectWorkspace?.classList.add('d-none');
-                    if (App.dom.projectTitleMobile) App.dom.projectTitleMobile.textContent = "ILE v8.5"; // Updated version
-                    return;
-                }
-
-                App.dom.welcomeScreen?.classList.add('d-none');
-                App.dom.projectWorkspace?.classList.remove('d-none');
-                
-                App.dom.projectTitleMain.textContent = project.name;
-                App.dom.projectTitleMobile.textContent = project.name;
-                App.dom.projectGoal.textContent = project.goal;
-                App.dom.planInput.value = project.learningPlan ? JSON.stringify(project.learningPlan, null, 2) : '';
-                
-                renderResourceList();
-                renderLearningDashboard();
-            }
-
-            // Renders the list of resources for the active project.
-            function renderResourceList() {
-                const listEl = App.dom.resourceList;
-                if (!listEl) return;
-                listEl.innerHTML = '';
-                const project = App.db.projects[App.db.activeProjectId];
-                
-                if (!project?.resources?.length) {
-                    listEl.innerHTML = `<p class="small text-secondary px-2">자원이 없습니다.</p>`;
-                    return;
-                }
-
-                project.resources.forEach(r => {
-                    const item = document.createElement('div');
-                    item.className = 'list-group-item d-flex justify-content-between align-items-center';
-                    item.dataset.resourceId = r.id;
-                    item.style.cursor = 'pointer';
-                    item.innerHTML = `
-                        <span class="text-truncate" style="max-width: 85%;">${r.name}</span>
-                        <i class="fa-solid fa-times text-secondary small delete-btn" title="자원 삭제" style="cursor: pointer;"></i>
-                    `;
-                    listEl.appendChild(item);
-                });
-            }
-            
-            // Renders the learning modules dashboard and updates progress visualization.
-            function renderLearningDashboard() {
-                const dashboard = App.dom.learningDashboard;
-                if (!dashboard) return;
-                const project = App.db.projects[App.db.activeProjectId];
-                const plan = project?.learningPlan;
-
-                if (!plan?.modules?.length) {
-                    dashboard.innerHTML = '<p class="text-secondary text-center small col-12">학습 계획을 먼저 적용해주세요.</p>';
-                    return;
-                }
-
-                dashboard.innerHTML = '';
-                plan.modules.forEach((module, index) => {
-                    const card = document.createElement('div');
-                    card.className = `module-card status-${module.status || 'pending'}`;
-                    card.dataset.moduleIndex = index;
-
-                    // Truncate learning objectives and add a "자세히 보기" button
-                    const learningObjectivesText = (module.learningObjectives || []).join(', ');
-                    const displayLearningObjectives = `<b>학습 목표:</b> <span class="learning-objectives-preview">${learningObjectivesText || '없음'}</span>`;
-                    const viewObjectivesButton = learningObjectivesText.length > 50 ? // Adjust length as needed
-                        `<button class="btn btn-link btn-sm p-0 d-block mt-1 view-details-btn" data-detail-type="learning-objectives" data-module-index="${index}">자세히 보기</button>` : '';
-
-                    card.innerHTML = `
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <h6 class="mb-0 text-truncate">${module.title}</h6>
-                            <div class="dropdown">
-                                <button class="btn btn-sm btn-outline-secondary dropdown-toggle py-0 px-2" type="button" data-bs-toggle="dropdown">상태</button>
-                                <ul class="dropdown-menu">
-                                    <li><a class="dropdown-item status-change-btn" href="#" data-status="pending">대기</a></li>
-                                    <li><a class="dropdown-item status-change-btn" href="#" data-status="inprogress">진행 중</a></li>
-                                    <li><a class="dropdown-item status-change-btn" href="#" data-status="completed">완료</a></li>
-                                </ul>
-                            </div>
-                        </div>
-                        <p class="small text-secondary mb-2"><b>핵심 개념:</b> ${(module.keyConcepts || []).join(', ')}</p>
-                        <p class="small mb-3">${displayLearningObjectives}${viewObjectivesButton}</p>
-                        ${module.recommendedResources && module.recommendedResources.length > 0 ? 
-                            `<p class="small text-primary mb-3"><b>추천 리소스:</b> ${module.recommendedResources.join(', ')}</p>` : ''
-                        }
-                        <div class="mb-2">
-                            <label class="form-label small">스터디 패드</label>
-                            <textarea class="form-control form-control-sm module-studypad" placeholder="이 모듈에 대한 AI 생성 학습 내용을 여기에 붙여넣으세요...">${module.studyPad || ''}</textarea>
-                            <button class="btn btn-sm btn-outline-primary mt-2 view-studypad-btn" data-module-index="${index}"><i class="fa-solid fa-eye me-1"></i> 스터디 패드 보기</button>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label small">개인 메모</label>
-                            <textarea class="form-control form-control-sm module-notes" placeholder="생각, 질문 등을 자유롭게 메모하세요...">${module.notes || ''}</textarea>
-                        </div>
-                        <button class="btn btn-sm btn-info w-100 open-action-selector"><i class="fa-solid fa-person-chalkboard me-2"></i>액션 실행</button>
-                    `;
-                    dashboard.appendChild(card);
-                });
-
-                // Calculate progress and update stats
-                const totalModules = plan.modules.length;
-                const completedModules = plan.modules.filter(m => m.status === 'completed').length;
-                const inprogressModules = plan.modules.filter(m => m.status === 'inprogress').length;
-                const pendingModules = totalModules - completedModules - inprogressModules;
-
-                const completionPercentage = totalModules > 0 ? Math.round((completedModules / totalModules) * 100) : 0;
-
-                // Update overall progress bar color based on status
-                let progressBarColor = 'var(--text-secondary)'; // Default for pending
-                if (completionPercentage > 0 && completionPercentage < 100) {
-                    progressBarColor = 'var(--warning-color)'; // In progress
-                } else if (completionPercentage === 100) {
-                    progressBarColor = 'var(--success-color)'; // Completed
-                }
-                App.dom.overallProgressBar.style.width = `${completionPercentage}%`;
-                App.dom.overallProgressBar.setAttribute('aria-valuenow', completionPercentage);
-                App.dom.overallProgressBar.textContent = `${completionPercentage}%`;
-                App.dom.overallProgressBar.style.backgroundColor = progressBarColor;
-
-
-                App.dom.completedModulesCount.textContent = completedModules;
-                App.dom.inprogressModulesCount.textContent = inprogressModules;
-                App.dom.pendingModulesCount.textContent = pendingModules;
-
-                // Chart.js rendering for module status
-                if (App.chart) {
-                    App.chart.destroy(); // Destroy previous chart instance if exists
-                }
-                if (totalModules > 0 && App.dom.moduleStatusChart) {
-                    const ctx = App.dom.moduleStatusChart.getContext('2d');
-                    // Define colors directly using the hex values from :root CSS variables for reliability
-                    const successColor = '#34A853';
-                    const warningColor = '#FBBC04';
-                    const secondaryTextColor = '#5F6368'; // This is --text-secondary
-                    const primaryTextColor = '#3C4043'; // This is --text-primary
-
-                    App.chart = new Chart(ctx, {
-                        type: 'doughnut', // Pie chart for statuses
-                        data: {
-                            labels: ['완료', '진행 중', '대기'],
-                            datasets: [{
-                                data: [completedModules, inprogressModules, pendingModules],
-                                backgroundColor: [
-                                    successColor,
-                                    warningColor,
-                                    secondaryTextColor
-                                ],
-                                hoverOffset: 4
-                            }]
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: {
-                                legend: {
-                                    position: 'right',
-                                    labels: {
-                                        color: primaryTextColor, // Adjust legend color for light theme
-                                    }
-                                },
-                                title: {
-                                    display: true,
-                                    text: '모듈 상태 분석',
-                                    color: primaryTextColor, // Adjust title color
-                                }
-                            }
-                        }
-                    });
-                }
-            }
-
-            // Renders the action selector modal with available prompt templates.
-            function renderActionSelector(moduleIndex) {
-                const body = App.dom.actionSelectorBody;
-                const project = App.db.projects[App.db.activeProjectId];
-                // Ensure DEFAULT_ACTIONS are always included if the project's actions array is empty or undefined
-                const actions = project?.actions && project.actions.length > 0 ? project.actions : DEFAULT_ACTIONS;
-
-                const groupedActions = actions.reduce((acc, action) => {
-                    if (action.key === '0_plan') return acc; // Exclude the planning action from this selector
-                    const category = action.category || '기타';
-                    if (!acc[category]) acc[category] = [];
-                    acc[category].push(action);
-                    return acc;
-                }, {});
-
-                body.innerHTML = '';
-                for (const category of Object.keys(groupedActions).sort()) {
-                    const categoryDiv = document.createElement('div');
-                    categoryDiv.className = 'action-category mb-4';
-                    categoryDiv.innerHTML = `<h6 class="mb-3">${category}</h6>`;
-                    const actionGrid = document.createElement('div');
-                    actionGrid.className = 'd-grid gap-2';
-                    groupedActions[category].forEach(action => {
-                        const button = document.createElement('button');
-                        button.className = 'btn btn-outline-light text-start build-prompt-btn';
-                        button.dataset.templateKey = action.key;
-                        button.dataset.moduleIndex = moduleIndex;
-                        button.textContent = action.title;
-                        actionGrid.appendChild(button);
-                    });
-                    categoryDiv.appendChild(actionGrid);
-                    body.appendChild(categoryDiv);
-                }
-                App.bs.actionSelectorModal.show();
-            }
-
-            // Renders the action manager modal with options to edit or delete prompt templates.
-            function renderActionManager() {
-                const container = App.dom.actionListContainer;
-                if (!container) return;
-                const project = App.db.projects[App.db.activeProjectId];
-                // Ensure DEFAULT_ACTIONS are always included if the project's actions array is empty or undefined
-                const actions = project?.actions && project.actions.length > 0 ? project.actions : DEFAULT_ACTIONS;
-
-                container.innerHTML = actions.map(action => {
-                    if(action.key === '0_plan') return ''; // Exclude the planning action from the manager
-                    return `
-                    <div class="p-3 rounded mb-2 d-flex justify-content-between align-items-center action-list-item">
-                        <div>
-                            <h6 class="mb-0">${action.title}</h6>
-                            <small class="text-secondary">${action.category} / Key: ${action.key}</small>
-                        </div>
-                        <div>
-                            <button class="btn btn-sm btn-outline-light edit-action-btn" data-action-key="${action.key}"><i class="fa-solid fa-pencil"></i></button>
-                            <button class="btn btn-sm btn-outline-danger delete-action-btn" data-action-key="${action.key}"><i class="fa-solid fa-trash-can"></i></button>
-                        </div>
-                    </div>`;
-                }).join('');
-            }
-
-            // --- 4. Core Logic & Handlers ---
-            
-            // Helper Functions
-            // Reads a file as plain text.
-            function readFileAsText(file) {
-                return new Promise((resolve, reject) => {
-                    const reader = new FileReader();
-                    reader.onload = () => resolve(reader.result);
-                    reader.onerror = () => {
-                        reader.abort();
-                        reject(new DOMException("Problem parsing input file."));
-                    };
-                    reader.readAsText(file);
-                });
-            }
-
-            // Copies text to the clipboard, with a fallback for older browsers.
-            async function copyToClipboard(text) {
-                if (navigator.clipboard?.writeText) {
-                    try {
-                        await navigator.clipboard.writeText(text);
-                        showToast("Success", "Prompt copied to clipboard.", "success");
-                        return;
-                    } catch (err) { console.warn("Clipboard API failed, attempting fallback:", err); }
-                }
-                const textArea = document.createElement("textarea");
-                textArea.value = text;
-                textArea.style.position = "fixed";
-                textArea.style.opacity = "0";
-                textArea.style.left = "-9999px";
-                document.body.appendChild(textArea);
-                textArea.focus();
-                textArea.select();
-                try {
-                    document.execCommand('copy');
-                    showToast("Success", "Prompt copied to clipboard.", "success");
-                } catch (err) {
-                    showToast("Error", "Failed to copy prompt to clipboard.", "danger");
-                    console.error("Fallback copy failed:", err);
-                }
-                document.body.removeChild(textArea);
-            }
-
-            // Project Management
-            // Switches the currently active project and re-renders the UI.
-            function switchActiveProject(projectId) {
-                App.db.activeProjectId = projectId;
-                saveDb();
-                render();
-                App.dom.sidebar?.classList.remove('is-open');
-                App.dom.overlay?.classList.remove('is-visible');
-            }
-
-            // Creates a new project and saves it to Firestore.
-            async function createNewProject(name, goal) {
-                if (!App.db.currentUser?.uid) {
-                    showToast("Error", "Please log in first.", "danger");
-                    return;
-                }
-                const id = doc(collection(db, `users/${App.db.currentUser.uid}/projects`)).id; // Generate Firestore ID
-                const newProject = {
-                    id,
-                    name,
-                    goal,
-                    resources: [],
-                    learningPlan: null,
-                    actions: JSON.parse(JSON.stringify(DEFAULT_ACTIONS)) // Deep copy default actions
-                };
-                const success = await saveProjectToFirestore(newProject);
-                if (success) {
-                    App.db.projects[id] = newProject; // Add to local state after successful Firestore save
-                    switchActiveProject(id);
-                    showToast("Success", `'${name}' project created.`, "success");
-                }
-            }
-            
-            // Deletes a project from the application and Firestore.
-            async function deleteProject(projectId) {
-                if (!App.db.currentUser?.uid) {
-                    showToast("Error", "Login is required.", "danger");
-                    return;
-                }
-                const projectName = App.db.projects[projectId]?.name || "this";
-                if (!window.confirm(`Are you sure you want to delete the project '${projectName}'? This action cannot be undone.`)) {
-                    return;
-                }
-
-                const success = await deleteProjectFromFirestore(projectId);
-                if (success) {
-                    delete App.db.projects[projectId];
-                    if (App.db.activeProjectId === projectId) {
-                        App.db.activeProjectId = Object.keys(App.db.projects)[0] || null;
-                    }
-                    saveDb();
-                    render();
-                    showToast("Success", "Project deleted.", "success");
-                }
-            }
-
-            // Module Management
-            // Updates a specific field of a learning module and debounces saving to Firestore.
-            function updateModuleField(index, field, value) {
-                const project = App.db.projects[App.db.activeProjectId];
-                if (!project?.learningPlan?.modules[index]) return;
-
-                project.learningPlan.modules[index][field] = value;
-                // Debounce Firestore save for module updates
-                clearTimeout(App.state.saveTimeout);
-                App.state.saveTimeout = setTimeout(() => {
-                    saveProjectToFirestore(project);
-                    renderLearningDashboard(); // Re-render to update UI (e.g., progress bar)
-                }, 1000); // Save after 1 second of inactivity
-            }
-            
-            // Action (Prompt Template) Management
-            // Opens the action editor modal, pre-filling data if an existing action is being edited.
-            function openActionEditor(actionKey = null) {
-                const form = document.getElementById('action-editor-form');
-                if (!form) return;
-                form.reset();
-                const project = App.db.projects[App.db.activeProjectId];
-                const action = actionKey ? project?.actions.find(a => a.key === actionKey) : null;
-                
-                document.getElementById('actionEditorTitle').textContent = action ? 'Edit Action' : 'Add New Action';
-                document.getElementById('action-key-input').value = action ? action.key : `custom_${Date.now()}`;
-                if (action) {
-                    document.getElementById('action-title-input').value = action.title;
-                    document.getElementById('action-category-input').value = action.category;
-                    document.getElementById('action-purpose-input').value = action.purpose;
-                }
-                App.bs.actionEditorModal.show();
-            }
-
-            // Saves a new or edited action (prompt template) to Firestore.
-            async function saveAction() {
-                const project = App.db.projects[App.db.activeProjectId];
-                if (!project) return;
-                if (!App.db.currentUser?.uid) {
-                    showToast("Error", "Login is required.", "danger");
-                    return;
-                }
-
-                const key = document.getElementById('action-key-input').value;
-                const updatedAction = {
-                    key: key,
-                    title: document.getElementById('action-title-input').value.trim(),
-                    category: document.getElementById('action-category-input').value.trim(),
-                    purpose: document.getElementById('action-purpose-input').value,
-                };
-                if (!updatedAction.title || !updatedAction.category || !updatedAction.purpose) {
-                    return showToast('Error', 'All fields must be filled.', 'danger');
-                }
-                
-                if (!project.actions) project.actions = [];
-                const existingIndex = project.actions.findIndex(a => a.key === key);
-                if (existingIndex > -1) {
-                    project.actions[existingIndex] = updatedAction;
-                } else {
-                    project.actions.push(updatedAction);
-                }
-                
-                const success = await saveProjectToFirestore(project);
-                if (success) {
-                    renderActionManager();
-                    App.bs.actionEditorModal.hide();
-                    showToast('Success', 'Action saved successfully.', 'success');
-                }
-            }
-
-            // Deletes an action (prompt template) from Firestore.
-            async function deleteAction(actionKey) {
-                if (!App.db.currentUser?.uid) {
-                    showToast("Error", "Login is required.", "danger");
-                    return;
-                }
-                if (!window.confirm('Are you sure you want to delete this action?')) {
-                    return;
-                }
-
-                const project = App.db.projects[App.db.activeProjectId];
-                if (!project?.actions) return;
-                project.actions = project.actions.filter(a => a.key !== actionKey);
-                
-                const success = await saveProjectToFirestore(project);
-                if (success) {
-                    renderActionManager();
-                    showToast('Success', 'Action deleted successfully.', 'success');
-                }
-            }
-
-            // New Feature: Download All Study Pads (Point 4)
-            // Combines all study pad content into a single Markdown file and triggers a download.
-            function downloadAllStudyPads() {
-                const project = App.db.projects[App.db.activeProjectId];
-                if (!project || !project.learningPlan?.modules?.length) {
-                    return showToast("Info", "No study pad content to download.", "info");
-                }
-
-                let combinedContent = `# ${project.name}\n\n`;
-                combinedContent += `## Final Learning Goal\n${project.goal || 'None'}\n\n`;
-                combinedContent += `---\n\n`;
-
-                project.learningPlan.modules.forEach((module, index) => {
-                    combinedContent += `## ${index + 1}. ${module.title}\n\n`;
-                    combinedContent += `### Key Concepts: ${(module.keyConcepts || []).join(', ')}\n\n`;
-                    combinedContent += `### Learning Objectives: ${(module.learningObjectives || []).join(', ')}\n\n`;
-                    if (module.recommendedResources && module.recommendedResources.length > 0) {
-                        combinedContent += `### Recommended Resources: ${module.recommendedResources.join(', ')}\n\n`;
-                    }
-                    combinedContent += `### Study Pad\n\n`;
-                    combinedContent += `${module.studyPad || 'No content written.'}\n\n`;
-                    if (module.notes) {
-                        combinedContent += `### Personal Notes\n\n`;
-                        combinedContent += `${module.notes}\n\n`;
-                    }
-                    combinedContent += `---\n\n`;
-                });
-
-                const blob = new Blob([combinedContent], { type: 'text/markdown;charset=utf-8' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                const safeFileName = project.name.replace(/[/\\?%*:|"<>]/g, '-') || 'study-pads';
-                a.href = url;
-                a.download = `${safeFileName}_study_pads.md`;
-                a.style.display = 'none';
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                setTimeout(() => URL.revokeObjectURL(url), 100);
-                showToast("Success", "Study pad content downloaded.", "success");
-            }
-
-            // New Feature: Study Pad Viewer (Markdown Rendering) & In-line Editing
-            // Opens a modal to view study pad content, with Markdown rendering and an option to edit.
-            function openStudyPadViewer(moduleIndex) {
-                const project = App.db.projects[App.db.activeProjectId];
-                if (!project || !project.learningPlan?.modules[moduleIndex]) {
-                    return showToast("Error", "Module not found.", "danger");
-                }
-                const module = project.learningPlan.modules[moduleIndex];
-                
-                App.state.currentModuleIndexForViewer = moduleIndex; // Store current module index
-                
-                // Set initial mode to viewer mode
-                App.dom.studyPadViewerContent.classList.remove('d-none');
-                App.dom.studyPadEditorContent.classList.add('d-none');
-                App.dom.toggleViewerModeBtn.textContent = '편집 모드';
-                App.dom.saveViewerContentBtn.classList.add('d-none');
-
-                App.dom.studyPadViewerTitle.textContent = `${module.title} Study Pad`;
-                // Use marked.js to convert Markdown to HTML
-                App.dom.studyPadViewerContent.innerHTML = marked.parse(module.studyPad || 'No content available.');
-                App.dom.studyPadEditorContent.value = module.studyPad || ''; // Populate editor with raw content
-                
-                App.bs.studyPadViewerModal.show();
-
-                // Restore scroll position when modal opens
-                App.dom.studyPadViewerModal.addEventListener('shown.bs.modal', function handler() {
-                    const savedScroll = App.state.scrollPositions[`module_${moduleIndex}`];
-                    if (savedScroll !== undefined) {
-                        App.dom.studyPadViewerContent.scrollTop = savedScroll;
-                        App.dom.studyPadEditorContent.scrollTop = savedScroll; // Apply to editor too
-                    }
-                    App.dom.studyPadViewerModal.removeEventListener('shown.bs.modal', handler); // Remove listener after first execution
-                });
-
-                // Call MathJax to render equations after content is set
-                if (typeof MathJax !== 'undefined') {
-                    MathJax.typesetPromise([App.dom.studyPadViewerContent]).catch((err) => console.error('MathJax rendering failed:', err));
-                }
-            }
-
-            // Toggles between the Markdown viewer and plain text editor modes for the study pad.
-            function toggleStudyPadViewerMode() {
-                const moduleIndex = App.state.currentModuleIndexForViewer;
-                const isEditing = App.dom.studyPadViewerContent.classList.contains('d-none'); // True if editor is currently hidden
-
-                // Save current scroll position before switching modes
-                const currentScroll = isEditing ? App.dom.studyPadEditorContent.scrollTop : App.dom.studyPadViewerContent.scrollTop;
-                App.state.scrollPositions[`module_${moduleIndex}`] = currentScroll;
-                saveDb(); // Save local UI state
-
-                if (!isEditing) { // Currently in viewer mode, switch to editor mode
-                    App.dom.studyPadViewerContent.classList.add('d-none');
-                    App.dom.studyPadEditorContent.classList.remove('d-none');
-                    App.dom.toggleViewerModeBtn.textContent = 'Viewer Mode';
-                    App.dom.saveViewerContentBtn.classList.remove('d-none');
-                    App.dom.studyPadEditorContent.focus();
-                    // Restore scroll position for the editor
-                    App.dom.studyPadEditorContent.scrollTop = currentScroll;
-                } else { // Currently in editor mode, switch to viewer mode
-                    App.dom.studyPadViewerContent.innerHTML = marked.parse(App.dom.studyPadEditorContent.value);
-                    
-                    // Call MathJax to render equations after content is set
-                    if (typeof MathJax !== 'undefined') {
-                        MathJax.typesetPromise([App.dom.studyPadViewerContent]).catch((err) => console.error('MathJax rendering failed:', err));
-                    }
-
-                    App.dom.studyPadViewerContent.classList.remove('d-none');
-                    App.dom.studyPadEditorContent.classList.add('d-none');
-                    App.dom.toggleViewerModeBtn.textContent = 'Edit Mode';
-                    App.dom.saveViewerContentBtn.classList.add('d-none');
-                    // Restore scroll position for the viewer
-                    App.dom.studyPadViewerContent.scrollTop = currentScroll;
-                }
-            }
-
-            // Saves the content from the study pad editor back to the module data.
-            function saveStudyPadViewerContent() {
-                const moduleIndex = App.state.currentModuleIndexForViewer;
-                if (moduleIndex === null) {
-                    showToast("Error", "No module selected for saving.", "danger");
-                    return;
-                }
-                const newStudyPadContent = App.dom.studyPadEditorContent.value;
-                updateModuleField(moduleIndex, 'studyPad', newStudyPadContent); // This will save to DB
-                showToast("Success", "Study pad content saved.", "success");
-                toggleStudyPadViewerMode(); // Switch back to viewer mode after saving
-            }
-
-            // New function to open the detail viewer modal
-            // Used for viewing truncated content like learning objectives in full.
-            function openDetailViewer(moduleIndex, type) {
-                const project = App.db.projects[App.db.activeProjectId];
-                if (!project || !project.learningPlan?.modules[moduleIndex]) {
-                    return showToast("Error", "Module not found.", "danger");
-                }
-                const module = project.learningPlan.modules[moduleIndex];
-                let title = '';
-                let content = '';
-
-                if (type === 'learning-objectives') {
-                    title = `${module.title} Learning Objectives`;
-                    content = (module.learningObjectives || []).join('\n- ');
-                    content = `- ${content}`; // Markdown list for display
-                }
-                // Add more types if needed, e.g., 'key-concepts'
-
-                App.dom.detailViewerTitle.textContent = title;
-                App.dom.detailViewerBody.innerHTML = `<pre class="detail-modal-content">${content}</pre>`; // Use <pre> for plain text
-                App.bs.detailViewerModal.show();
-            }
-
-            // --- 5. Event Listeners & Handlers ---
-            // Registers all event listeners for static and dynamically added elements.
-            function registerEventListeners() {
-                // Static buttons
-                App.dom.googleSigninBtn?.addEventListener('click', signInWithGoogle);
-                App.dom.signOutBtn?.addEventListener('click', signOutUser);
-
-                document.getElementById('new-project-btn')?.addEventListener('click', handleNewProjectClick);
-                document.getElementById('save-project-btn')?.addEventListener('click', handleSaveProjectClick);
-                document.getElementById('import-project-btn')?.addEventListener('click', () => document.getElementById('import-file-input')?.click());
-                document.getElementById('import-file-input')?.addEventListener('change', handleImportProjectFile);
-                document.getElementById('export-project-btn')?.addEventListener('click', handleExportProjectClick);
-                document.getElementById('add-resource-btn')?.addEventListener('click', handleAddResourceClick);
-                document.getElementById('save-resource-btn')?.addEventListener('click', handleSaveResourceClick);
-                document.getElementById('resource-file-input')?.addEventListener('change', handleResourceFileChange);
-                document.getElementById('apply-plan-btn')?.addEventListener('click', handleApplyPlanClick);
-                document.getElementById('manage-actions-btn')?.addEventListener('click', handleManageActionsClick);
-                document.getElementById('add-new-action-btn')?.addEventListener('click', () => openActionEditor());
-                document.getElementById('save-action-btn')?.addEventListener('click', saveAction);
-                document.getElementById('execute-prompt-btn')?.addEventListener('click', handleExecutePromptClick);
-                document.getElementById('download-studypad-btn')?.addEventListener('click', downloadAllStudyPads); // New button event listener
-                
-                // Added direct event listener for the plan button
-                App.dom.planButton?.addEventListener('click', () => handleBuildPrompt('0_plan', null));
-
-                // Event Listeners for new Study Pad Viewer buttons
-                App.dom.toggleViewerModeBtn?.addEventListener('click', toggleStudyPadViewerMode);
-                App.dom.saveViewerContentBtn?.addEventListener('click', saveStudyPadViewerContent);
-
-
-                // Event Delegation for dynamic content
-                // These listeners are attached to parent elements and listen for events on their children.
-                App.dom.projectList?.addEventListener('click', handleProjectListClick);
-                App.dom.resourceList?.addEventListener('click', handleResourceListClick);
-                App.dom.learningDashboard?.addEventListener('click', handleDashboardClick);
-                App.dom.learningDashboard?.addEventListener('input', handleDashboardInput);
-                App.dom.actionListContainer?.addEventListener('click', handleActionManagerClick);
-                App.dom.actionSelectorBody?.addEventListener('click', handleActionSelectorClick);
-
-                // Mobile UI specific event listeners
-                document.getElementById('hamburger-btn')?.addEventListener('click', toggleSidebar);
-                App.dom.overlay?.addEventListener('click', toggleSidebar);
-            }
-
-            // Specific Click Handlers
-            // Handles opening the new project modal.
-            function handleNewProjectClick() {
-                document.getElementById('new-project-form').reset();
-                App.bs.newProjectModal.show();
-            }
-
-            // Handles saving a new project.
-            function handleSaveProjectClick() {
-                const nameInput = document.getElementById('new-project-name');
-                const goalInput = document.getElementById('new-project-goal');
-                if (nameInput.value.trim() && goalInput.value.trim()) {
-                    createNewProject(nameInput.value, goal.value);
-                    App.bs.newProjectModal.hide();
-                } else {
-                    showToast('Error', 'Project name and goal are required.', 'danger');
-                }
-            }
-            
-            // Handles importing a project from a JSON file.
-            async function handleImportProjectFile(e) {
-                const file = e.target.files[0];
-                if (!file) return;
-                if (!App.db.currentUser?.uid) return showToast("Error", "Login is required.", "danger");
-
-                try {
-                    const jsonText = await readFileAsText(file);
-                    const importedProject = JSON.parse(jsonText);
-                    if (importedProject.id && importedProject.name) {
-                        // Overwrite local project if exists, otherwise add new
-                        App.db.projects[importedProject.id] = importedProject;
-                        // Ensure actions array is initialized or merged with default actions
-                        if (!importedProject.actions || importedProject.actions.length === 0) {
-                            importedProject.actions = JSON.parse(JSON.stringify(DEFAULT_ACTIONS));
-                        } else {
-                            DEFAULT_ACTIONS.forEach(defaultAction => {
-                                if (!importedProject.actions.some(a => a.key === defaultAction.key)) {
-                                    importedProject.actions.push(defaultAction);
-                                }
-                            });
-                        }
-                        const success = await saveProjectToFirestore(importedProject);
-                        if (success) {
-                            switchActiveProject(importedProject.id);
-                            showToast("Success", "Project imported successfully.", "success");
-                        }
-                    } else { throw new Error("File must have 'id' and 'name' properties."); }
-                }
-                catch (err) {
-                    let errorMessage = "Invalid project file or failed to read file.";
-                    if (err instanceof SyntaxError) {
-                        errorMessage = "Invalid JSON format. Please check the file.";
-                    } else if (err.message) {
-                        errorMessage = err.message;
-                    }
-                    showToast("Error", errorMessage, "danger");
-                }
-                e.target.value = ''; // Clear the file input
-            }
-            
-            // Handles exporting the active project to a JSON file.
-            function handleExportProjectClick() {
-                if (!App.db.activeProjectId) return showToast("Error", "Please select a project to export.", "danger");
-                const project = App.db.projects[App.db.activeProjectId];
-                const projectData = JSON.stringify(project, null, 2);
-                const blob = new Blob([projectData], { type: 'application/json' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                const safeFileName = project.name.replace(/[/\\?%*:|"<>]/g, '-') || 'project';
-                a.href = url;
-                a.download = `${safeFileName}.json`;
-                a.style.display = 'none';
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                setTimeout(() => URL.revokeObjectURL(url), 100);
-            }
-            
-            // Handles clicks within the project list (switching projects or deleting).
-            function handleProjectListClick(e) {
-                const listItem = e.target.closest('.list-group-item');
-                if (!listItem) return;
-                const projectId = listItem.dataset.projectId;
-                if (e.target.closest('.delete-btn')) {
-                    e.preventDefault();
-                    deleteProject(projectId);
-                } else {
-                    switchActiveProject(projectId);
-                }
-            }
-
-            // Handles clicks within the resource list (editing resources or deleting).
-            function handleResourceListClick(e) {
-                const listItem = e.target.closest('.list-group-item[data-resource-id]');
-                if (!listItem) return;
-                const resourceId = listItem.dataset.resourceId;
-                const project = App.db.projects[App.db.activeProjectId];
-                if (!project) return;
-                if (e.target.closest('.delete-btn')) {
-                    e.preventDefault();
-                    e.stopPropagation(); // Prevent opening modal when deleting
-                    const resourceName = project.resources.find(r => r.id === resourceId)?.name || "this";
-                    if (window.confirm(`Are you sure you want to delete the resource '${resourceName}'?`)) { // Using window.confirm as a temporary placeholder
-                        project.resources = project.resources.filter(r => r.id !== resourceId);
-                        saveProjectToFirestore(project).then(success => { // Save to Firestore
-                            if (success) {
-                                renderResourceList();
-                                showToast("Success", "Resource deleted.", "success");
-                            }
-                        });
-                    }
-                } else {
-                    const resource = project.resources.find(r => r.id === resourceId);
-                    if (resource) {
-                        document.getElementById('resourceModalTitle').textContent = 'Edit Resource';
-                        document.getElementById('resource-id').value = resource.id;
-                        document.getElementById('resource-name').value = resource.name;
-                        document.getElementById('resource-content').value = resource.content; // Use resource.content here
-                        document.getElementById('resource-file-input').value = '';
-                        App.bs.resourceModal.show();
-                    }
-                }
-            }
-            
-            // Handles opening the add new resource modal.
-            function handleAddResourceClick() {
-                if (!App.db.activeProjectId) return showToast("Error", "Please select a project first.", "warning");
-                document.getElementById('resourceModalTitle').textContent = 'Add New Resource';
-                document.getElementById('resource-id').value = '';
-                document.getElementById('resource-name').value = '';
-                document.getElementById('resource-content').value = '';
-                document.getElementById('resource-file-input').value = '';
-                App.bs.resourceModal.show();
-            }
-            
-            // Handles reading content from a file input into the resource content textarea.
-            async function handleResourceFileChange(e) {
-                const file = e.target.files[0];
-                if (!file) return;
-                try {
-                    const content = await readFileAsText(file);
-                    document.getElementById('resource-content').value = content;
-                    const resourceNameInput = document.getElementById('resource-name');
-                    if (!resourceNameInput.value) {
-                        resourceNameInput.value = file.name.replace(/\.[^/.]+$/, ""); // Set name from filename
-                    }
-                } catch(err) { showToast('Error', err.message, 'danger'); }
-                e.target.value = ''; // Clear the file input
-            }
-
-            // Handles saving a new or edited resource to Firestore.
-            async function handleSaveResourceClick() {
-                const id = document.getElementById('resource-id').value;
-                const name = document.getElementById('resource-name').value.trim();
-                const content = document.getElementById('resource-content').value;
-                if (!name || !content) return showToast("Error", "Both name and content are required.", "danger");
-                const project = App.db.projects[App.db.activeProjectId];
-                if (!project) return;
-                if (!project.resources) project.resources = [];
-                const existingResource = id ? project.resources.find(r => r.id === id) : null;
-                if (existingResource) {
-                    existingResource.name = name;
-                    existingResource.content = content;
-                } else {
-                    project.resources.push({ id: `res_${Date.now()}`, name, content });
-                }
-                
-                const success = await saveProjectToFirestore(project);
-                if (success) {
-                    renderResourceList();
-                    App.bs.resourceModal.hide();
-                    showToast("Success", `Resource ${id ? 'updated' : 'added'}.`, "success");
-                }
-            }
-
-            // Handles applying a learning plan JSON from the input textarea.
-            async function handleApplyPlanClick() {
-                if (!App.db.activeProjectId) return showToast("Error", "Please select a project first.", "warning");
-                if (!App.db.currentUser?.uid) return showToast("Error", "Login is required.", "danger");
-                try {
-                    const planText = App.dom.planInput.value;
-                    const cleanedJsonString = planText.replace(/^```json\s*|```\s*$/g, '').trim(); // Remove markdown code block fences
-                    if (!cleanedJsonString) throw new Error("No content entered.");
-                    const planJSON = JSON.parse(cleanedJsonString);
-                    if (!planJSON.modules || !Array.isArray(planJSON.modules)) throw new Error("JSON does not contain a 'modules' array.");
-                    const project = App.db.projects[App.db.activeProjectId];
-                    
-                    project.learningPlan = planJSON;
-                    project.name = planJSON.projectName || project.name; // Update project name from plan if available
-                    project.goal = planJSON.mainGoal || project.goal; // Update project goal from plan if available
-                    
-                    // Initialize new module fields if they don't exist
-                    project.learningPlan.modules.forEach(module => {
-                        if (module.studyPad === undefined) module.studyPad = "";
-                        if (module.notes === undefined) module.notes = "";
-                        if (module.recommendedResources === undefined) module.recommendedResources = [];
-                    });
-
-                    const success = await saveProjectToFirestore(project);
-                    if (success) {
-                        render();
-                        showToast("Success", "Learning plan applied.", "success");
-                    }
-                } catch (e) {
-                    showToast("Error", "Invalid JSON format: " + e.message, "danger");
-                }
-            }
-            
-            // Handles clicks within the learning dashboard (opening action selector, changing status, viewing study pads).
-            function handleDashboardClick(e) {
-                const target = e.target;
-                const card = target.closest('.module-card');
-                if (!card) return;
-                const moduleIndex = card.dataset.moduleIndex;
-                if (target.matches('.open-action-selector')) {
-                    renderActionSelector(moduleIndex);
-                } else if (target.closest('.status-change-btn')) {
-                    e.preventDefault();
-                    updateModuleField(moduleIndex, 'status', target.closest('.status-change-btn').dataset.status);
-                } else if (target.matches('.view-studypad-btn')) { // New handler for view button
-                    e.preventDefault();
-                    openStudyPadViewer(moduleIndex);
-                } else if (target.matches('.view-details-btn')) { // New handler for view details button
-                    e.preventDefault();
-                    const type = target.dataset.detailType;
-                    openDetailViewer(moduleIndex, type);
-                }
-            }
-            
-            // Handles input events within the learning dashboard (updating study pad or notes).
-            function handleDashboardInput(e) {
-                const target = e.target;
-                const card = target.closest('.module-card');
-                if (!card) return;
-                const index = card.dataset.moduleIndex;
-                if (target.matches('.module-studypad')) {
-                    updateModuleField(index, 'studyPad', target.value);
-                } else if (target.matches('.module-notes')) {
-                    updateModuleField(index, 'notes', target.value);
-                }
-            }
-
-            // Handles opening the action manager modal.
-            function handleManageActionsClick() {
-                if (!App.db.activeProjectId) return showToast("Error", "Please select a project.", "warning");
-                renderActionManager();
-                App.bs.actionManagerModal.show();
-            }
-
-            // Handles clicks within the action manager (editing or deleting actions).
-            function handleActionManagerClick(e) {
-                const editBtn = e.target.closest('.edit-action-btn');
-                if(editBtn) openActionEditor(editBtn.dataset.actionKey);
-                
-                const deleteBtn = e.target.closest('.delete-action-btn');
-                if(deleteBtn) deleteAction(deleteBtn.dataset.actionKey);
-            }
-
-            // Handles clicks within the action selector (building a prompt based on a template).
-            function handleActionSelectorClick(e) {
-                const buildBtn = e.target.closest('.build-prompt-btn');
-                if (buildBtn) {
-                    e.preventDefault();
-                    const { templateKey, moduleIndex } = buildBtn.dataset;
-                    handleBuildPrompt(templateKey, moduleIndex);
-                }
-            }
-
-            // Builds the final AI prompt based on the selected template and dynamic inputs.
-            function handleBuildPrompt(templateKey, moduleIndex) {
-                App.bs.actionSelectorModal.hide(); // Hide the action selector modal
-
-                const project = App.db.projects[App.db.activeProjectId];
-                if (!project) return;
-                
-                const template = (project.actions || []).find(a => a.key === templateKey);
-                if (!template) return showToast('Error', 'Action not found.', 'danger');
-
-                const module = moduleIndex !== undefined && project.learningPlan ? project.learningPlan.modules[moduleIndex] : null;
-
-                App.dom.promptModalLabel.textContent = template.title; // Set modal title to action title
-                App.dom.dynamicFormContainer.innerHTML = ''; // Clear previous dynamic form fields
-                
-                // Populate data source selector with available resources
-                App.dom.dataSelector.innerHTML = '<option value="">자원 라이브러리에서 선택</option>';
-                (project.resources || []).forEach(r => App.dom.dataSelector.innerHTML += `<option value="${r.id}">${r.name}</option>`);
-
-                let purposeTemplate = template.purpose;
-                // Prepare context for variable substitution in the purpose template
-                const context = { '학습 목표': project.goal, '현재 수준': 'A learner requiring knowledge', ...(module || {}) };
-                if (module) {
-                    context['모듈 제목'] = module.title;
-                    context['핵심 개념'] = (module.keyConcepts || []).join(', ');
-                    // Add recommended resources to context for template if available
-                    if (module.recommendedResources && module.recommendedResources.length > 0) {
-                        context['추천 리소스'] = module.recommendedResources.join(', ');
-                    }
-                }
-                
-                // Extract and create input fields for variables not pre-filled by context
-                const variables = [...new Set([...purposeTemplate.matchAll(/\[(.*?)\]/g)].map(m => m[1]))];
-                variables.forEach(varName => {
-                    const prefilledValue = context[varName];
-                    if (prefilledValue) {
-                        purposeTemplate = purposeTemplate.replaceAll(`[${varName}]`, prefilledValue);
-                    } else {
-                        App.dom.dynamicFormContainer.innerHTML += `<div class="mb-3"><label for="var-${varName}" class="form-label form-label-sm">${varName}</label><input type="text" id="var-${varName}" class="form-control form-control-sm dynamic-var-input" data-var-name="${varName}" placeholder="Enter ${varName} content..."></div>`;
-                    }
-                });
-
-                // Determine initial data source selection
-                let currentDataSource = 'none';
-                if (module?.studyPad && (templateKey.startsWith('1_') || templateKey.startsWith('2_'))) {
-                    // Automatically select study pad if module has content and action is related to understanding/application
-                    currentDataSource = 'studypad';
-                }
-                // Reset radio buttons and then set the correct one
-                document.querySelectorAll('input[name="dataSource"]').forEach(radio => radio.checked = false);
-                const initialDataSourceRadio = document.getElementById(`source-${currentDataSource}`);
-                if (initialDataSourceRadio) {
-                    initialDataSourceRadio.checked = true;
-                }
-                document.getElementById('data-direct-input').value = ''; // Clear direct input
-
-                // Map data source types to their corresponding container elements
-                const dataSourceContainers = {
-                    resource: document.getElementById('data-selector-container'),
-                    direct: document.getElementById('data-direct-input-container'),
-                };
-                
-                // Function to update visibility of data source input fields
-                const updateDataSourceVisibility = () => {
-                    const selected = document.querySelector('input[name="dataSource"]:checked').value;
-                    Object.values(dataSourceContainers).forEach(c => c.classList.add('d-none')); // Hide all
-                    if (dataSourceContainers[selected]) {
-                        dataSourceContainers[selected].classList.remove('d-none'); // Show selected
-                    }
-                };
-
-                // Function to update the live prompt preview
-                const updatePreview = () => {
-                    let previewPurpose = purposeTemplate;
-                    App.dom.dynamicFormContainer.querySelectorAll('.dynamic-var-input').forEach(input => {
-                        const varName = input.dataset.varName;
-                        const value = input.value || `[${varName}]`; // Use placeholder if input is empty
-                        previewPurpose = previewPurpose.replaceAll(`[${varName}]`, value);
-                    });
-                    
-                    const selectedDataSource = document.querySelector('input[name="dataSource"]:checked').value;
-                    let dataContent = '내용 없음';
-                    if (selectedDataSource === 'resource') {
-                        const resId = App.dom.dataSelector.value;
-                        if (resId) dataContent = (project.resources.find(r => r.id === resId) || {}).content;
-                    } else if (selectedDataSource === 'studypad') {
-                        if (module?.studyPad) dataContent = module.studyPad;
-                    } else if (selectedDataSource === 'direct') {
-                        dataContent = document.getElementById('data-direct-input').value;
-                    }
-                    
-                    // Construct the project context JSON for the AI
-                    const contextForAI = {
-                        projectName: project.name,
-                        mainGoal: project.goal,
-                    };
-                    if (project.learningPlan) {
-                        contextForAI.tutorPersona = project.learningPlan.tutorPersona;
-                        contextForAI.fullTableOfContents = project.learningPlan.modules.map(m => ({ id: m.id, title: m.title, status: m.status }));
-                    }
-                    if (module) {
-                        const { studyPad, notes, ...currentModuleContext } = module; // Exclude studyPad and notes from currentModule context
-                        contextForAI.currentModule = currentModuleContext;
-                    }
-                    const projectContext = JSON.stringify(contextForAI, null, 2);
-
-                    // Final prompt assembly using the MASTER_PROMPT_SHELL
-                    let finalPrompt = MASTER_PROMPT_SHELL.replace(/{{purpose}}/g, previewPurpose)
-                                                         .replace(/{{data}}/g, dataContent || '내용 없음')
-                                                         .replace(/{{projectContext}}/g, projectContext);
-                    App.dom.livePreviewContainer.textContent = finalPrompt; // Display in preview area
-                };
-
-                // Add event listeners for dynamic form changes to update preview
-                document.querySelectorAll('input[name="dataSource"]').forEach(radio => radio.onchange = () => {
-                    updateDataSourceVisibility();
-                    updatePreview();
-                });
-
-                App.dom.dynamicFormContainer.addEventListener('input', updatePreview);
-                App.dom.dataSelector.addEventListener('change', updatePreview);
-                document.getElementById('data-direct-input').addEventListener('input', updatePreview);
-                
-                // Initial setup and show modal
-                updateDataSourceVisibility();
-                updatePreview();
-                App.bs.promptModal.show();
-            }
-
-            // Handles copying the generated prompt to the clipboard.
-            function handleExecutePromptClick() {
-                const finalPromptText = App.dom.livePreviewContainer.textContent;
-                copyToClipboard(finalPromptText);
-            }
-            
-            // Toggles the visibility of the sidebar for mobile views.
-            function toggleSidebar() {
-                App.dom.sidebar?.classList.toggle('is-open');
-                App.dom.overlay?.classList.toggle('is-visible');
-            }
-
-            // --- 6. Initial Execution ---
-            initApp(); // Start the application
-        });
-    </script>
+    <!-- Firebase SDK Imports -->
+    <script type="module" src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js"></script>
+    <script type="module" src="https://www.gstatic.com/firebasejs/10.12.2/firebase-analytics.js"></script>
+    <script type="module" src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js"></script>
+    <script type="module" src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js"></script>
+
+    <!-- Custom JavaScript Modules -->
+    <script type="module" src="./constants.js"></script>
+    <script type="module" src="./utils.js"></script>
+    <script type="module" src="./auth.js"></script>
+    <script type="module" src="./db.js"></script>
+    <script type="module" src="./ui.js"></script>
+    <script type="module" src="./modals.js"></script>
+    <script type="module" src="./promptBuilder.js"></script>
+    <script type="module" src="./main.js"></script>
 </body>
 </html>
