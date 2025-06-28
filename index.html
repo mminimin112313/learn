@@ -1450,46 +1450,59 @@ Now, give me the result which fits on the {{purpose}}, considering the full <Pro
             // --- 5. Event Listeners & Handlers ---
             function registerEventListeners() {
                 // Static buttons
-                App.dom.googleSigninBtn?.addEventListener('click', signInWithGoogle);
-                App.dom.signOutBtn?.addEventListener('click', signOutUser);
-                document.getElementById('new-project-btn')?.addEventListener('click', handleNewProjectClick);
-                document.getElementById('save-project-btn')?.addEventListener('click', handleSaveProjectClick);
-                document.getElementById('import-project-btn')?.addEventListener('click', () => document.getElementById('import-file-input')?.click());
-                document.getElementById('import-file-input')?.addEventListener('change', handleImportProjectFile);
-                document.getElementById('export-project-btn')?.addEventListener('click', handleExportProjectClick);
-                document.getElementById('add-resource-btn')?.addEventListener('click', handleAddResourceClick);
-                document.getElementById('save-resource-btn')?.addEventListener('click', handleSaveResourceClick);
-                document.getElementById('resource-file-input')?.addEventListener('change', handleResourceFileChange);
-                document.getElementById('apply-plan-btn')?.addEventListener('click', handleApplyPlanClick);
-                document.getElementById('manage-actions-btn')?.addEventListener('click', handleManageActionsClick);
-                document.getElementById('add-new-action-btn')?.addEventListener('click', () => openActionEditor());
-                document.getElementById('save-action-btn')?.addEventListener('click', saveAction);
-                document.getElementById('execute-prompt-btn')?.addEventListener('click', handleExecutePromptClick);
-                document.getElementById('download-studypad-btn')?.addEventListener('click', downloadAllStudyPads);
-                App.dom.planButton?.addEventListener('click', () => handleBuildPrompt('0_plan', null));
-                App.dom.toggleViewerModeBtn?.addEventListener('click', toggleStudyPadViewerMode);
-                App.dom.saveViewerContentBtn?.addEventListener('click', saveStudyPadViewerContent);
-                App.dom.lessonPrevBtn?.addEventListener('click', handleLessonNavClick);
-                App.dom.lessonNextBtn?.addEventListener('click', handleLessonNavClick);
+                if (App.dom.googleSigninBtn) App.dom.googleSigninBtn.addEventListener('click', signInWithGoogle);
+                if (App.dom.signOutBtn) App.dom.signOutBtn.addEventListener('click', signOutUser);
+                if (document.getElementById('new-project-btn')) document.getElementById('new-project-btn').addEventListener('click', handleNewProjectClick);
+                if (document.getElementById('save-project-btn')) document.getElementById('save-project-btn').addEventListener('click', handleSaveProjectClick);
+                if (document.getElementById('import-project-btn')) document.getElementById('import-project-btn').addEventListener('click', () => document.getElementById('import-file-input')?.click());
+                if (document.getElementById('import-file-input')) document.getElementById('import-file-input').addEventListener('change', handleImportProjectFile);
+                if (document.getElementById('export-project-btn')) document.getElementById('export-project-btn').addEventListener('click', handleExportProjectClick);
+                if (document.getElementById('add-resource-btn')) document.getElementById('add-resource-btn').addEventListener('click', handleAddResourceClick);
+                if (document.getElementById('save-resource-btn')) document.getElementById('save-resource-btn').addEventListener('click', handleSaveResourceClick);
+                if (document.getElementById('resource-file-input')) document.getElementById('resource-file-input').addEventListener('change', handleResourceFileChange);
+                if (document.getElementById('apply-plan-btn')) document.getElementById('apply-plan-btn').addEventListener('click', handleApplyPlanClick); // Changed to handleApplyPlanClick
+                if (document.getElementById('manage-actions-btn')) document.getElementById('manage-actions-btn').addEventListener('click', handleManageActionsClick);
+                if (document.getElementById('add-new-action-btn')) document.getElementById('add-new-action-btn').addEventListener('click', () => openActionEditor());
+                if (document.getElementById('save-action-btn')) document.getElementById('save-action-btn').addEventListener('click', saveAction);
+                if (document.getElementById('execute-prompt-btn')) document.getElementById('execute-prompt-btn').addEventListener('click', handleExecutePromptClick);
+                if (document.getElementById('download-studypad-btn')) document.getElementById('download-studypad-btn').addEventListener('click', downloadAllStudyPads);
+                if (App.dom.planButton) App.dom.planButton.addEventListener('click', () => handleBuildPrompt('0_plan', null));
+                if (App.dom.toggleViewerModeBtn) App.dom.toggleViewerModeBtn.addEventListener('click', toggleStudyPadViewerMode);
+                if (App.dom.saveViewerContentBtn) App.dom.saveViewerContentBtn.addEventListener('click', saveStudyPadViewerContent);
+                if (App.dom.lessonPrevBtn) App.dom.lessonPrevBtn.addEventListener('click', handleLessonNavClick);
+                if (App.dom.lessonNextBtn) App.dom.lessonNextBtn.addEventListener('click', handleLessonNavClick);
                 
                 // Event Delegation for dynamic content
-                App.dom.projectList?.addEventListener('click', handleProjectListClick);
-                App.dom.resourceList?.addEventListener('click', handleResourceListClick);
-                App.dom.learningDashboard?.addEventListener('click', handleDashboardClick);
-                App.dom.learningDashboard?.addEventListener('input', handleDashboardInput);
-                App.dom.actionListContainer?.addEventListener('click', handleActionManagerClick);
-                App.dom.actionSelectorBody?.addEventListener('click', handleActionSelectorClick);
+                if (App.dom.projectList) App.dom.projectList.addEventListener('click', handleProjectListClick);
+                if (App.dom.resourceList) App.dom.resourceList.addEventListener('click', handleResourceListClick);
+                if (App.dom.learningDashboard) App.dom.learningDashboard.addEventListener('click', handleDashboardClick);
+                if (App.dom.learningDashboard) App.dom.learningDashboard.addEventListener('input', handleDashboardInput);
+                if (App.dom.actionListContainer) App.dom.actionListContainer.addEventListener('click', handleActionManagerClick);
+                if (App.dom.actionSelectorBody) App.dom.actionSelectorBody.addEventListener('click', handleActionSelectorClick);
                 
                 // New event delegation for lesson view modal
-                App.dom.lectureDetailModal?.addEventListener('click', handleLectureDetailClick);
-                App.dom.lessonStudypadInput?.addEventListener('input', handleLessonInput);
+                if (App.dom.lectureDetailModal) App.dom.lectureDetailModal.addEventListener('click', handleLectureDetailClick);
+                if (App.dom.lessonStudypadInput) App.dom.lessonStudypadInput.addEventListener('input', handleLessonInput);
 
                 // Mobile UI
-                document.getElementById('hamburger-btn')?.addEventListener('click', toggleSidebar);
-                App.dom.overlay?.addEventListener('click', toggleSidebar);
+                if (document.getElementById('hamburger-btn')) document.getElementById('hamburger-btn').addEventListener('click', toggleSidebar);
+                if (App.dom.overlay) App.dom.overlay.addEventListener('click', toggleSidebar);
+
+                // Add event delegation for module navigation panel
+                if (App.dom.moduleProgressNav) {
+                    App.dom.moduleProgressNav.addEventListener('click', (e) => {
+                        const moduleItem = e.target.closest('.module-nav-item');
+                        if (moduleItem) {
+                            const moduleIndex = parseInt(moduleItem.dataset.moduleIndex, 10);
+                            App.db.activeModuleIndex = moduleIndex;
+                            App.db.activeLessonIndex = 0; // Reset to the first lesson of the new module
+                            renderLessonDetail(App.db.activeModuleIndex, App.db.activeLessonIndex);
+                        }
+                    });
+                }
             }
 
-            // Specific Click Handlers
+            // ... (rest of the functions remain the same)
             function handleNewProjectClick() {
                 document.getElementById('new-project-form').reset();
                 App.bs.newProjectModal.show();
@@ -1654,13 +1667,24 @@ Now, give me the result which fits on the {{purpose}}, considering the full <Pro
             }
 
             async function handleApplyPlanClick() {
-                if (!App.db.activeProjectId) return showToast("오류", "먼저 프로젝트를 선택하세요.", "warning");
-                if (!App.db.currentUser?.uid) return showToast("오류", "로그인이 필요합니다.", "danger");
+                console.log("handleApplyPlanClick 함수 호출됨.");
+                if (!App.db.activeProjectId) {
+                    console.error("오류: 활성 프로젝트가 없습니다.");
+                    return showToast("오류", "먼저 프로젝트를 선택하세요.", "warning");
+                }
+                if (!App.db.currentUser?.uid) {
+                    console.error("오류: 사용자 로그인 상태가 아닙니다.");
+                    return showToast("오류", "로그인이 필요합니다.", "danger");
+                }
                 try {
                     const planText = App.dom.planInput.value;
                     const cleanedJsonString = planText.replace(/^```json\s*|```\s*$/g, '').trim();
                     if (!cleanedJsonString) throw new Error("입력된 내용이 없습니다.");
+                    
+                    console.log("JSON 파싱 시도...");
                     const planJSON = JSON.parse(cleanedJsonString);
+                    console.log("JSON 파싱 성공:", planJSON);
+                    
                     if (!planJSON.modules || !Array.isArray(planJSON.modules)) throw new Error("JSON에 'modules' 배열이 없습니다.");
                     const project = App.db.projects[App.db.activeProjectId];
                     
@@ -1682,12 +1706,15 @@ Now, give me the result which fits on the {{purpose}}, considering the full <Pro
                         if (module.recommendedResources === undefined) module.recommendedResources = [];
                     });
 
+                    console.log("프로젝트 데이터 저장 시도:", project);
                     const success = await saveProjectToFirestore(project);
                     if (success) {
+                        console.log("Firestore 저장 성공. UI 렌더링 시작.");
                         render();
                         showToast("성공", "학습 계획이 적용되었습니다.", "success");
                     }
                 } catch (e) {
+                    console.error("학습 계획 적용 실패:", e);
                     showToast("오류", "유효하지 않은 JSON 형식입니다: " + e.message, "danger");
                 }
             }
@@ -1700,6 +1727,12 @@ Now, give me the result which fits on the {{purpose}}, considering the full <Pro
                 if (target.matches('.open-module-detail-btn')) {
                     e.preventDefault();
                     // Set active module and open the detail modal
+                    const project = App.db.projects[App.db.activeProjectId];
+                    const module = project.learningPlan.modules[moduleIndex];
+                    if (!module.lessons || module.lessons.length === 0) {
+                        return showToast("정보", "이 모듈에는 레슨이 없습니다. 계획을 다시 생성하거나 레슨을 추가하세요.", "info");
+                    }
+
                     App.db.activeModuleIndex = moduleIndex;
                     App.db.activeLessonIndex = 0; // Start with the first lesson by default
                     renderLessonDetail(App.db.activeModuleIndex, App.db.activeLessonIndex);
@@ -1763,13 +1796,15 @@ Now, give me the result which fits on the {{purpose}}, considering the full <Pro
                     App.db.activeLessonIndex = 0; // Reset to the first lesson of the new module
                     renderLessonDetail(App.db.activeModuleIndex, App.db.activeLessonIndex);
                 } else if (target.matches('.open-action-selector-lesson')) {
-                    renderActionSelector(App.db.activeModuleIndex);
+                    const moduleIndex = App.db.activeModuleIndex;
+                    renderActionSelector(moduleIndex);
                 }
             }
 
             // New: Handle lesson navigation buttons
             function handleLessonNavClick(e) {
                 const project = App.db.projects[App.db.activeProjectId];
+                if (!project || !project.learningPlan) return;
                 const module = project.learningPlan.modules[App.db.activeModuleIndex];
                 let newLessonIndex = App.db.activeLessonIndex;
                 
@@ -1777,15 +1812,12 @@ Now, give me the result which fits on the {{purpose}}, considering the full <Pro
                     newLessonIndex--;
                 } else if (e.currentTarget.id === 'lesson-next-btn' && newLessonIndex < module.lessons.length - 1) {
                     newLessonIndex++;
+                    // Automatically mark the previous lesson as completed when moving to the next
+                    updateLessonField(App.db.activeModuleIndex, App.db.activeLessonIndex, 'status', 'completed');
                 } else {
                     return; // Do nothing if buttons are disabled
                 }
                 
-                // Update status to 'completed' if moving to the next lesson
-                if (newLessonIndex > App.db.activeLessonIndex) {
-                    updateLessonField(App.db.activeModuleIndex, App.db.activeLessonIndex, 'status', 'completed');
-                }
-
                 App.db.activeLessonIndex = newLessonIndex;
                 renderLessonDetail(App.db.activeModuleIndex, App.db.activeLessonIndex);
             }
@@ -1824,10 +1856,14 @@ Now, give me the result which fits on the {{purpose}}, considering the full <Pro
                         context['추천 리소스'] = module.recommendedResources.join(', ');
                     }
                     // Add current lesson context if available
-                    if (App.db.activeLessonIndex !== null) {
+                    if (App.db.activeLessonIndex !== null && module.lessons) {
                         const lesson = module.lessons[App.db.activeLessonIndex];
                         context['레슨 제목'] = lesson.title;
                         context['레슨 내용'] = lesson.content;
+                        context['스터디 패드 내용'] = lesson.studyPad;
+                    } else {
+                        // Fallback to module studyPad if no lesson is active
+                         context['스터디 패드 내용'] = module.studyPad;
                     }
                 }
                 
@@ -1844,14 +1880,15 @@ Now, give me the result which fits on the {{purpose}}, considering the full <Pro
 
                 let currentDataSource = 'none';
                 let dataContent = '';
-                if (module?.studyPad && (templateKey.startsWith('1_') || templateKey.startsWith('2_'))) {
+                // Default data source logic based on context
+                if (App.db.activeLessonIndex !== null && module?.lessons[App.db.activeLessonIndex]?.studyPad) {
                     currentDataSource = 'studypad';
-                    dataContent = module.studyPad;
-                } else if (App.db.activeModuleIndex !== null && App.db.activeLessonIndex !== null) {
-                    // Default to current lesson's study pad if in lesson view
-                    currentDataSource = 'studypad';
-                    dataContent = project.learningPlan.modules[App.db.activeModuleIndex].lessons[App.db.activeLessonIndex].studyPad;
+                    dataContent = module.lessons[App.db.activeLessonIndex].studyPad;
+                } else if (module?.studyPad) {
+                     currentDataSource = 'studypad';
+                     dataContent = module.studyPad;
                 }
+
 
                 document.querySelectorAll('input[name="dataSource"]').forEach(radio => radio.checked = false);
                 const initialDataSourceRadio = document.getElementById(`source-${currentDataSource}`);
@@ -1862,7 +1899,7 @@ Now, give me the result which fits on the {{purpose}}, considering the full <Pro
 
                 const dataSourceContainers = {
                     resource: document.getElementById('data-selector-container'),
-                    studypad: document.getElementById('data-direct-input-container'), // Now using direct input for study pad
+                    studypad: document.getElementById('data-direct-input-container'),
                     direct: document.getElementById('data-direct-input-container'),
                 };
                 
@@ -1908,14 +1945,13 @@ Now, give me the result which fits on the {{purpose}}, considering the full <Pro
                         contextForAI.fullTableOfContents = project.learningPlan.modules.map(m => ({ id: m.id, title: m.title, status: m.status }));
                     }
                     if (module) {
-                        const { studyPad, notes, ...currentModuleContext } = module;
+                        const { studyPad, notes, lessons, ...currentModuleContext } = module;
                         contextForAI.currentModule = currentModuleContext;
+                        if (lessons && App.db.activeLessonIndex !== null) {
+                            const { studyPad: lessonStudyPad, ...currentLessonContext } = lessons[App.db.activeLessonIndex];
+                            contextForAI.currentLesson = currentLessonContext;
+                        }
                     }
-                    if (App.db.activeLessonIndex !== null) {
-                        const lesson = module.lessons[App.db.activeLessonIndex];
-                        contextForAI.currentLesson = { id: lesson.id, title: lesson.title, status: lesson.status };
-                    }
-
                     const projectContext = JSON.stringify(contextForAI, null, 2);
                     let finalPrompt = MASTER_PROMPT_SHELL.replace(/{{purpose}}/g, previewPurpose)
                                                          .replace(/{{data}}/g, finalDataContent || '내용 없음')
