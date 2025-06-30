@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>통합 학습 환경 (ILE) v9.2 - 코어 애플리케이션</title>
+    <title>통합 학습 환경 (ILE) v9.3 - UI 문제 수정 및 최적화</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
@@ -752,11 +752,16 @@
         }
 
         /* Modal specific adjustments for z-index and appearance */
-        .modal-backdrop {
-            z-index: 1201; /* Above toasts (1200) */
+        /* Fixed: Ensure modals are on top */
+        .modal-backdrop.show {
+            opacity: 0.5; /* Default Bootstrap opacity */
+            z-index: 1050; /* Bootstrap default for backdrop */
         }
-        .modal {
-            z-index: 1202; /* Above backdrop and toasts */
+        .modal.show {
+            display: block; /* Bootstrap sets display: block for showing */
+            z-index: 1060; /* Bootstrap default for modal */
+            overflow-x: hidden;
+            overflow-y: auto;
         }
 
         /* Progress Bar styling */
@@ -777,7 +782,7 @@
         }
 
         /* Status counts section */
-        .status-counts .col-4 {
+        .status-counts .col-span-1 {
             padding: 0 0.75rem;
         }
         .status-counts p {
@@ -807,7 +812,10 @@
                 box-shadow: none;
                 padding-top: 2rem;
             }
-            .mobile-header, .overlay {
+            .mobile-header { /* Fixed: Hide mobile header on desktop */
+                display: none;
+            }
+            .overlay { /* Fixed: Hide overlay on desktop */
                 display: none;
             }
             .main-content {
@@ -871,6 +879,7 @@
             cursor: pointer;
             margin-left: 0.5rem;
             transition: color 0.2s ease-in-out;
+            position: relative; /* For tooltip positioning */
         }
         .help-icon:hover {
             color: var(--color-accent-primary);
@@ -890,27 +899,55 @@
             visibility: hidden;
             transition: opacity 0.2s ease-in-out, visibility 0.2s ease-in-out;
             pointer-events: none; /* Allows clicks to pass through to elements behind it */
+            transform: translate(-50%, -100%); /* Center horizontally, position above */
         }
-        .help-icon:hover + .help-tooltip {
+        /* Fixed: Tooltip position adjustments */
+        .help-icon:hover > .help-tooltip {
             opacity: 1;
             visibility: visible;
         }
 
+        /* Fixed: Mobile sidebar specific styling */
+        @media (max-width: 1023px) { /* targets screens smaller than desktop (lg) */
+            .sidebar {
+                transform: translateX(-100%);
+            }
+            .sidebar.is-open {
+                transform: translateX(0);
+            }
+            .main-content {
+                margin-left: 0; /* Remove fixed margin for mobile */
+            }
+            .mobile-header {
+                display: flex; /* Show mobile header on mobile */
+            }
+            .overlay.is-visible {
+                display: block; /* Show overlay on mobile */
+            }
+            /* Fixed: Ensure main content moves when sidebar is open, but only if needed */
+            body.sidebar-open {
+                overflow: hidden; /* Prevent body scroll when sidebar is open */
+            }
+        }
     </style>
 </head>
 <body>
     <div class="ile-container">
         <aside class="sidebar" id="sidebar">
             <div class="sidebar-header flex items-center justify-between">
-                <h4 class="text-xl font-bold">ILE v9.2</h4>
-                <i class="fa-solid fa-question-circle help-icon" data-help-key="sidebar-title"></i>
+                <h4 class="text-xl font-bold">ILE v9.3</h4>
+                <i class="fa-solid fa-question-circle help-icon" data-help-key="sidebar-title">
+                    <span class="help-tooltip"></span>
+                </i>
             </div>
             
             <!-- Firebase Auth Section -->
             <div class="sidebar-section mb-4">
                 <div class="flex items-center justify-between">
                     <div id="auth-status" class="text-sm text-gray-500">로그인 필요</div>
-                    <i class="fa-solid fa-question-circle help-icon" data-help-key="auth-status"></i>
+                    <i class="fa-solid fa-question-circle help-icon" data-help-key="auth-status">
+                        <span class="help-tooltip"></span>
+                    </i>
                 </div>
                 <button class="btn btn-primary w-full mt-3" id="google-signin-btn"><i class="fa-brands fa-google mr-2"></i>Google 로그인</button>
                 <button class="btn btn-outline-danger w-full mt-2 hidden" id="signout-btn"><i class="fa-solid fa-right-from-bracket mr-2"></i>로그아웃</button>
@@ -920,7 +957,9 @@
             <div class="sidebar-section mb-4">
                 <div class="flex items-center justify-between mb-2">
                     <button class="btn btn-primary w-full" id="new-project-page-btn">새 프로젝트 생성</button>
-                    <i class="fa-solid fa-question-circle help-icon" data-help-key="new-project"></i>
+                    <i class="fa-solid fa-question-circle help-icon" data-help-key="new-project">
+                        <span class="help-tooltip"></span>
+                    </i>
                 </div>
                 <div class="flex gap-2">
                     <button class="btn btn-outline-secondary flex-grow" id="import-project-btn"><i class="fa-solid fa-file-import mr-2"></i>가져오기</button>
@@ -933,7 +972,9 @@
             <div class="sidebar-section flex-grow mb-4" style="max-height: calc(100% - 300px);">
                 <div class="flex items-center justify-between">
                     <h6 class="text-lg font-semibold">프로젝트</h6>
-                    <i class="fa-solid fa-question-circle help-icon" data-help-key="project-list"></i>
+                    <i class="fa-solid fa-question-circle help-icon" data-help-key="project-list">
+                        <span class="help-tooltip"></span>
+                    </i>
                 </div>
                 <div class="flex mb-3 mt-2">
                     <input type="text" class="form-control flex-grow" id="project-search-input" placeholder="프로젝트 검색...">
@@ -946,7 +987,9 @@
             <div class="sidebar-section mb-4">
                 <div class="flex items-center justify-between">
                     <h6 class="text-lg font-semibold">자원 라이브러리</h6>
-                    <i class="fa-solid fa-question-circle help-icon" data-help-key="resource-library"></i>
+                    <i class="fa-solid fa-question-circle help-icon" data-help-key="resource-library">
+                        <span class="help-tooltip"></span>
+                    </i>
                 </div>
                 <button class="btn btn-outline-primary w-full mt-2" id="resource-management-page-btn"><i class="fa-solid fa-folder-open mr-2"></i>자원 관리</button>
                 <div id="resource-list" class="list-group border rounded-md overflow-y-auto max-h-36 mt-2"></div>
@@ -968,11 +1011,11 @@
 
         <main class="main-content">
             <!-- Mobile Header (hidden on large screens) -->
-            <header class="mobile-header p-3 bg-white border-b sticky top-0 z-10 hidden">
+            <header class="mobile-header p-3 bg-white border-b sticky top-0 z-10">
                 <button class="hamburger-btn text-2xl" id="hamburger-btn" aria-label="메뉴 열기">
                     <i class="fa-solid fa-bars"></i>
                 </button>
-                <h2 class="text-lg font-semibold flex-grow text-center">ILE v9.2</h2>
+                <h2 class="text-lg font-semibold flex-grow text-center">ILE v9.3</h2>
             </header>
 
             <div class="main-content-inner">
@@ -996,7 +1039,9 @@
                     <div class="bg-white p-6 rounded-lg shadow-md mb-6">
                         <h5 class="text-xl font-semibold text-blue-600 mb-4 flex items-center">
                             <i class="fa-solid fa-compass mr-3"></i>Phase 0: 학습 계획 수립 
-                            <i class="fa-solid fa-question-circle help-icon" data-help-key="plan-section"></i>
+                            <i class="fa-solid fa-question-circle help-icon" data-help-key="plan-section">
+                                <span class="help-tooltip"></span>
+                            </i>
                         </h5>
                         <button class="btn btn-outline-primary w-full mb-4" id="plan-button" data-template-key="0_plan">
                             <i class="fa-solid fa-map-location-dot mr-2"></i>AI 튜터 페르소나 설계 및 학습 계획 생성
@@ -1013,7 +1058,9 @@
                     <div class="bg-white p-6 rounded-lg shadow-md mb-6">
                         <h5 class="text-xl font-semibold text-blue-600 mb-4 flex items-center">
                             <i class="fa-solid fa-chart-pie mr-3"></i>학습 진행도 분석 
-                            <i class="fa-solid fa-question-circle help-icon" data-help-key="progress-section"></i>
+                            <i class="fa-solid fa-question-circle help-icon" data-help-key="progress-section">
+                                <span class="help-tooltip"></span>
+                            </i>
                         </h5>
                         <div class="mb-4">
                             <label class="block text-sm font-medium text-gray-700 mb-1">전체 진행률</label>
@@ -1045,7 +1092,9 @@
 
                     <h5 class="text-xl font-semibold text-blue-600 mb-6 flex items-center">
                         <i class="fa-solid fa-chalkboard-user mr-3"></i>Phase 1 & 2: 학습 및 실행 대시보드 
-                        <i class="fa-solid fa-question-circle help-icon" data-help-key="dashboard-section"></i>
+                        <i class="fa-solid fa-question-circle help-icon" data-help-key="dashboard-section">
+                            <span class="help-tooltip"></span>
+                        </i>
                     </h5>
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="learning-dashboard"></div>
                 </div>
@@ -1076,7 +1125,9 @@
                     <div class="bg-white p-8 rounded-lg shadow-md max-w-3xl mx-auto">
                         <h2 class="text-2xl font-bold mb-6 text-gray-800 flex items-center">
                             자원 관리 
-                            <i class="fa-solid fa-question-circle help-icon" data-help-key="resource-management"></i>
+                            <i class="fa-solid fa-question-circle help-icon" data-help-key="resource-management">
+                                <span class="help-tooltip"></span>
+                            </i>
                         </h2>
                         <div class="mb-4">
                             <button type="button" class="btn btn-primary mb-4" id="add-resource-page-btn"><i class="fa-solid fa-plus-circle mr-2"></i>새 자원 추가</button>
@@ -1109,7 +1160,9 @@
                     <div class="bg-white p-8 rounded-lg shadow-md max-w-3xl mx-auto">
                         <h2 class="text-2xl font-bold mb-6 text-gray-800 flex items-center">
                             액션 관리자 
-                            <i class="fa-solid fa-question-circle help-icon" data-help-key="action-manager"></i>
+                            <i class="fa-solid fa-question-circle help-icon" data-help-key="action-manager">
+                                <span class="help-tooltip"></span>
+                            </i>
                         </h2>
                         <div class="mb-6">
                             <button type="button" class="btn btn-success mb-4" id="add-new-action-page-btn"><i class="fa-solid fa-plus mr-2"></i>새 액션 추가</button>
@@ -1190,7 +1243,9 @@
                             </div>
                         </div>
                         <div class="col-span-1">
-                            <h6 class="text-lg font-semibold mb-3">실시간 최종 프롬프트 미리보기 <i class="fa-solid fa-question-circle help-icon" data-help-key="prompt-modal"></i></h6>
+                            <h6 class="text-lg font-semibold mb-3">실시간 최종 프롬프트 미리보기 <i class="fa-solid fa-question-circle help-icon" data-help-key="prompt-modal">
+                                <span class="help-tooltip"></span>
+                            </i></h6>
                             <div id="live-preview-container" class="border p-4 bg-gray-100 rounded-md h-64 overflow-y-auto text-sm"></div>
                         </div>
                     </div>
@@ -1272,15 +1327,13 @@
         const firebaseConfig = typeof __firebase_config !== 'undefined' && __firebase_config !== '' 
             ? JSON.parse(__firebase_config) 
             : {
-                apiKey: "AIzaSyCaVi8p8WAoXRZpvWaoCUnqG1IM0aoWJo0",
-                authDomain: "learneverything-dcef7.firebaseapp.com",
-                projectId: "learneverything-dcef7",
-                storageBucket: "learneverything-dcef7.firebasestorage.app",
-                messagingSenderId: "727818762307",
-                appId: "1:727818762307:web:88b939848357f1eee53cf6",
-                measurementId: "G-E9FRPC2Z9B"
+                apiKey: "YOUR_FIREBASE_API_KEY", // 실제 키로 교체 필요
+                authDomain: "YOUR_FIREBASE_AUTH_DOMAIN",
+                projectId: "YOUR_FIREBASE_PROJECT_ID",
+                storageBucket: "YOUR_FIREBASE_STORAGE_BUCKET",
+                messagingSenderId: "YOUR_FIREBASE_MESSAGING_SENDER_ID",
+                appId: "YOUR_FIREBASE_APP_ID"
             };
-        
         
         let app, auth, db; // Firebase instances
 
@@ -1397,7 +1450,7 @@ Now, give me the result which fits on the {{purpose}}, considering the full <Pro
 
         // 도움말 메시지 정의 (HELP_MESSAGES)
         const HELP_MESSAGES = {
-            'sidebar-title': 'ILE v9.2는 개인화된 학습 경험을 제공하는 통합 학습 환경입니다.',
+            'sidebar-title': 'ILE v9.3은 개인화된 학습 경험을 제공하는 통합 학습 환경입니다.',
             'auth-status': '로그인 상태를 표시하고, Google 계정으로 로그인하거나 로그아웃할 수 있습니다. UID의 일부가 표시됩니다.',
             'new-project': '새로운 학습 프로젝트를 생성하는 페이지로 이동합니다. 프로젝트 이름과 최종 학습 목표를 설정할 수 있습니다.',
             'project-list': '생성된 프로젝트 목록을 확인하고, 원하는 프로젝트를 선택하거나 검색할 수 있습니다. 프로젝트 카드 우측 상단 X 아이콘을 통해 삭제도 가능합니다.',
@@ -1419,8 +1472,12 @@ Now, give me the result which fits on the {{purpose}}, considering the full <Pro
         const AppState = {
             currentProject: null,
             projects: {}, // Key-value store for all projects {projectId: projectData}
-            currentHelpKey: null, // Track which help tooltip is currently active
             isAuthReady: false, // Track Firebase auth state
+            saveTimeout: null, // Debounce for saving module fields
+            currentModuleIndexForViewer: null, // Index of module whose study pad/notes are being viewed/edited
+            currentViewerContentType: 'studyPad', // 'studyPad' or 'notes'
+            scrollPositions: {}, // Stores scroll positions for different views/modals
+            projectSearchQuery: '', // Current search query for project list
         };
 
         const AppConfig = {
@@ -1514,7 +1571,7 @@ Now, give me the result which fits on the {{purpose}}, considering the full <Pro
                 try {
                     const localData = {
                         activeProjectId: AppState.currentProject ? AppState.currentProject.id : null,
-                        scrollPositions: UIManager.dom.scrollPositions // Assuming UIManager manages scroll positions
+                        scrollPositions: UIManager.scrollPositions 
                     };
                     localStorage.setItem('ile_local_ui_state', JSON.stringify(localData));
                 } catch (e) {
@@ -1529,7 +1586,7 @@ Now, give me the result which fits on the {{purpose}}, considering the full <Pro
                     if (stored) {
                         const localData = JSON.parse(stored);
                         const activeProjectId = localData.activeProjectId || null;
-                        UIManager.dom.scrollPositions = localData.scrollPositions || {}; // Assuming UIManager manages scroll positions
+                        UIManager.scrollPositions = localData.scrollPositions || {}; 
                         return activeProjectId;
                     }
                 } catch (e) {
@@ -1538,8 +1595,6 @@ Now, give me the result which fits on the {{purpose}}, considering the full <Pro
                 }
                 return null;
             },
-
-            // Other data-related functions (resources, actions) would be here
         };
 
         const UIManager = {
@@ -1662,9 +1717,11 @@ Now, give me the result which fits on the {{purpose}}, considering the full <Pro
             },
 
             initBootstrapComponents() {
-                this.bs.promptModal = new bootstrap.Modal(this.dom.promptModal);
-                this.bs.studyPadViewerModal = new bootstrap.Modal(this.dom.studyPadViewerModal);
-                this.bs.detailViewerModal = new bootstrap.Modal(this.dom.detailViewerModal);
+                // Fixed: Ensure Bootstrap modals are initialized correctly AFTER DOM is ready
+                // and after all DOM elements are cached.
+                this.bs.promptModal = new bootstrap.Modal(this.dom.promptModal, {backdrop: 'static', keyboard: false}); // static backdrop to prevent closing on outside click
+                this.bs.studyPadViewerModal = new bootstrap.Modal(this.dom.studyPadViewerModal, {backdrop: 'static', keyboard: false});
+                this.bs.detailViewerModal = new bootstrap.Modal(this.dom.detailViewerModal, {backdrop: true, keyboard: true}); // detail modal can close easily
                 this.bs.toast = new bootstrap.Toast(this.dom.liveToast);
             },
 
@@ -1723,6 +1780,7 @@ Now, give me the result which fits on the {{purpose}}, considering the full <Pro
                 this.dom.saveViewerContentBtn?.addEventListener('click', this.saveStudyPadViewerContent.bind(this));
 
                 // Help icon interaction (delegated)
+                // Fixed: Ensure tooltips are managed correctly on mouseover/mouseout
                 document.addEventListener('mouseover', (e) => {
                     const helpIcon = e.target.closest('.help-icon');
                     if (helpIcon && AppConfig.showHelp) {
@@ -2562,8 +2620,8 @@ Now, give me the result which fits on the {{purpose}}, considering the full <Pro
                 const project = AppState.currentProject;
                 if (!project) return; // Should not happen in prompt modal context
 
-                const templateKey = this.dom.promptModalLabel.textContent; // Assuming label contains template title
-                const template = project.actions.find(a => a.title === templateKey);
+                const templateTitle = this.dom.promptModalLabel.textContent;
+                const template = project.actions.find(a => a.title === templateTitle);
                 if (!template) return;
 
                 const moduleIndex = document.querySelector('.module-card[data-module-index] button[data-action="open-action-selector"]')?.dataset.moduleIndex;
@@ -2767,15 +2825,48 @@ Now, give me the result which fits on the {{purpose}}, considering the full <Pro
             showToast(title, body, type = 'info') {
                 this.dom.toastTitle.textContent = title;
                 this.dom.toastBody.textContent = body;
-                this.dom.liveToast.style.borderColor = `var(--color-${type})`; // Assuming CSS custom properties
+                // Fixed: Use Bootstrap's built-in background classes for toast color
+                this.dom.liveToast.className = `toast bg-${type === 'info' ? 'blue' : type === 'success' ? 'green' : type === 'danger' ? 'red' : 'gray'}-100 text-${type === 'info' ? 'blue' : type === 'success' ? 'green' : type === 'danger' ? 'red' : 'gray'}-800 border border-${type === 'info' ? 'blue' : type === 'success' ? 'green' : type === 'danger' ? 'red' : 'gray'}-200 rounded-lg shadow-lg fixed bottom-0 right-0 p-3 z-50`;
+                this.dom.toastTitle.className = `font-bold ${type === 'info' ? 'text-blue' : type === 'success' ? 'text-green' : type === 'danger' ? 'text-red' : 'text-gray'}-700`;
+
                 this.bs.toast.show();
             },
 
             showConfirmModal(title, message, onConfirm) {
-                // Simplified for brevity, but should use a dedicated modal HTML structure
-                if (confirm(`${title}\n\n${message}`)) { // Using native confirm for now
+                // Fixed: Use custom modal HTML instead of native confirm
+                const modalHtml = `
+                    <div class="modal fade" id="customConfirmModal" tabindex="-1" aria-labelledby="customConfirmModalLabel" aria-hidden="true">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title" id="customConfirmModalLabel">${title}</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <p>${message}</p>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
+                                    <button type="button" class="btn btn-danger" id="customConfirmActionBtn">확인</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                const existingModal = document.getElementById('customConfirmModal');
+                if (existingModal) existingModal.remove(); // Remove any existing to prevent duplicates
+
+                document.body.insertAdjacentHTML('beforeend', modalHtml);
+                const confirmModal = new bootstrap.Modal(document.getElementById('customConfirmModal'));
+                confirmModal.show();
+
+                document.getElementById('customConfirmActionBtn').onclick = () => {
                     onConfirm();
-                }
+                    confirmModal.hide();
+                };
+                document.getElementById('customConfirmModal').addEventListener('hidden.bs.modal', () => {
+                    document.getElementById('customConfirmModal').remove();
+                });
             },
 
             readFileAsText(file) {
@@ -2825,42 +2916,34 @@ Now, give me the result which fits on the {{purpose}}, considering the full <Pro
             toggleSidebar() {
                 this.dom.sidebar.classList.toggle('is-open');
                 this.dom.overlay.classList.toggle('is-visible');
+                document.body.classList.toggle('sidebar-open'); // Fixed: Add class to body to prevent scroll
             },
 
             // --- Help Feature Implementation ---
             updateHelpVisibility() {
+                // Fixed: Select direct child span.help-tooltip
                 document.querySelectorAll('.help-icon').forEach(icon => {
-                    const tooltip = icon.nextElementSibling; // Assuming tooltip is next sibling
-                    if (AppConfig.showHelp) {
-                        icon.classList.remove('hidden');
-                        if (tooltip && tooltip.classList.contains('help-tooltip')) {
-                            // Tooltip might already be there from previous render or mouseover
+                    const tooltip = icon.querySelector('.help-tooltip'); 
+                    if (tooltip) { // Only proceed if tooltip span exists inside the icon
+                        if (AppConfig.showHelp) {
+                            icon.classList.remove('hidden');
+                            tooltip.textContent = HELP_MESSAGES[icon.dataset.helpKey] || '도움말을 찾을 수 없습니다.';
+                            // Position tooltip dynamically relative to the icon if needed, or rely on CSS
+                            // For complex positioning, consider Popper.js or similar
                         } else {
-                            const newTooltip = document.createElement('div');
-                            newTooltip.className = 'help-tooltip absolute';
-                            newTooltip.textContent = HELP_MESSAGES[icon.dataset.helpKey] || '도움말을 찾을 수 없습니다.';
-                            icon.parentNode.insertBefore(newTooltip, icon.nextSibling);
-                            // Simple positioning, will be refined with proper CSS in next step
-                            // Position it above the icon, centered horizontally
-                            const iconRect = icon.getBoundingClientRect();
-                            const parentRect = icon.parentNode.getBoundingClientRect();
-                            newTooltip.style.left = `${iconRect.left - parentRect.left + iconRect.width / 2}px`;
-                            newTooltip.style.top = `${iconRect.top - parentRect.top}px`;
-                            newTooltip.style.transform = `translate(-50%, -100%)`; // Center and move above
-                        }
-                    } else {
-                        icon.classList.add('hidden');
-                        if (tooltip && tooltip.classList.contains('help-tooltip')) {
-                            tooltip.remove();
+                            icon.classList.add('hidden');
+                            tooltip.style.opacity = '0';
+                            tooltip.style.visibility = 'hidden';
                         }
                     }
                 });
             },
 
             showHelpTooltip(iconElement, key) {
-                this.hideAllHelpTooltips(); // Hide others first
-                const tooltip = iconElement.nextElementSibling;
-                if (tooltip && tooltip.classList.contains('help-tooltip')) {
+                if (!AppConfig.showHelp) return; // Only show if help is enabled
+                this.hideAllHelpTooltips(); 
+                const tooltip = iconElement.querySelector('.help-tooltip');
+                if (tooltip) {
                     tooltip.style.opacity = '1';
                     tooltip.style.visibility = 'visible';
                 }
@@ -2883,6 +2966,11 @@ Now, give me the result which fits on the {{purpose}}, considering the full <Pro
         document.addEventListener('DOMContentLoaded', async () => {
             UIManager.init();
             AppConfig.init(); // Load help state first
+
+            // Sync help toggle checkbox with loaded config
+            if (UIManager.dom.toggleHelpBtn) {
+                UIManager.dom.toggleHelpBtn.checked = AppConfig.showHelp;
+            }
 
             // Initialize Firebase App and services
             try {
