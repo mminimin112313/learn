@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>통합 학습 환경 (ILE) v8.5 - UI 전면 개정</title>
+    <title>통합 학습 환경 (ILE) v9.1 - UI 개선 및 온보딩 도움말</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
@@ -357,20 +357,6 @@
         .module-card.status-pending { border-left-color: var(--color-text-secondary); }
         .module-card.status-inprogress { border-left-color: var(--color-warning); }
         .module-card.status-completed { border-left-color: var(--color-success); }
-
-        /* Module card internal elements */
-        .module-card h6 {
-            font-weight: 600;
-            font-size: 1.2rem;
-            margin-bottom: 0.75rem;
-        }
-        .module-card .text-secondary {
-            color: var(--color-text-secondary) !important;
-        }
-        .module-card .text-accent {
-            color: var(--color-accent-primary) !important;
-            font-weight: 500;
-        }
 
         /* Dropdown button for status change */
         .module-card .dropdown-toggle {
@@ -878,25 +864,64 @@
         .gap-4 { gap: 1rem; }
         .gap-6 { gap: 1.5rem; }
         .gap-8 { gap: 2rem; }
+
+        /* Help icon style */
+        .help-icon {
+            color: var(--color-text-secondary);
+            cursor: pointer;
+            margin-left: 0.5rem;
+            transition: color 0.2s ease-in-out;
+        }
+        .help-icon:hover {
+            color: var(--color-accent-primary);
+        }
+
+        /* Help tooltip/popover style */
+        .help-tooltip {
+            position: absolute;
+            background-color: #333;
+            color: white;
+            padding: 0.5rem 0.75rem;
+            border-radius: 0.375rem;
+            font-size: 0.8rem;
+            white-space: nowrap;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.2s ease-in-out, visibility 0.2s ease-in-out;
+            pointer-events: none; /* Allows clicks to pass through to elements behind it */
+        }
+        .help-icon:hover + .help-tooltip {
+            opacity: 1;
+            visibility: visible;
+        }
+
     </style>
 </head>
 <body class="font-sans">
     <div class="ile-container">
         <aside class="sidebar" id="sidebar">
-            <div class="sidebar-header">
-                <h4 class="text-xl font-bold"><i class="fa-solid fa-brain mr-2"></i>ILE v9.0</h4>
+            <div class="sidebar-header flex items-center justify-between">
+                <h4 class="text-xl font-bold"><i class="fa-solid fa-brain mr-2"></i>ILE v9.1</h4>
+                <i class="fa-solid fa-question-circle help-icon" data-help-key="sidebar-title"></i>
             </div>
             
             <!-- Firebase Auth Section -->
             <div class="sidebar-section">
-                <div id="auth-status" class="text-center text-sm mb-3 text-secondary-text-color">로그인 필요</div>
-                <button class="btn btn-primary w-full mb-2" id="google-signin-btn"><i class="fa-brands fa-google mr-2"></i>Google 로그인</button>
+                <div class="flex items-center justify-between">
+                    <div id="auth-status" class="text-center text-sm text-text-secondary-text-color">로그인 필요</div>
+                    <i class="fa-solid fa-question-circle help-icon" data-help-key="auth-status"></i>
+                </div>
+                <button class="btn btn-primary w-full mb-2 mt-3" id="google-signin-btn"><i class="fa-brands fa-google mr-2"></i>Google 로그인</button>
                 <button class="btn btn-outline-danger w-full d-none" id="signout-btn"><i class="fa-solid fa-right-from-bracket mr-2"></i>로그아웃</button>
             </div>
             <!-- End Firebase Auth Section -->
 
             <div class="project-controls sidebar-section">
-                <button class="btn btn-primary w-full mb-2" id="new-project-btn">새 프로젝트 생성</button>
+                <div class="flex items-center justify-between">
+                    <button class="btn btn-primary w-full mb-2" id="new-project-btn">새 프로젝트 생성</button>
+                    <i class="fa-solid fa-question-circle help-icon" data-help-key="new-project"></i>
+                </div>
                 <div class="flex gap-2">
                     <button class="btn btn-outline-secondary flex-grow" id="import-project-btn"><i class="fa-solid fa-file-import mr-2"></i>가져오기</button>
                     <input type="file" id="import-file-input" class="hidden" accept=".json,application/json">
@@ -905,8 +930,11 @@
             </div>
 
             <!-- Project List Section -->
-            <div class="sidebar-section project-list-section flex-grow" style="max-height: calc(100% - 300px);"> <!-- Adjust max-height dynamically -->
-                <h6 class="sidebar-title">프로젝트</h6>
+            <div class="sidebar-section project-list-section flex-grow" style="max-height: calc(100% - 300px);">
+                <div class="flex items-center justify-between">
+                    <h6 class="sidebar-title">프로젝트</h6>
+                    <i class="fa-solid fa-question-circle help-icon" data-help-key="project-list"></i>
+                </div>
                 <div class="input-group mb-3 flex">
                     <input type="text" class="form-control flex-grow" id="project-search-input" placeholder="프로젝트 검색...">
                     <button class="btn btn-outline-secondary px-3" type="button" id="clear-project-search-btn"><i class="fa-solid fa-xmark"></i></button>
@@ -916,7 +944,10 @@
             
             <!-- Resource Library Section -->
             <div class="sidebar-section">
-                <h6 class="sidebar-title">자원 라이브러리</h6>
+                <div class="flex items-center justify-between">
+                    <h6 class="sidebar-title">자원 라이브러리</h6>
+                    <i class="fa-solid fa-question-circle help-icon" data-help-key="resource-library"></i>
+                </div>
                 <div id="resource-list" class="list-group border border-border-color rounded-md overflow-y-auto max-h-36"></div>
             </div>
 
@@ -925,6 +956,13 @@
                 <button class="btn btn-success w-full" id="download-studypad-btn"><i class="fa-solid fa-book mr-2"></i>스터디 패드 전체 다운로드</button>
                 <button class="btn btn-secondary w-full" id="manage-actions-btn"><i class="fa-solid fa-gears mr-2"></i>액션 관리자</button>
                 <button class="btn btn-outline-primary w-full" id="add-resource-btn"><i class="fa-solid fa-plus-circle mr-2"></i>자원 추가</button>
+                <div class="flex items-center justify-between text-sm mt-2">
+                    <span>도움말 표시:</span>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="toggle-help-btn" class="sr-only peer">
+                        <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:border-gray-300 after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent-primary"></div>
+                    </label>
+                </div>
             </div>
         </aside>
 
@@ -934,7 +972,7 @@
                 <button class="hamburger-btn" id="hamburger-btn" aria-label="메뉴 열기">
                     <i class="fa-solid fa-bars"></i>
                 </button>
-                <h2 class="project-title-mobile" id="project-title-mobile">ILE v9.0</h2>
+                <h2 class="project-title-mobile" id="project-title-mobile">ILE v9.1</h2>
             </header>
 
             <div class="main-content-inner">
@@ -956,7 +994,7 @@
                     
                     <!-- Phase 0: Planning Section -->
                     <div class="app-card mb-8">
-                        <h5 class="mb-4 text-accent-primary"><i class="fa-solid fa-compass mr-3"></i>Phase 0: 학습 계획 수립</h5>
+                        <h5 class="mb-4 text-accent-primary"><i class="fa-solid fa-compass mr-3"></i>Phase 0: 학습 계획 수립 <i class="fa-solid fa-question-circle help-icon" data-help-key="plan-section"></i></h5>
                         <button class="btn btn-outline-primary w-full mb-4" id="plan-button" data-template-key="0_plan">
                             <i class="fa-solid fa-map-location-dot mr-2"></i>AI 튜터 페르소나 설계 및 학습 계획 생성
                         </button>
@@ -970,7 +1008,7 @@
 
                     <!-- Learning Progress Section -->
                     <div class="app-card mb-8">
-                        <h5 class="mb-4 text-accent-primary"><i class="fa-solid fa-chart-pie mr-3"></i>학습 진행도 분석</h5>
+                        <h5 class="mb-4 text-accent-primary"><i class="fa-solid fa-chart-pie mr-3"></i>학습 진행도 분석 <i class="fa-solid fa-question-circle help-icon" data-help-key="progress-section"></i></h5>
                         <div class="mb-4">
                             <label class="form-label text-sm font-medium">전체 진행률</label>
                             <div class="progress">
@@ -999,7 +1037,7 @@
 
                     <hr class="my-8 border-border-color">
 
-                    <h5 class="mb-6 text-accent-primary"><i class="fa-solid fa-chalkboard-user mr-3"></i>Phase 1 & 2: 학습 및 실행 대시보드</h5>
+                    <h5 class="mb-6 text-accent-primary"><i class="fa-solid fa-chalkboard-user mr-3"></i>Phase 1 & 2: 학습 및 실행 대시보드 <i class="fa-solid fa-question-circle help-icon" data-help-key="dashboard-section"></i></h5>
                     <div class="module-grid" id="learning-dashboard"></div>
                 </div>
             </div>
@@ -1382,6 +1420,27 @@ Now, give me the result which fits on the {{purpose}}, considering the full <Pro
             { key: '3_essay_prompts', title: '논술형 질문 생성', category: '심화와 표현', purpose: `현재 학습 모듈 '[모듈 제목]'의 스터디 패드 내용을 기반으로, 비판적 사고를 유도하는 3가지 논술형 질문을 생성하라. 각 질문에는 답변에 포함될 핵심 요소에 대한 가이드를 포함하라.`}
         ];
 
+        // Define help messages
+        const HELP_MESSAGES = {
+            'sidebar-title': 'ILE v9.1은 개인화된 학습 경험을 제공하는 통합 학습 환경입니다.',
+            'auth-status': '로그인 상태를 표시하고, Google 계정으로 로그인하거나 로그아웃할 수 있습니다.',
+            'new-project': '새로운 학습 프로젝트를 생성합니다. 프로젝트 이름과 최종 학습 목표를 설정할 수 있습니다.',
+            'project-list': '생성된 프로젝트 목록을 확인하고, 원하는 프로젝트를 선택하거나 검색할 수 있습니다. 프로젝트를 삭제할 수도 있습니다.',
+            'resource-library': '학습에 필요한 외부 자료(텍스트, Markdown, PDF 등)를 업로드하고 관리할 수 있습니다.',
+            'plan-section': 'AI 튜터 페르소나를 설정하고, AI가 생성한 학습 계획을 확인하고 적용하는 단계입니다.',
+            'progress-section': '현재 프로젝트의 학습 진행률과 모듈별 상태(완료, 진행 중, 대기)를 시각적으로 보여줍니다.',
+            'dashboard-section': '개별 학습 모듈의 상세 정보를 확인하고, 스터디 패드와 개인 메모를 작성하며, AI 액션을 실행할 수 있는 공간입니다.',
+            'module-status-dropdown': '현재 모듈의 학습 상태(대기, 진행 중, 완료)를 변경할 수 있습니다.',
+            'module-view-details': '요약된 학습 목표, 핵심 개념, 추천 리소스의 전체 내용을 볼 수 있습니다.',
+            'module-studypad': 'AI가 생성한 학습 자료나 사용자가 직접 작성한 학습 노트를 편집하고 확인할 수 있는 공간입니다. Markdown 문법을 지원합니다.',
+            'module-notes': '개인적인 생각, 질문, 추가 학습 필요 사항 등을 자유롭게 기록하는 공간입니다.',
+            'module-action': '현재 모듈과 관련된 다양한 AI 액션(학습 자료 생성, 문제 풀이, 요약 등)을 실행할 수 있습니다.',
+            'prompt-modal': 'AI 액션을 실행하기 위한 프롬프트를 생성하고 미리 볼 수 있습니다. 필요한 변수를 입력하고 데이터 소스를 선택하여 프롬프트를 맞춤 설정할 수 있습니다.',
+            'action-manager': 'AI 액션 템플릿을 추가, 편집, 삭제할 수 있습니다. 자신만의 학습 방식을 커스터마이징할 수 있습니다.'
+        };
+
+        let showHelp = false; // Initial state for help visibility
+
         document.addEventListener('DOMContentLoaded', () => {
             // --- App State ---
             const App = {
@@ -1396,6 +1455,17 @@ Now, give me the result which fits on the {{purpose}}, considering the full <Pro
                 cacheDOMElements();
                 initBootstrap();
                 
+                // Load help state from local storage
+                try {
+                    const storedHelpState = localStorage.getItem('ile_show_help');
+                    showHelp = storedHelpState === 'true'; // Default to false if not set
+                    if (App.dom.toggleHelpBtn) App.dom.toggleHelpBtn.checked = showHelp;
+                    updateHelpVisibility();
+                } catch (e) {
+                    console.error("로컬 도움말 상태 불러오기 실패:", e);
+                    showToast("경고", "도움말 설정을 불러오는 중 오류가 발생했습니다.", "warning");
+                }
+
                 // Initialize Firebase services after DOM elements are cached
                 try {
                     app = initializeApp(firebaseConfig);
@@ -1406,7 +1476,7 @@ Now, give me the result which fits on the {{purpose}}, considering the full <Pro
                     // ONLY set up auth listener AFTER Firebase services are initialized
                     onAuthStateChanged(auth, async (user) => {
                         if (user) {
-                            if (App.dom.authStatus) App.dom.authStatus.textContent = `${user.displayName}님 환영합니다!`;
+                            if (App.dom.authStatus) App.dom.authStatus.textContent = `${user.displayName}님 환영합니다! (UID: ${user.uid.substring(0, 8)}...)`; // Display truncated UID
                             if (App.dom.googleSigninBtn) App.dom.googleSigninBtn.classList.add('hidden');
                             if (App.dom.signOutBtn) App.dom.signOutBtn.classList.remove('hidden');
                             App.db.currentUser = {
@@ -1416,7 +1486,7 @@ Now, give me the result which fits on the {{purpose}}, considering the full <Pro
                             };
                             await loadUserProjectsFromFirestore(user.uid);
                             render();
-                            showToast("로그인됨", `${user.displayName}님 환영합니다!`, "success"); // Changed type to success
+                            showToast("로그인됨", `${user.displayName}님 환영합니다!`, "success");
                         } else {
                             if (App.dom.authStatus) App.dom.authStatus.textContent = "로그인이 필요합니다.";
                             if (App.dom.googleSigninBtn) App.dom.googleSigninBtn.classList.remove('hidden'); 
@@ -1443,7 +1513,7 @@ Now, give me the result which fits on the {{purpose}}, considering the full <Pro
 
                 loadDb(); 
                 registerEventListeners();
-                console.log("ILE App v9.0 Initialized");
+                console.log("ILE App v9.1 Initialized");
             }
             
             function cacheDOMElements() {
@@ -1493,6 +1563,9 @@ Now, give me the result which fits on the {{purpose}}, considering the full <Pro
                 // New elements for project search
                 App.dom.projectSearchInput = document.getElementById('project-search-input');
                 App.dom.clearProjectSearchBtn = document.getElementById('clear-project-search-btn');
+
+                // New elements for help
+                App.dom.toggleHelpBtn = document.getElementById('toggle-help-btn');
             }
 
             function initBootstrap() {
@@ -1699,6 +1772,7 @@ Now, give me the result which fits on the {{purpose}}, considering the full <Pro
             function render() {
                 renderProjectList();
                 renderWorkspace();
+                updateHelpVisibility(); // Ensure help icons are updated on render
             }
 
             function renderProjectList() {
@@ -1743,7 +1817,7 @@ Now, give me the result which fits on the {{purpose}}, considering the full <Pro
                 if (!project) {
                     if (App.dom.welcomeScreen) App.dom.welcomeScreen.classList.remove('hidden');
                     if (App.dom.projectWorkspace) App.dom.projectWorkspace.classList.add('hidden');
-                    if (App.dom.projectTitleMobile) App.dom.projectTitleMobile.textContent = "ILE v9.0"; 
+                    if (App.dom.projectTitleMobile) App.dom.projectTitleMobile.textContent = "ILE v9.1"; 
                     return;
                 }
 
@@ -1757,6 +1831,7 @@ Now, give me the result which fits on the {{purpose}}, considering the full <Pro
                 
                 renderResourceList();
                 renderLearningDashboard();
+                updateHelpVisibility(); // Ensure help icons are updated on workspace render
             }
 
             function renderResourceList() {
@@ -1800,48 +1875,42 @@ Now, give me the result which fits on the {{purpose}}, considering the full <Pro
                     card.className = `module-card status-${module.status || 'pending'}`;
                     card.dataset.moduleIndex = index;
 
-                    const learningObjectivesText = (module.learningObjectives || []).join(', ');
-                    const displayLearningObjectives = `<b>학습 목표:</b> <span class="learning-objectives-preview">${learningObjectivesText || '없음'}</span>`;
-                    const viewObjectivesButtonLO = learningObjectivesText.length > 50 ? 
-                        `<button class="btn btn-link view-details-btn" data-detail-type="learning-objectives" data-module-index="${index}" aria-label="학습 목표 자세히 보기"><i class="fa-solid fa-circle-info mr-1"></i> 자세히 보기</button>` : '';
-
-                    const keyConceptsText = (module.keyConcepts || []).join(', ');
-                    const displayKeyConcepts = `<b>핵심 개념:</b> <span class="key-concepts-preview">${keyConceptsText || '없음'}</span>`;
-                    const viewObjectivesButtonKC = keyConceptsText.length > 50 ? 
-                        `<button class="btn btn-link view-details-btn" data-detail-type="key-concepts" data-module-index="${index}" aria-label="핵심 개념 자세히 보기"><i class="fa-solid fa-circle-info mr-1"></i> 자세히 보기</button>` : '';
-
-                    const recommendedResourcesText = (module.recommendedResources || []).join(', ');
-                    const displayRecommendedResources = `<b>추천 리소스:</b> <span class="resources-preview">${recommendedResourcesText || '없음'}</span>`;
-                    const viewObjectivesButtonRR = recommendedResourcesText.length > 50 ? 
-                        `<button class="btn btn-link view-details-btn" data-detail-type="recommended-resources" data-module-index="${index}" aria-label="추천 리소스 자세히 보기"><i class="fa-solid fa-circle-info mr-1"></i> 자세히 보기</button>` : '';
-
-
+                    // Simplified detail buttons to just icons
+                    const detailIcons = [];
+                    if ((module.learningObjectives || []).length > 0) {
+                        detailIcons.push(`<i class="fa-solid fa-clipboard-list view-details-btn text-accent-primary text-base" data-detail-type="learning-objectives" data-module-index="${index}" title="학습 목표 자세히 보기" aria-label="학습 목표 자세히 보기"></i>`);
+                    }
+                    if ((module.keyConcepts || []).length > 0) {
+                        detailIcons.push(`<i class="fa-solid fa-lightbulb view-details-btn text-accent-primary text-base" data-detail-type="key-concepts" data-module-index="${index}" title="핵심 개념 자세히 보기" aria-label="핵심 개념 자세히 보기"></i>`);
+                    }
+                    if ((module.recommendedResources || []).length > 0) {
+                        detailIcons.push(`<i class="fa-solid fa-book-open view-details-btn text-accent-primary text-base" data-detail-type="recommended-resources" data-module-index="${index}" title="추천 리소스 자세히 보기" aria-label="추천 리소스 자세히 보기"></i>`);
+                    }
+                    
                     card.innerHTML = `
-                        <div class="flex justify-between items-center mb-3">
+                        <div class="flex justify-between items-start mb-3">
                             <h6 class="text-xl font-semibold mb-0 truncate">${index + 1}. ${module.title}</h6>
-                            <div class="relative inline-block text-left">
-                                <button class="dropdown-toggle text-sm" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="모듈 상태 변경">
-                                    ${(() => {
-                                        switch (module.status) {
-                                            case 'pending': return '대기 <i class="fa-solid fa-hourglass-start ml-2"></i>';
-                                            case 'inprogress': return '진행 중 <i class="fa-solid fa-spinner fa-spin ml-2"></i>';
-                                            case 'completed': return '완료 <i class="fa-solid fa-check-circle ml-2"></i>';
-                                            default: return '상태';
-                                        }
-                                    })()}
-                                </button>
-                                <ul class="dropdown-menu absolute z-10 w-40 bg-card-background rounded-md shadow-lg border border-border-color mt-1">
-                                    <li><a class="dropdown-item status-change-btn block px-4 py-2 text-text-primary hover:bg-input-bg transition-colors duration-150" href="#" data-status="pending">대기</a></li>
-                                    <li><a class="dropdown-item status-change-btn block px-4 py-2 text-text-primary hover:bg-input-bg transition-colors duration-150" href="#" data-status="inprogress">진행 중</a></li>
-                                    <li><a class="dropdown-item status-change-btn block px-4 py-2 text-text-primary hover:bg-input-bg transition-colors duration-150" href="#" data-status="completed">완료</a></li>
-                                </ul>
+                            <div class="flex items-center gap-2 ml-4">
+                                ${detailIcons.join('')}
+                                <div class="relative inline-block text-left">
+                                    <button class="dropdown-toggle text-sm" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="모듈 상태 변경">
+                                        ${(() => {
+                                            switch (module.status) {
+                                                case 'pending': return '대기 <i class="fa-solid fa-hourglass-start ml-2"></i>';
+                                                case 'inprogress': return '진행 중 <i class="fa-solid fa-spinner fa-spin ml-2"></i>';
+                                                case 'completed': return '완료 <i class="fa-solid fa-check-circle ml-2"></i>';
+                                                default: return '상태';
+                                            }
+                                        })()}
+                                    </button>
+                                    <ul class="dropdown-menu absolute z-10 w-40 bg-card-background rounded-md shadow-lg border border-border-color mt-1">
+                                        <li><a class="dropdown-item status-change-btn block px-4 py-2 text-text-primary hover:bg-input-bg transition-colors duration-150" href="#" data-status="pending">대기</a></li>
+                                        <li><a class="dropdown-item status-change-btn block px-4 py-2 text-text-primary hover:bg-input-bg transition-colors duration-150" href="#" data-status="inprogress">진행 중</a></li>
+                                        <li><a class="dropdown-item status-change-btn block px-4 py-2 text-text-primary hover:bg-input-bg transition-colors duration-150" href="#" data-status="completed">완료</a></li>
+                                    </ul>
+                                </div>
                             </div>
                         </div>
-                        <p class="text-sm text-text-secondary mb-2">${displayKeyConcepts}${viewObjectivesButtonKC}</p>
-                        <p class="text-sm text-text-secondary mb-3">${displayLearningObjectives}${viewObjectivesButtonLO}</p>
-                        ${module.recommendedResources && module.recommendedResources.length > 0 ? 
-                            `<p class="text-sm text-accent mb-3">${displayRecommendedResources}${viewObjectivesButtonRR}</p>` : ''
-                        }
                         <div class="mb-3">
                             <label class="form-label text-sm">스터디 패드</label>
                             <textarea class="form-control module-studypad" placeholder="이 모듈에 대한 AI 생성 학습 내용을 여기에 붙여넣으세요...">${module.studyPad || ''}</textarea>
@@ -1956,12 +2025,12 @@ Now, give me the result which fits on the {{purpose}}, considering the full <Pro
                 for (const category of Object.keys(groupedActions).sort()) {
                     const categoryDiv = document.createElement('div');
                     categoryDiv.className = 'action-category';
-                    categoryDiv.innerHTML = `<h6 class="text-xl font-bold mb-4">${category}</h6>`;
+                    categoryDiv.innerHTML = `<h6 class="text-xl font-bold mb-4">${category} <i class="fa-solid fa-question-circle help-icon" data-help-key="action-manager"></i></h6>`; // Add help icon
                     const actionGrid = document.createElement('div');
-                    actionGrid.className = 'grid grid-cols-1 gap-3'; // Use Tailwind grid classes
+                    actionGrid.className = 'grid grid-cols-1 gap-3';
                     groupedActions[category].forEach(action => {
                         const button = document.createElement('button');
-                        button.className = 'btn btn-action-light text-left justify-start'; // New class for action buttons
+                        button.className = 'btn btn-action-light text-left justify-start';
                         button.dataset.templateKey = action.key;
                         button.dataset.moduleIndex = moduleIndex;
                         button.textContent = action.title;
@@ -1972,6 +2041,7 @@ Now, give me the result which fits on the {{purpose}}, considering the full <Pro
                     body.appendChild(categoryDiv);
                 }
                 if (App.bs.actionSelectorModal) App.bs.actionSelectorModal.show();
+                updateHelpVisibility(); // Update help icons in modal
             }
 
             function renderActionManager() {
@@ -2317,24 +2387,24 @@ Now, give me the result which fits on the {{purpose}}, considering the full <Pro
                 const module = project.learningPlan.modules[moduleIndex];
                 let title = '';
                 let content = '';
+                let iconClass = '';
 
                 if (type === 'learning-objectives') {
                     title = `${module.title} 학습 목표`;
-                    content = (module.learningObjectives || []).join('\n- ');
-                    content = `- ${content}`; // Markdown list for display
+                    content = (module.learningObjectives || []).map(obj => `• ${obj}`).join('\n');
+                    iconClass = 'fa-clipboard-list';
                 } else if (type === 'key-concepts') {
                     title = `${module.title} 핵심 개념`;
-                    content = (module.keyConcepts || []).join('\n- ');
-                    content = `- ${content}`;
+                    content = (module.keyConcepts || []).map(concept => `• ${concept}`).join('\n');
+                    iconClass = 'fa-lightbulb';
                 } else if (type === 'recommended-resources') {
                     title = `${module.title} 추천 리소스`;
-                    content = (module.recommendedResources || []).join('\n- ');
-                    content = `- ${content}`;
+                    content = (module.recommendedResources || []).map(resource => `• ${resource}`).join('\n');
+                    iconClass = 'fa-book-open';
                 }
                 
-                if (App.dom.detailViewerTitle) App.dom.detailViewerTitle.textContent = title;
-                // Use <pre> for plain text content to preserve formatting. For markdown, use marked.parse.
-                if (App.dom.detailViewerBody) App.dom.detailViewerBody.innerHTML = `<pre class="detail-modal-content">${content}</pre>`; 
+                if (App.dom.detailViewerTitle) App.dom.detailViewerTitle.innerHTML = `<i class="fa-solid ${iconClass} mr-2"></i> ${title}`;
+                if (App.dom.detailViewerBody) App.dom.detailViewerBody.innerHTML = `<pre class="detail-modal-content">${content || '내용 없음'}</pre>`; 
                 if (App.bs.detailViewerModal) App.bs.detailViewerModal.show();
             }
 
@@ -2349,6 +2419,48 @@ Now, give me the result which fits on the {{purpose}}, considering the full <Pro
                 App.state.currentProjectSearchQuery = '';
                 renderProjectList();
             }
+
+            // --- Help Functionality ---
+            function updateHelpVisibility() {
+                document.querySelectorAll('.help-icon').forEach(icon => {
+                    if (showHelp) {
+                        icon.classList.remove('hidden');
+                        // Create tooltip div if it doesn't exist
+                        if (!icon.nextElementSibling || !icon.nextElementSibling.classList.contains('help-tooltip')) {
+                            const tooltip = document.createElement('div');
+                            tooltip.className = 'help-tooltip absolute';
+                            tooltip.textContent = HELP_MESSAGES[icon.dataset.helpKey] || '도움말을 찾을 수 없습니다.';
+                            icon.parentNode.insertBefore(tooltip, icon.nextSibling);
+                            // Position tooltip
+                            const iconRect = icon.getBoundingClientRect();
+                            const parentRect = icon.parentNode.getBoundingClientRect();
+                            tooltip.style.top = `${iconRect.top - parentRect.top - tooltip.offsetHeight - 5}px`; // Above the icon
+                            tooltip.style.left = `${iconRect.left - parentRect.left + (icon.offsetWidth / 2) - (tooltip.offsetWidth / 2)}px`;
+                            // Adjust if too close to edges (simple check)
+                            if (iconRect.left < tooltip.offsetWidth / 2) {
+                                tooltip.style.left = `0`;
+                            }
+                            if (window.innerWidth - iconRect.right < tooltip.offsetWidth / 2) {
+                                tooltip.style.right = `0`;
+                                tooltip.style.left = 'auto';
+                            }
+                        }
+                    } else {
+                        icon.classList.add('hidden');
+                        const tooltip = icon.nextElementSibling;
+                        if (tooltip && tooltip.classList.contains('help-tooltip')) {
+                            tooltip.remove();
+                        }
+                    }
+                });
+            }
+
+            function toggleHelp() {
+                showHelp = !showHelp;
+                localStorage.setItem('ile_show_help', showHelp);
+                updateHelpVisibility();
+            }
+
 
             // --- 5. Event Listeners & Handlers ---
             function registerEventListeners() {
@@ -2378,6 +2490,9 @@ Now, give me the result which fits on the {{purpose}}, considering the full <Pro
                 App.dom.toggleViewerModeBtn?.addEventListener('click', toggleStudyPadViewerMode);
                 App.dom.saveViewerContentBtn?.addEventListener('click', saveStudyPadViewerContent);
 
+                // Help toggle button
+                App.dom.toggleHelpBtn?.addEventListener('change', toggleHelp);
+
 
                 // Event Delegation for dynamic content
                 App.dom.projectList?.addEventListener('click', handleProjectListClick);
@@ -2394,6 +2509,15 @@ Now, give me the result which fits on the {{purpose}}, considering the full <Pro
                 // Mobile UI
                 document.getElementById('hamburger-btn')?.addEventListener('click', toggleSidebar);
                 App.dom.overlay?.addEventListener('click', toggleSidebar);
+
+                // Event listener for help icons (delegated)
+                document.addEventListener('click', (e) => {
+                    const helpIcon = e.target.closest('.help-icon');
+                    if (helpIcon && showHelp) { // Only handle click if help is enabled
+                        e.stopPropagation(); // Prevent modal from closing or other click events
+                        // The tooltip is already managed by CSS hover, but this click could be used for persistent popovers if needed
+                    }
+                });
             }
 
             // Specific Click Handlers
@@ -2787,6 +2911,7 @@ Now, give me the result which fits on the {{purpose}}, considering the full <Pro
                 updateDataSourceVisibility();
                 updatePreview(); // Initial preview update
                 if (App.bs.promptModal) App.bs.promptModal.show();
+                updateHelpVisibility(); // Update help icons in modal
             }
 
             function handleExecutePromptClick() {
