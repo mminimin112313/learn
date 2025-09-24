@@ -663,12 +663,15 @@ html.dark .quiz-result-score {
             flex-shrink: 0;
             background-color: var(--bg-primary);
             border-top: 1px solid var(--border-color);
-            padding: 0.25rem 1.5rem; 
+            /* 상하 패딩에 safe-area-inset-bottom을 추가하여 모바일 브라우저 UI가 푸터를 가리지 않도록 합니다. */
+            padding: 0.25rem 1.5rem;
+            padding-bottom: calc(0.25rem + env(safe-area-inset-bottom, 0px));
             font-size: 0.75rem;
             color: var(--text-secondary);
             transition: background-color 0.2s;
             position: sticky;
-            bottom: 0;
+            /* bottom 값을 safe-area-inset-bottom으로 이동하여 아이폰 등의 하단 홈바 영역을 피합니다. */
+            bottom: env(safe-area-inset-bottom, 0px);
             z-index: 5;
         }
 
@@ -1075,7 +1078,9 @@ const CONFIG = {
         PROJECT_LIST: 'project_list',
         WORKSPACE: 'workspace',
         QUIZ: 'quiz',
-        QUIZ_RESULT: 'quizResult'
+        QUIZ_RESULT: 'quizResult',
+        // 새 전역 검색 뷰를 추가합니다.
+        GLOBAL_SEARCH: 'global_search'
     },
     // Enumerations for save status indicators.
     SAVE_STATUS: {
@@ -1281,6 +1286,13 @@ const state = {
     isKaTeXLoaded: false,
     searchResults: null,
     searchQuery: '',
+    // 전역 검색용 상태 필드
+    globalSearchQuery: '',
+    globalSearchResults: null,
+    // 전역 검색 결과 표시 개수: 기본 30개씩 보여주고 더보기 버튼으로 확장합니다.
+    globalSearchVisibleCount: 30,
+    // 전역 검색 전 상태를 복원하기 위한 이전 뷰 기억
+    previousView: null,
     sidebarCollapseState: {
         categories: false,
         tags: false
@@ -1364,6 +1376,8 @@ function setState(updates) {
 }
 
 let fuse = null;
+// Fuse 인스턴스: 프로젝트 검색과 별개로 전역 검색 인덱스를 유지하기 위한 전역 변수입니다.
+let globalFuse = null;
 
 const DB = {
     db: null,
@@ -2700,9 +2714,14 @@ const View = {
                 <h1 class="header-title">${title}</h1>
                 <div class="flex items-center gap-4">
                     <div id="save-status-container">${saveStatusIndicator}</div>
+                    <!-- 전역 검색 전 뷰로 돌아가기 버튼 -->
+                    ${state.currentView === CONFIG.VIEW_NAMES.GLOBAL_SEARCH ? `<button data-action="exit-global-search" class="p-2 rounded-full hover:bg-slate-200" title="돌아가기">${Heroicons.render('arrow-left', { class: 'w-5 h-5' })}</button>` : ''}
+                    <!-- 전역 검색 입력 및 제출 버튼 -->
                     <div class="relative">
-                        <input type="text" class="search-input" id="search-input" placeholder="프로젝트 검색..." value="${DOMPurify.sanitize(state.searchQuery)}">
-                        <div class="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400">${Heroicons.render('magnifying-glass')}</div>
+                        <input type="text" class="search-input" id="global-search-input" placeholder="전역 검색..." value="${DOMPurify.sanitize(state.globalSearchQuery || '')}">
+                        <button data-action="global-search-submit" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" title="검색" aria-label="검색">
+                            ${Heroicons.render('magnifying-glass', { class: 'w-4 h-4' })}
+                        </button>
                     </div>
                     ${workspaceControls}
                 </div>
@@ -2722,6 +2741,8 @@ const View = {
         },
         getHeaderTitle() {
             if (state.currentView === 'workspace' && state.activeProject) return state.activeProject.name;
+            // 전역 검색 뷰에서는 제목을 전역 검색으로 표시합니다.
+            if (state.currentView === 'global_search') return '전역 검색';
             const {
                 type,
                 id
@@ -2744,6 +2765,8 @@ const View = {
                     return this.renderQuizView();
                 case 'quizResult':
                     return this.renderQuizResultView();
+                case 'global_search':
+                    return this.renderGlobalSearch();
                 default:
                     return `<div class="text-center p-8 text-slate-500">뷰를 로드하는 중...</div>`;
             }
@@ -2867,6 +2890,49 @@ const View = {
                         </div>
                         ${this.renderActionRail()}
                     </div>`;
+        },
+
+        /**
+         * 전역 검색 결과를 렌더링합니다. 검색어에 따라 결과를 리스트로 표시하며,
+         * 결과가 없거나 검색어가 없는 경우 적절한 메시지를 보여줍니다.
+         * 각 결과는 프로젝트 이름과 챕터 제목, 스니펫으로 구성되며 클릭 시 해당 챕터로 이동합니다.
+         * @returns {string}
+         */
+        renderGlobalSearch() {
+            const query = state.globalSearchQuery || '';
+            const results = state.globalSearchResults;
+            let contentHtml;
+            if (!query.trim()) {
+                contentHtml = `<div class="text-center p-8 text-slate-500">검색어를 입력하세요.</div>`;
+            } else if (!results || results.length === 0) {
+                contentHtml = `<div class="text-center p-8 text-slate-500">검색 결과가 없습니다.</div>`;
+            } else {
+                // 표시해야 할 결과 개수와 전체 결과를 분리합니다.
+                const visibleCount = state.globalSearchVisibleCount || 30;
+                const totalResults = results.length;
+                const visibleResults = results.slice(0, visibleCount);
+                contentHtml = `<ul class="divide-y divide-slate-200">
+                    ${visibleResults.map(r => {
+                        const projectName = DOMPurify.sanitize(r.projectName);
+                        const title = DOMPurify.sanitize(r.title || '');
+                        // snippet은 <mark> 태그를 허용하여 하이라이트를 유지합니다.
+                        const snippet = DOMPurify.sanitize(r.snippet, { ALLOWED_TAGS: ['mark'] });
+                        return `<li>
+                            <a href="javascript:void(0)" data-action="open-global-search-result" data-project-id="${r.projectId}" data-path="${r.path}" class="block p-4 hover:bg-slate-50">
+                                <div class="text-sm font-medium text-indigo-600 truncate">${projectName}${title ? ' » ' + title : ''}</div>
+                                <div class="mt-1 text-sm text-slate-600">${snippet}</div>
+                            </a>
+                        </li>`;
+                    }).join('')}
+                </ul>`;
+                // 더 보여줄 결과가 있다면 '더 찾기' 버튼을 추가합니다.
+                if (totalResults > visibleCount) {
+                    contentHtml += `<div class="p-4 text-center">
+                        <button data-action="global-search-show-more" class="btn btn-secondary btn-sm">더 찾기</button>
+                    </div>`;
+                }
+            }
+            return `<div class="p-4">${contentHtml}</div>`;
         },
         renderBreadcrumbs() {
             if (!state.activeChapterPath) {
@@ -4135,7 +4201,11 @@ renderQuizResultView() {
                 
                 document.body.addEventListener('input', Utils.debounce(async e => {
                     if (e.target.matches('#search-input')) {
-                        this.handleSearch(e.target.value);
+                        // 프로젝트 검색 기능은 제거되었지만, 기존 코드를 유지하기 위해 단순히 상태만 업데이트합니다.
+                        state.searchQuery = e.target.value;
+                    } else if (e.target.matches('#global-search-input')) {
+                        // 전역 검색 입력값만 업데이트합니다. 실제 검색은 엔터키 입력이나 검색 버튼 클릭 시 수행됩니다.
+                        state.globalSearchQuery = e.target.value;
                     } else if (e.target.matches('[data-action="toc-edit-title"]')) {
                         this.handleTocTitleEdit(e.target);
                     } else if (e.target.matches('#manuscript, #notes, #translation, [data-setting-key], [data-custom-prompt-key]')) {
@@ -4145,6 +4215,13 @@ renderQuizResultView() {
                     }
                 }, 500));
                 document.addEventListener('keydown', e => {
+                    // 전역 검색 입력에서 Enter키를 누르면 검색을 실행합니다.
+                    if (e.target.matches('#global-search-input') && e.key === 'Enter') {
+                        e.preventDefault();
+                        // 현재 입력값으로 검색을 실행합니다.
+                        this.handleGlobalSearch(e.target.value);
+                        return;
+                    }
                     if (e.key === 'Escape' && ModalManager.isOpen) {
                         console.log('[디버그] 모달 닫힘: "ESC 키" 누름');
                         ModalManager.close();
@@ -4878,6 +4955,165 @@ Micro-interactions are the small, often unnoticed animations and design elements
                     includeScore: true,
                     threshold: 0.3
                 });
+            },
+            // 전역 검색 인덱스를 생성합니다. Fuse를 사용하여 모든 프로젝트의 콘텐츠를 대상으로 검색할 수 있도록 준비합니다.
+            async buildGlobalSearchIndex() {
+                if (globalFuse) return;
+                const records = [];
+                for (const project of state.projects) {
+                    const contents = await DB.getProjectContents(project.id);
+                    const flatToc = project.toc ? Utils.getFlatToc(project.toc) : [];
+                    const nodeMap = {};
+                    flatToc.forEach(info => {
+                        const cid = info.node.contentId;
+                        nodeMap[cid] = { path: info.path, title: info.node.title };
+                    });
+                    for (const content of contents) {
+                        let nodeId = content.nodeId || null;
+                        if (!nodeId) {
+                            const parts = content.id.split('_');
+                            parts.shift();
+                            nodeId = parts.join('_');
+                        }
+                        const mapping = nodeMap[nodeId] || {};
+                        const combinedText = [
+                            content.manuscript || '',
+                            content.translation || '',
+                            content.notes || ''
+                        ].join(' ');
+                        if (!combinedText.trim()) continue;
+                        records.push({
+                            projectId: project.id,
+                            projectName: project.name,
+                            path: mapping.path || null,
+                            title: mapping.title || '',
+                            text: combinedText,
+                            contentId: content.id
+                        });
+                    }
+                }
+                globalFuse = new Fuse(records, {
+                    keys: ['text'],
+                    includeScore: true,
+                    threshold: 0.3
+                });
+            },
+            /**
+             * 주어진 텍스트에서 검색어의 첫 번째 발생 주변을 추출하여 스니펫을 생성합니다.
+             * @param {string} text - 원본 텍스트
+             * @param {string} query - 사용자 검색어
+             * @param {number} radius - 검색어 전후 추출할 문자 수
+             * @returns {string} - HTML 마크업을 포함한 스니펫
+             */
+            getSnippet(text, query, radius = 50) {
+                const normalized = (text || '').replace(/\s+/g, ' ');
+                const lowerText = normalized.toLowerCase();
+                const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
+                let idx = -1;
+                for (const term of terms) {
+                    const i = lowerText.indexOf(term);
+                    if (i >= 0 && (idx === -1 || i < idx)) {
+                        idx = i;
+                    }
+                }
+                if (idx < 0) idx = 0;
+                const start = Math.max(0, idx - radius);
+                const end = Math.min(normalized.length, idx + (terms[0] ? terms[0].length : 0) + radius);
+                let snippet = normalized.slice(start, end).trim();
+                terms.forEach(term => {
+                    if (term) {
+                        const regex = new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+                        snippet = snippet.replace(regex, match => `<mark>${match}</mark>`);
+                    }
+                });
+                const prefix = start > 0 ? '…' : '';
+                const suffix = end < normalized.length ? '…' : '';
+                return prefix + snippet + suffix;
+            },
+
+            /**
+             * 한글 조사(은/는/이/가/을/를/와/과/도/의)를 제거하여 검색어를 정규화합니다.
+             * 주로 명사 뒤에 붙는 조사를 단순히 삭제하여 어간만 남기기 때문에 간단한 검색 품질 개선에 도움이 됩니다.
+             * @param {string} text - 원본 문자열
+             * @returns {string} - 정규화된 문자열
+             */
+            normalizeKorean(text) {
+                // 각 단어의 끝에 붙는 조사만 제거합니다. 공백과 구두점 경계에서만 수행하도록 \b 사용.
+                return (text || '').replace(/\b([가-힣]+)([은는이가을를와과도의])\b/g, '$1');
+            },
+            /**
+             * 전역 검색을 수행하고 결과를 상태에 저장합니다.
+             * @param {string} query - 검색어
+             */
+            async handleGlobalSearch(query) {
+                // 전역 검색어를 저장하지만 즉시 검색을 실행하지는 않습니다. 검색 실행 시 이전 뷰를 기억합니다.
+                const trimmed = query.trim();
+                state.globalSearchQuery = query;
+
+                // 이전 뷰를 저장하여 종료 시 돌아갈 수 있도록 합니다.
+                if (state.currentView !== CONFIG.VIEW_NAMES.GLOBAL_SEARCH) {
+                    state.previousView = state.currentView;
+                }
+
+                // 빈 검색어일 경우 결과를 초기화하고 전역 검색 뷰로 전환만 합니다.
+                if (trimmed === '') {
+                    state.globalSearchResults = null;
+                    state.globalSearchVisibleCount = 30;
+                    state.currentView = CONFIG.VIEW_NAMES.GLOBAL_SEARCH;
+                    View.render();
+                    return;
+                }
+                await this.buildGlobalSearchIndex();
+                // 한글 조사를 제거한 검색어를 함께 사용하여 검색 품질을 높입니다.
+                const normalized = this.normalizeKorean(trimmed);
+                const queries = Array.from(new Set([trimmed, normalized]));
+                const searchOptions = { limit: 200 };
+                const aggregated = [];
+                for (const q of queries) {
+                    try {
+                        aggregated.push(...globalFuse.search(q, searchOptions));
+                    } catch (err) {
+                        aggregated.push(...globalFuse.search(q));
+                    }
+                }
+                // 중복된 contentId를 제거하면서 원래의 순서를 유지합니다.
+                const seen = new Set();
+                const uniqueResults = [];
+                for (const res of aggregated) {
+                    const cid = res.item.contentId;
+                    if (!seen.has(cid)) {
+                        seen.add(cid);
+                        uniqueResults.push(res);
+                    }
+                }
+                const processed = uniqueResults.map(res => {
+                    const rec = res.item;
+                    const snippet = this.getSnippet(rec.text, trimmed);
+                    // 경로가 없을 경우, 프로젝트의 toc를 탐색하여 해당 contentId에 대한 경로를 찾습니다.
+                    let path = rec.path;
+                    if (!path) {
+                        const project = state.projects.find(p => p.id === rec.projectId);
+                        if (project && project.toc) {
+                            const allNodes = Utils.getFlatToc(project.toc);
+                            const match = allNodes.find(item => item.node.contentId === rec.contentId);
+                            if (match) path = match.path;
+                        }
+                    }
+                    return {
+                        projectId: rec.projectId,
+                        projectName: rec.projectName,
+                        path: path,
+                        title: rec.title || '',
+                        snippet: snippet
+                    };
+                });
+                state.globalSearchResults = processed;
+                state.globalSearchVisibleCount = 30;
+                // 전역 검색 뷰로 전환합니다. 이전 프로젝트 검색 상태를 지웁니다.
+                state.currentView = CONFIG.VIEW_NAMES.GLOBAL_SEARCH;
+                state.searchQuery = '';
+                state.searchResults = null;
+                View.render();
             },
             handleSearch(query) {
                 // Use the global setState helper to update multiple pieces of state consistently.
@@ -6225,6 +6461,48 @@ Path: ${input.dataset.path}
                     }
                 },
 
+                // 전역 검색 결과 클릭 시 해당 프로젝트와 챕터로 이동합니다.
+                'open-global-search-result': (el, event) => {
+                    if (event) event.preventDefault();
+                    const projectId = el.dataset.projectId;
+                    const path = el.dataset.path;
+                    if (!projectId || !path) return;
+                    // 해시 변경을 통해 URL 네비게이션을 트리거합니다.
+                    window.location.hash = `#/projects/${projectId}/chapters/${path}`;
+                    // 검색 결과 클릭 후 전역 검색 상태를 초기화하여 스무스한 전환을 돕습니다.
+                    state.globalSearchQuery = '';
+                    state.globalSearchResults = null;
+                    state.globalSearchVisibleCount = 30;
+                },
+
+                // 전역 검색 결과를 추가로 더 보여주는 버튼의 핸들러입니다.
+                'global-search-show-more': () => {
+                    // 30개씩 추가로 로드합니다.
+                    const increment = 30;
+                    const current = state.globalSearchVisibleCount || 30;
+                    state.globalSearchVisibleCount = current + increment;
+                    View.render();
+                },
+
+                // 전역 검색 결과 페이지에서 이전 뷰로 돌아갑니다.
+                'exit-global-search': () => {
+                    // 검색 상태를 초기화하고 이전 뷰로 전환합니다.
+                    state.globalSearchQuery = '';
+                    state.globalSearchResults = null;
+                    state.globalSearchVisibleCount = 30;
+                    // 돌아갈 뷰가 없으면 기본적으로 대시보드로 갑니다.
+                    state.currentView = state.previousView || CONFIG.VIEW_NAMES.DASHBOARD;
+                    View.render();
+                },
+
+                // 검색 버튼 클릭 시 전역 검색을 수행합니다.
+                'global-search-submit': (el) => {
+                    const input = document.getElementById('global-search-input');
+                    if (input) {
+                        Controller.handleGlobalSearch(input.value);
+                    }
+                },
+
                 // [신규] 다중 삭제 핸들러: 선택된 모든 항목을 한 번에 삭제합니다.
                 'toc-context-delete': () => {
                     const selectedPaths = ModalManager.data.selectedTocPaths;
@@ -6821,14 +7099,68 @@ Path: ${input.dataset.path}
                 },
 
                 // ▼▼▼ [수정] 불필요한 DB 조작을 제거하고 모달 내에서만 동작하도록 로직 단순화 ▼▼▼
-                'toc-add-root-item': () => {
-                    const toc = ModalManager.data.editableToc;
-                    if (toc) {
-                         // createTocNode 유틸리티를 사용하여 ID가 포함된 노드를 생성합니다.
-                        const newNode = Utils.createTocNode("새 최상위 항목");
-                        toc.children.push(newNode);
-                        ModalManager.render();
+                // 루트 수준의 목차 항목을 추가합니다. 모달 안팎에서 모두 동작하도록 수정되었습니다.
+                'toc-add-root-item': async () => {
+                    // 모달 내에서 작업하는 경우: 기존 로직을 유지합니다.
+                    if (ModalManager.data && ModalManager.data.editableToc) {
+                        const toc = ModalManager.data.editableToc;
+                        if (toc) {
+                            // createTocNode 유틸리티를 사용하여 ID가 포함된 노드를 생성합니다.
+                            const newNode = Utils.createTocNode("새 최상위 항목");
+                            toc.children.push(newNode);
+                            ModalManager.render();
+                        }
+                        return;
                     }
+                    // 모달이 열려 있지 않은 경우(예: 워크스페이스에서 '첫 챕터 추가' 버튼을 클릭한 경우)
+                    // 현재 활성 프로젝트에 직접 새로운 루트 챕터를 추가합니다.
+                    const projectId = state.activeProjectId;
+                    const project = state.activeProject;
+                    if (!projectId || !project) return;
+                    // 루트 toc가 없으면 초기화합니다.
+                    if (!project.toc) {
+                        project.toc = { title: '', children: [] };
+                    } else if (!Array.isArray(project.toc.children)) {
+                        project.toc.children = [];
+                    }
+                    // 새 노드 생성
+                    const newNode = Utils.createTocNode('새 챕터');
+                    project.toc.children.push(newNode);
+                    // state.projects 배열 내의 해당 프로젝트 객체도 toc 변경을 반영합니다.
+                    const projIndex = state.projects.findIndex(p => p.id === projectId);
+                    if (projIndex >= 0) {
+                        // 중첩 객체를 유지하기 위해 기존 객체를 그대로 수정
+                        state.projects[projIndex].toc = project.toc;
+                    }
+                    // 새로운 콘텐츠 객체 생성
+                    const contentId = newNode.contentId;
+                    const newContent = {
+                        id: `${projectId}_${contentId}`,
+                        projectId: projectId,
+                        nodeId: contentId,
+                        manuscript: '',
+                        translation: '',
+                        notes: '',
+                        imageDataUrl: null,
+                        questions: [],
+                        historyMetadata: { snapshotCount: 0, lastSnapshotAt: null },
+                        status: 'empty'
+                    };
+                    // DB에 새 콘텐츠 저장 및 state 갱신
+                    try {
+                        await DB.put(CONFIG.STORES.CONTENTS, newContent);
+                    } catch (err) {
+                        console.error('새 콘텐츠 저장 중 오류:', err);
+                    }
+                    state.activeContentsMap.set(newContent.id, newContent);
+                    // 프로젝트의 toc 업데이트를 DB에 저장
+                    try {
+                        await DB.put(CONFIG.STORES.PROJECTS, project);
+                    } catch (err) {
+                        console.error('프로젝트 toc 업데이트 중 오류:', err);
+                    }
+                    // UI 새로 고침
+                    View.render();
                 },
                 'toc-delete': (el) => {
                     const {
