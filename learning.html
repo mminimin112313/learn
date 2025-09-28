@@ -456,6 +456,12 @@ html.dark .quiz-result-score {
     border-top: 1px solid var(--border-color);
     margin: 0.5rem 0;
 }
+.context-menu-unselectable {
+    -webkit-user-select: none; /* Safari */
+    -moz-user-select: none;    /* Firefox */
+    -ms-user-select: none;     /* IE10+/Edge */
+    user-select: none;         /* Standard */
+}
         .toc-item ul {
             position: relative;
             padding-left: 1rem; /* 선이 그려질 공간 확보 */
@@ -1050,9 +1056,7 @@ html.dark .quiz-result-score {
 /* --- 하이라이트 (Highlights) --- */
 .prose-readable mark {
     background-color: rgba(250, 204, 21, 0.4); /* Tailwind yellow-300 with transparency */
-    padding: 0.1em 0.3em;
-    margin: 0 -0.1em;
-    border-radius: 4px;
+    /* padding, margin, border-radius 속성을 제거하여 레이아웃 변경을 방지합니다. */
     color: inherit;
 }
 html.dark .prose-readable mark {
@@ -1067,17 +1071,24 @@ html.dark .prose-readable mark {
     line-height: 0;
 }
 .prose-readable .footnote-ref a {
-    border-bottom: none !important;
+    /* 기존 스타일 초기화 */
+    border: none !important;
     background-color: transparent !important;
-    padding: 2px;
+    text-decoration: none !important;
+    font-weight: normal; /* 일반 텍스트와 굵기 통일 */
+    
+    /* [핵심 수정] 시각적 구분을 위한 스타일 */
+    color: var(--accent-primary); /* 테마 색상으로 눈에 띄게 */
+    padding: 0.1em 0.2em;
+    margin: 0 0.1em;
     border-radius: 4px;
+    cursor: help;
     transition: background-color 0.2s, color 0.2s;
 }
 .prose-readable .footnote-ref a:hover {
-    background-color: var(--bg-hover) !important;
-    color: var(--accent-primary) !important;
+    background-color: var(--accent-primary-hover) !important;
+    color: white !important;
 }
-
 /* 각주 목록 구분선 */
 .prose-readable .footnote-divider {
     margin-top: 4em;
@@ -1093,6 +1104,8 @@ html.dark .prose-readable mark {
 
 /* 각주 목록의 각 항목 */
 .prose-readable .footnotes li {
+    display: flex; /* [수정] flex 레이아웃으로 변경 */
+    align-items: baseline; /* [수정] 기준선 정렬 */
     margin-bottom: 0.8em;
     line-height: 1.6;
 }
@@ -1739,10 +1752,41 @@ const ModalManager = {
             'manageHistory': this.renderManageHistoryModal,
             // Generic input prompt modal registration. This key maps to a modal used for collecting user input.
             'inputPrompt': this.renderInputPromptModal,
+            'addFootnote': this.renderAddFootnoteModal,
         };
     },
     // ModalManager 객체 내부에 아래 5개 함수를 추가/교체하세요.
-
+    renderAddFootnoteModal() {
+        return `
+            <form data-action="submit-add-footnote">
+                <div class="p-6">
+                    <div class="flex justify-between items-start">
+                        <h3 class="text-xl font-semibold text-slate-900 mb-4">각주 추가</h3>
+                        <button type="button" data-action="close-modal" class="p-1 rounded-full hover:bg-slate-100">${Heroicons.render('x-mark', { class: 'w-5 h-5 text-slate-500' })}</button>
+                    </div>
+                    
+                    <div class="space-y-4">
+                        <div>
+                            <label for="footnote-key-input" class="block text-sm font-medium text-slate-700">각주 키 (선택 사항)</label>
+                            <input type="text" id="footnote-key-input" name="footnote-key-input"
+                                class="mt-1 block w-full rounded-md border-slate-300 shadow-sm"
+                                placeholder="비워두면 자동으로 번호 부여 (예: 1, 2, 3...)">
+                        </div>
+                        <div>
+                            <label for="footnote-content-input" class="block text-sm font-medium text-slate-700">각주 내용</label>
+                            <textarea id="footnote-content-input" name="footnote-content-input" rows="4"
+                                    class="mt-1 block w-full rounded-md border-slate-300 shadow-sm"
+                                    placeholder="각주에 표시될 내용을 입력하세요." required></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-slate-50 px-6 py-4 flex justify-end space-x-3 rounded-b-lg border-t">
+                    <button type="button" data-action="close-modal" class="btn btn-secondary">취소</button>
+                    <button type="submit" class="btn">각주 추가</button>
+                </div>
+            </form>
+        `;
+    },
     // [신규] 목차 리스트와 하단 컨트롤 영역의 HTML만 생성하는 헬퍼 함수
     renderTocModalContent() {
         // 헬퍼 함수: 재귀적으로 각 목차 노드를 HTML로 렌더링
@@ -3195,91 +3239,98 @@ const View = {
             }
         },
         renderViewPanel() {
-            const content = state.activeChapterContent;
-            const hasManuscript = content.manuscript && content.manuscript.trim();
-            const hasTranslation = content.translation && content.translation.trim();
+                const content = state.activeChapterContent;
+                const hasManuscript = content.manuscript && content.manuscript.trim();
+                const hasTranslation = content.translation && content.translation.trim();
 
-            let effectiveMode = state.viewPanelDisplayMode;
-            if (effectiveMode === 'auto') {
-                effectiveMode = hasTranslation ? 'translation' : 'manuscript';
-            }
+                let effectiveMode = state.viewPanelDisplayMode;
+                if (effectiveMode === 'auto') {
+                    effectiveMode = hasTranslation ? 'translation' : 'manuscript';
+                }
 
-            const layoutButton = (mode, icon, label) => {
-                const isActive = effectiveMode === mode;
-                const isDisabled = (mode === 'manuscript' && !hasManuscript) || (mode === 'translation' && !hasTranslation) || (mode === 'both' && (!hasManuscript || !hasTranslation));
+                const layoutButton = (mode, icon, label) => {
+                    const isActive = effectiveMode === mode;
+                    const isDisabled = (mode === 'manuscript' && !hasManuscript) || (mode === 'translation' && !hasTranslation) || (mode === 'both' && (!hasManuscript || !hasTranslation));
+                    
+                    return `<button data-action="set-view-panel-mode" data-mode="${mode}" data-tooltip="${label}" 
+                                    class="layout-toggle-button ${isActive ? 'active' : ''}" ${isDisabled ? 'disabled' : ''}>
+                                ${Heroicons.render(icon, { class: 'w-4 h-4' })}
+                            </button>`;
+                };
+
+                const controls = `
+                <div class="flex justify-end items-center mb-4 gap-4">
+                    <button data-tooltip="${state.isReaderMode ? '리더 모드 종료' : '리더 모드 시작'}" data-action="toggle-reader-mode" class="p-2 text-slate-500 hover:bg-slate-200 rounded-full">
+                        ${Heroicons.render(state.isReaderMode ? 'arrows-pointing-in' : 'arrows-pointing-out', { class: 'w-5 h-5' })}
+                    </button>
+                    <div class="inline-flex rounded-md shadow-sm">
+                        ${layoutButton('manuscript', 'document-text', '원문')}
+                        ${layoutButton('translation', 'language', '번역문')}
+                        ${layoutButton('both', 'rectangle-group', '모두')}
+                    </div>
+                </div>`;
+
+                // ==================================================================
+                // ▼▼▼ [핵심 수정] 보안 필터(DOMPurify) 설정에 누락된 태그와 속성 추가 ▼▼▼
+                // ==================================================================
+                const allowedTagsConfig = {
+                    ALLOWED_TAGS: [
+                        'strong', 'b', 'em', 'i', 'p', 'br', 'ul', 'ol', 'li',
+                        'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'a', 'img', 'code', 'pre', 'blockquote',
+                        'table', 'thead', 'tbody', 'tr', 'th', 'td','mark', 'sup', 'section', 'hr',
+                        'div' // [추가] 각주 목록 레이아웃에 필요한 div 태그 허용
+                    ],
+                    ALLOWED_ATTR: [
+                        'align','id', 'href', 'role', 'class', 'data-tooltip',
+                        'data-action', 'data-footnote-key' // [추가] 링크 기능에 필요한 data 속성 허용
+                    ]
+                };
                 
-                // bg-white, bg-indigo-100 대신 'layout-toggle-button'과 'active' 클래스를 사용합니다.
-                return `<button data-action="set-view-panel-mode" data-mode="${mode}" data-tooltip="${label}" 
-                                class="layout-toggle-button ${isActive ? 'active' : ''}" ${isDisabled ? 'disabled' : ''}>
-                            ${Heroicons.render(icon, { class: 'w-4 h-4' })}
-                        </button>`;
-            };
+                // 1단계: 렌더링 시작 시 FootnoteManager를 초기화합니다.
+                FootnoteManager.clear();
 
-            const controls = `
-            <div class="flex justify-end items-center mb-4 gap-4">
-                <button data-tooltip="${state.isReaderMode ? '리더 모드 종료' : '리더 모드 시작'}" data-action="toggle-reader-mode" class="p-2 text-slate-500 hover:bg-slate-200 rounded-full">
-                    ${Heroicons.render(state.isReaderMode ? 'arrows-pointing-in' : 'arrows-pointing-out', { class: 'w-5 h-5' })}
-                </button>
-                <div class="inline-flex rounded-md shadow-sm">
-                    ${layoutButton('manuscript', 'document-text', '원문')}
-                    ${layoutButton('translation', 'language', '번역문')}
-                    ${layoutButton('both', 'rectangle-group', '모두')}
-                </div>
-            </div>`;
+                // 2단계: 원고와 번역문 모두에서 각주 정의를 '통합 추출'합니다.
+                let manuscriptForParsing = hasManuscript ? FootnoteManager.extractAndClean(content.manuscript) : '';
+                let translationForParsing = hasTranslation ? FootnoteManager.extractAndClean(content.translation) : '';
 
-            const allowedTagsConfig = {
-                // ▼▼▼ [수정] 테이블 관련 태그들을 배열에 추가합니다. ▼▼▼
-                ALLOWED_TAGS: [
-                    'strong', 'b', 'em', 'i', 'p', 'br', 'ul', 'ol', 'li',
-                    'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'a', 'img', 'code', 'pre', 'blockquote',
-                    'table', 'thead', 'tbody', 'tr', 'th', 'td','mark', 'sup', 'section', 'hr', 'a'
-                ],
-                // ▼▼▼ [추가] th, td 태그의 정렬(align) 속성을 허용합니다. ▼▼▼
-                ALLOWED_ATTR: ['align','id', 'href', 'role', 'class']
-            };
-            let finalHtml = '';
+                // 3단계: 정제된 본문을 각각 파싱합니다. (이 과정에서 각주 참조 순서가 기록됩니다)
+                const manuscriptHtml = hasManuscript ? marked.parse(manuscriptForParsing) : '';
+                const translationHtml = hasTranslation ? marked.parse(translationForParsing) : '';
 
-            const processContent = (textContent) => {
-                const parsed = marked.lexer(textContent);
-                const footnotes = marked.options.footnotes || {};
-                const footnoteOrder = marked.options.footnoteOrder || [];
-                
+                // 4단계: 통합된 FootnoteManager 데이터를 기반으로 최종 각주 목록 HTML을 '한 번만' 생성합니다.
+                const footnotes = FootnoteManager.footnotes;
+                const footnoteOrder = FootnoteManager.getOrder();
                 let footnotesHtml = '';
                 if (footnoteOrder.length > 0) {
                     footnotesHtml += '<hr class="footnote-divider"><section class="footnotes"><ol>';
-                    footnoteOrder.forEach((name, index) => {
-                        const note = footnotes[name.toLowerCase()];
+                    footnoteOrder.forEach(name => {
+                        const note = FootnoteManager.getNote(name); // [수정] 소문자 변환 없이 원본 키로 조회
                         if (note) {
-                            const backRef = `<a href="#fnref:${name}" class="footnote-backref" role="doc-backlink">↩</a>`;
-                            // 각주 내용 자체도 마크다운으로 파싱합니다.
-                            const noteContent = marked.parseInline(note.text);
-                            footnotesHtml += `<li id="fn:${name}">${noteContent}${backRef}</li>`;
+                            const backRef = `<a href="#fnref:${name}" data-action="footnote-jump" data-footnote-key="${name}" class="footnote-backref" role="doc-backlink">↩</a>`;
+                            footnotesHtml += `<li id="fn:${name}"><p class="mr-2 font-mono text-xs text-slate-500">[${name}]:</p><div class="flex-1">${note.html}${backRef}</div></li>`;
                         }
                     });
                     footnotesHtml += '</ol></section>';
                 }
 
-                const bodyHtml = marked.parser(parsed);
-                const cleanBody = DOMPurify.sanitize(bodyHtml, allowedTagsConfig);
-                const cleanFootnotes = DOMPurify.sanitize(footnotesHtml, allowedTagsConfig);
+                // 5단계: 최종 HTML을 조합하고 정화합니다.
+                let finalBodyHtml = '';
+                if ((effectiveMode === 'manuscript' || effectiveMode === 'both') && hasManuscript) {
+                    finalBodyHtml += `<h3 class="text-xl font-semibold mb-4 text-slate-800 border-b pb-2">원문 보기</h3><div class="prose prose-custom prose-readable">${manuscriptHtml}</div>`;
+                }
+                if ((effectiveMode === 'translation' || effectiveMode === 'both') && hasTranslation) {
+                    finalBodyHtml += `<h3 class="text-xl font-semibold mb-4 ${hasManuscript && effectiveMode === 'both' ? 'mt-8' : ''} text-slate-800 border-b pb-2">번역문 보기</h3><div class="prose prose-custom prose-readable">${translationHtml}</div>`;
+                }
+                
+                if (!finalBodyHtml.trim()) {
+                    finalBodyHtml = `<div class="text-center text-slate-500 py-16"><p>표시할 원문 또는 번역문 내용이 없습니다.</p></div>`;
+                }
 
-                return cleanBody + cleanFootnotes;
-            };
+                const fullHtml = finalBodyHtml + footnotesHtml;
+                const sanitizedHtml = DOMPurify.sanitize(fullHtml, allowedTagsConfig);
 
-            if ((effectiveMode === 'manuscript' || effectiveMode === 'both') && hasManuscript) {
-                finalHtml += `<h3 class="text-xl font-semibold mb-4 text-slate-800 border-b pb-2">원문 보기</h3><div class="prose prose-custom prose-readable">${processContent(content.manuscript)}</div>`;
-            }
-
-            if ((effectiveMode === 'translation' || effectiveMode === 'both') && hasTranslation) {
-                finalHtml += `<h3 class="text-xl font-semibold mb-4 ${hasManuscript && effectiveMode === 'both' ? 'mt-8' : ''} text-slate-800 border-b pb-2">번역문 보기</h3><div class="prose prose-custom prose-readable">${processContent(content.translation)}</div>`;
-            }
-
-            if (!finalHtml.trim()) {
-                finalHtml = `<div class="text-center text-slate-500 py-16"><p>표시할 원문 또는 번역문 내용이 없습니다.</p></div>`;
-            }
-
-            return `<div>${controls}${finalHtml}</div>`;
-        },
+                return `<div>${controls}${sanitizedHtml}</div>`;
+            },
         renderWritePanel() {
             const content = state.activeChapterContent;
             return `
@@ -3405,7 +3456,7 @@ const View = {
 
             // 4. 메뉴 HTML을 생성하여 컨테이너에 삽입합니다. (처음에는 숨겨진 상태로)
             contextMenuContainer.innerHTML = `
-            <div id="context-menu" class="fixed z-[2500] mb-2 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none"
+            <div id="context-menu" class="fixed z-[2500] mb-2 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none context-menu-unselectable"
                 style="visibility: hidden; top: ${y}px; left: ${x}px;">
                 <div class="py-1" role="menu" aria-orientation="vertical">${itemsHtml}</div>
             </div>`;
@@ -3635,7 +3686,57 @@ renderQuizResultView() {
     </div>`;
 },
         };
-
+         const FootnoteManager = {
+            footnotes: {},
+            footnoteOrder: [],
+            
+            clear() {
+                this.footnotes = {};
+                this.footnoteOrder = [];
+            },
+        
+            addDefinition(key, content) {
+                const lowerKey = key.toLowerCase();
+                if (!this.footnotes[lowerKey]) {
+                    const trimmedContent = content.trim().replace(/\n/g, ' ');
+                    const inlineHtml = marked.parseInline(trimmedContent);
+                    this.footnotes[lowerKey] = {
+                        text: trimmedContent,
+                        html: inlineHtml
+                    };
+                }
+            },
+        
+            addReference(key) {
+                const lowerKey = key.toLowerCase();
+                if (this.footnoteOrder.indexOf(lowerKey) === -1) {
+                    this.footnoteOrder.push(lowerKey);
+                }
+            },
+            
+            getNote(key) {
+                return this.footnotes[key.toLowerCase()];
+            },
+            
+            getOrder() {
+                return this.footnoteOrder;
+            },
+        
+            extractAndClean(markdown) {
+                this.clear();
+                // [핵심 수정] 마지막 각주를 놓치지 않도록 정규표현식 개선
+                // (?=\n\[\^|$) lookahead를 사용하여 다음 각주 또는 파일의 끝(End of String)을 기준으로 삼습니다.
+                const footnoteDefRegex = /^\[\^(.+?)\]:\s*([\s\S]*?)(?=\n\[\^|$)/gm;
+        
+                const cleanedMarkdown = markdown.replace(footnoteDefRegex, (match, name, content) => {
+                    this.addDefinition(name, content);
+                    return ''; // 원본 텍스트에서 각주 정의 부분 제거
+                });
+                
+                return cleanedMarkdown;
+            }
+        };
+        
         const Controller = {
             async init() {
                 if (navigator.storage && navigator.storage.persist) {
@@ -3660,102 +3761,61 @@ renderQuizResultView() {
                 this.initializeConfig();
                 ModalManager.init();
                 marked.setOptions({ gfm: true, breaks: true });
+                // ==================================================================
+                 // 1. 하이라이트(==텍스트==) 확장 (변경 없음)
                 const highlightExtension = {
                     name: 'highlight',
                     level: 'inline',
                     start(src) { return src.indexOf('=='); },
-                    tokenizer(src, tokens) {
-                        const rule = /^==([^=]+)==/;
+                    tokenizer(src) {
+                        const rule = /^==(.+?)==/;
                         const match = rule.exec(src);
                         if (match) {
-                        return {
-                            type: 'highlight',
-                            raw: match[0],
-                            text: match[1].trim(),
-                        };
+                            return { type: 'highlight', raw: match[0], text: this.lexer.inlineTokens(match[1].trim()) };
                         }
                     },
-                    renderer(token) {
-                        return `<mark>${token.text}</mark>`;
-                    },
-                    };
+                    renderer(token) { return `<mark>${this.parser.parseInline(token.text)}</mark>`; },
+                };
 
-                    const footnoteExtension = {
-                    name: 'footnote',
-                    level: 'block',
+                // 2. 각주 참조([^키])를 위한 인라인(Inline) 확장 (a 태그 수정)
+                const footnoteRefExtension = {
+                    name: 'footnoteRef',
+                    level: 'inline',
                     start(src) { return src.indexOf('[^'); },
-                    tokenizer(src, tokens) {
-                        const footnoteDefRule = /^\[\^([^\]]+)\]: (.*)(?:\n|$)/;
-                        const footnoteRefRule = /^\[\^([^\]]+)\]/;
-
-                        let match;
-                        if (match = footnoteDefRule.exec(src)) {
-                        if (!this.lexer.options.footnotes) {
-                            this.lexer.options.footnotes = {};
-                        }
-                        this.lexer.options.footnotes[match[1].toLowerCase()] = {
-                            text: match[2]
-                        };
-                        return {
-                            type: 'footnote',
-                            raw: match[0],
-                            name: match[1],
-                            text: match[2],
-                            isDefinition: true,
-                        };
-                        }
-                        
-                        if (match = footnoteRefRule.exec(src)) {
-                        if (!this.lexer.options.footnoteOrder) {
-                            this.lexer.options.footnoteOrder = [];
-                        }
-                        const name = match[1].toLowerCase();
-                        if (this.lexer.options.footnoteOrder.indexOf(name) === -1) {
-                            this.lexer.options.footnoteOrder.push(name);
-                        }
-                        return {
-                            type: 'footnote',
-                            raw: match[0],
-                            name: match[1],
-                            isReference: true,
-                        };
+                    tokenizer(src) {
+                        const rule = /^\[\^((?:[^\]\\]|\\.)+)\](?!:)/;
+                        const match = rule.exec(src);
+                        if (match) {
+                            // 전역 FootnoteManager에 참조 순서 기록
+                            FootnoteManager.addReference(match[1]);
+                            return { type: 'footnoteRef', raw: match[0], name: match[1] };
                         }
                     },
                     renderer(token) {
-                        if (token.isReference) {
-                        const name = token.name.toLowerCase();
-                        const order = this.parser.options.footnoteOrder || [];
-                        const index = order.indexOf(name) + 1;
-                        if (index > 0) {
-                            return `<sup id="fnref:${name}" class="footnote-ref"><a href="#fn:${name}">${index}</a></sup>`;
+                        const name = token.name; // toLowerCase() 제거하여 원본 키 유지
+                        const order = FootnoteManager.getOrder();
+                        const note = FootnoteManager.getNote(name);
+                        const index = order.indexOf(name.toLowerCase()) + 1; // 순서 비교는 소문자로
+                        const finalIndex = index > 0 ? index : '?';
+                        let tooltipContent = '각주 내용을 찾을 수 없습니다.';
+                        if (note) {
+                            const tempDiv = document.createElement('div');
+                            tempDiv.innerHTML = note.html;
+                            tooltipContent = tempDiv.textContent || tempDiv.innerText || '';
                         }
-                        return token.raw;
-                        }
-                        // 각주 정의는 렌더링 시 아무것도 출력하지 않습니다. (나중에 한꺼번에 처리)
-                        return '';
+                        const escapedTooltipText = tooltipContent.replace(/"/g, '&quot;').replace(/\n/g, ' ');
+                        
+                        // a 태그에 data-action="footnote-jump" 및 data-footnote-key 추가
+                        return `<sup id="fnref:${name}" class="footnote-ref"><a href="#fn:${name}" data-action="footnote-jump" data-footnote-key="${name}" data-tooltip="${escapedTooltipText}">${finalIndex}</a></sup>`;
                     }
-                    };
+                };
+                
+                marked.use({
+                    gfm: true,
+                    breaks: true,
+                    extensions: [highlightExtension, footnoteRefExtension]
+                });
 
-                    // 위에서 정의한 확장 기능들을 marked에 등록합니다.
-                    marked.use({
-                    extensions: [highlightExtension, footnoteExtension],
-                    // walkTokens를 사용하여 각주 정의를 미리 파싱하고, 렌더링 시 참조할 수 있도록 준비합니다.
-                    walkTokens(token) {
-                        if (token.type === 'footnote' && token.isDefinition) {
-                        if (!this.options.footnotes) this.options.footnotes = {};
-                        this.options.footnotes[token.name.toLowerCase()] = { text: token.text };
-                        }
-                    },
-                    // 렌더링 전 상태를 초기화하는 훅
-                    hooks: {
-                        preprocess(markdown) {
-                        // 파싱 전에 각주 순서와 정의 목록을 초기화합니다.
-                        this.options.footnoteOrder = [];
-                        this.options.footnotes = {};
-                        return markdown;
-                        }
-                    }
-                    });
                 this.bindGlobalEventListeners();
                 
                 // URL 해시 변경 이벤트를 감지하도록 리스너를 추가합니다.
@@ -3779,8 +3839,6 @@ renderQuizResultView() {
                 // 모든 데이터 로드 후, 현재 URL을 기반으로 초기 화면을 설정하고 렌더링합니다.
                 await this.handleURLNavigation();
             },
-
-            
 
             updateSaveStatus(status) {
                 state.saveStatus = status;
@@ -4815,7 +4873,16 @@ renderQuizResultView() {
 
                 // ▼▼▼ [수정 2] 기본 '컨텍스트 메뉴' 항목 목록을 별도로 정의합니다. ▼▼▼
                 CONFIG.DEFAULT_CONTEXT_MENU_ITEMS = [
-                    
+                    {
+                        id: Utils.generateId('cmi'),
+                        name: "🎨 하이라이트",
+                        action: 'context-highlight' // 프롬프트 대신 직접 실행할 액션 지정
+                    },
+                    {
+                        id: Utils.generateId('cmi'),
+                        name: "📑 각주 추가",
+                        action: 'context-add-footnote' // 프롬프트 대신 직접 실행할 액션 지정
+                    },
                     {
                         id: Utils.generateId('cmi'),
                         name: "문장 해설 요청",
@@ -5120,9 +5187,9 @@ Micro-interactions are the small, often unnoticed animations and design elements
         </constraints>
     </promptDesignFramework>
 </metaPrompt>`,
-                    customPrompts: [],
-                    contextMenuItems: [],
-                };
+                customPrompts: CONFIG.DEFAULT_ACTIONS.map(p => ({ ...p, id: Utils.generateId('cp') })),
+                contextMenuItems: CONFIG.DEFAULT_CONTEXT_MENU_ITEMS.map(m => ({ ...m, id: Utils.generateId('cmi') }))
+                 };
             },
             updateTags() {
                 const tagCounts = {};
@@ -5739,14 +5806,8 @@ Micro-interactions are the small, often unnoticed animations and design elements
                         title: name,
                         children: []
                     },
-                    settings: {
-                        // 1. 기본 설정 템플릿을 가져옵니다.
-                        ...CONFIG.DEFAULT_PROJECT_SETTINGS,
-                        // 2. 기본 커스텀 버튼 목록을 '깊은 복사'하여 고유 ID를 부여하고 할당합니다.
-                        customPrompts: CONFIG.DEFAULT_ACTIONS.map(p => ({ ...p, id: Utils.generateId('cp') })),
-                        // 3. 기본 컨텍스트 메뉴 목록을 '깊은 복사'하여 고유 ID를 부여하고 할당합니다.
-                        contextMenuItems: CONFIG.DEFAULT_CONTEXT_MENU_ITEMS.map(m => ({ ...m, id: Utils.generateId('cmi') }))
-                    }
+                    settings: JSON.parse(JSON.stringify(CONFIG.DEFAULT_PROJECT_SETTINGS))
+
                 };
                 return {
                     project,
@@ -5999,9 +6060,23 @@ Micro-interactions are the small, often unnoticed animations and design elements
                 prompt = prompt.replace('{{text}}', state.activeChapterContent.manuscript);
                 this.copyToClipboard(prompt, `copy-translation-prompt-${state.activeChapterPath}`);
             },
-          // learning.html 파일의 Controller 객체 내부를 아래 코드로 교체하세요.
 
-// Controller 객체 내부의 buildQuizPrompt 함수를 아래 코드로 교체하세요.
+            getNextFootnoteNumber(manuscriptText) {
+                if (!manuscriptText) return 1;
+                // 정규식: 문서 전체에서 "[^숫자]:" 형태의 모든 각주 정의를 찾음
+                const regex = /\[\^(\d+)\]:/g;
+                let match;
+                let maxNumber = 0;
+
+                // exec()를 반복 호출하여 모든 일치 항목을 순회
+                while ((match = regex.exec(manuscriptText)) !== null) {
+                    const currentNumber = parseInt(match[1], 10);
+                    if (currentNumber > maxNumber) {
+                        maxNumber = currentNumber;
+                    }
+                }
+                return maxNumber + 1;
+            },
 
             buildQuizPrompt() {
                 const turndownService = new TurndownService();
@@ -6561,6 +6636,23 @@ Path: ${input.dataset.path}
                         View.render();
                     }
                 },
+                'footnote-jump': (el, e) => {
+                    e.preventDefault();
+                    const key = el.dataset.footnoteKey;
+                    if (!key) return;
+
+                    const targetElement = document.getElementById(`fn:${key}`);
+
+                    if (targetElement) {
+                        targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        
+                        targetElement.style.transition = 'background-color 0.5s ease';
+                        targetElement.style.backgroundColor = 'var(--bg-hover)';
+                        setTimeout(() => {
+                            targetElement.style.backgroundColor = '';
+                        }, 1500);
+                    }
+                },
                 'search-toc': (el) => { // 1번
                     state.tocSearchQuery = el.value;
                     View.render();
@@ -6783,20 +6875,12 @@ Path: ${input.dataset.path}
                                 const project = state.activeProject;
                                 if (!project) throw new Error('활성 프로젝트가 없습니다.');
 
-                                // 1. 기존 설정 객체를 완전히 새로운 객체로 교체합니다.
-                                //    CONFIG.DEFAULT_PROJECT_SETTINGS를 복사하여 기본 필드(장르, 스타일 등)를 가져옵니다.
-                                const newSettings = JSON.parse(JSON.stringify(CONFIG.DEFAULT_PROJECT_SETTINGS));
-                                
-                                // 2. 기본 커스텀 버튼과 컨텍스트 메뉴를 '새로운 ID'와 함께 명시적으로 할당합니다.
-                                //    이는 중복 문제를 완벽히 방지합니다.
-                                newSettings.customPrompts = CONFIG.DEFAULT_ACTIONS.map(p => ({ ...p, id: Utils.generateId('cp') }));
-                                newSettings.contextMenuItems = CONFIG.DEFAULT_CONTEXT_MENU_ITEMS.map(m => ({ ...m, id: Utils.generateId('cmi') }));
-                                
-                                // 3. 프로젝트의 settings 객체 참조를 이 새로운 객체로 완전히 교체합니다.
-                                project.settings = newSettings;
+                                // ================== ▼▼▼ [로직 수정 시작] ▼▼▼ ==================
+                                // 중앙 설정 객체를 깊은 복사하여 프로젝트 설정을 덮어씁니다.
+                                project.settings = JSON.parse(JSON.stringify(CONFIG.DEFAULT_PROJECT_SETTINGS));
                                 project.updatedAt = new Date().toISOString();
+                                // ================== ▲▲▲ [로직 수정 완료] ▲▲▲ ==================
 
-                                // (이하 로직은 기존과 동일)
                                 const projectInList = state.projects.find(p => p.id === project.id);
                                 if (projectInList) {
                                     projectInList.settings = project.settings;
@@ -7094,17 +7178,103 @@ Path: ${input.dataset.path}
                         Controller.processAndCopyPrompt(actionToRun.template, `실행: ${actionToRun.name}`);
                     }
                 },
+                'context-highlight': async () => {
+                    const { selectedText } = state.contextMenu;
+                    const { manuscript } = state.activeChapterContent;
+                    if (!selectedText || !manuscript) return;
+
+                    // 이미 하이라이트된 텍스트인지 확인
+                    const highlightedSelection = `==${selectedText}==`;
+                    let newManuscript;
+
+                    if (manuscript.includes(highlightedSelection)) {
+                        // 이미 하이라이트 되어 있다면 -> 하이라이트 제거
+                        newManuscript = manuscript.replace(highlightedSelection, selectedText);
+                    } else {
+                        // 하이라이트 되어 있지 않다면 -> 하이라이트 추가
+                        newManuscript = manuscript.replace(selectedText, highlightedSelection);
+                    }
+
+                    // 변경된 내용으로 상태 업데이트 및 저장
+                    state.activeChapterContent.manuscript = newManuscript;
+                    await DB.put(CONFIG.STORES.CONTENTS, state.activeChapterContent);
+                    Controller.showToast('하이라이트가 적용되었습니다.', 'success');
+                    
+                    // 메뉴를 닫고 뷰를 다시 렌더링하여 변경사항을 즉시 확인
+                    state.contextMenu.isOpen = false;
+                    View.render();
+                },
+
+                // learning.html: 5937번째 줄 근처
+                // 기존 'context-add-footnote' 함수를 아래 코드로 전체 교체합니다.
+
+                'context-add-footnote': () => {
+                    // 선택된 텍스트가 있는지 확인 후, 각주 추가 전용 모달을 엽니다.
+                    if (!state.contextMenu.selectedText) return;
+                    ModalManager.open('addFootnote');
+                },
+                'submit-add-footnote': async (form) => {
+                    const formData = new FormData(form);
+                    const footnoteKey = formData.get('footnote-key-input').trim();
+                    const footnoteContent = formData.get('footnote-content-input').trim();
+
+                    if (!footnoteContent) {
+                        Controller.showToast('각주 내용을 입력해주세요.', 'error');
+                        return;
+                    }
+                    
+                    const { selectedText } = state.contextMenu;
+                    let { manuscript } = state.activeChapterContent;
+                    if (!selectedText || !manuscript) return;
+
+                    let finalKey;
+                    if (!footnoteKey) {
+                        finalKey = Controller.getNextFootnoteNumber(manuscript);
+                    } else {
+                        finalKey = footnoteKey.replace(/\s/g, '_');
+                    }
+
+                    // 1. 선택 텍스트 뒤에 참조 추가
+                    const newTextWithRef = `${selectedText}[^${finalKey}]`;
+                    manuscript = manuscript.replace(selectedText, newTextWithRef);
+
+                    // 2. 문서 맨 끝에 '사용자가 입력한 내용'으로 각주 정의 추가
+                    const footnoteDefinition = `\n\n[^${finalKey}]: ${footnoteContent}`;
+                    manuscript += footnoteDefinition;
+                    
+                    // 상태 업데이트 및 저장
+                    state.activeChapterContent.manuscript = manuscript;
+                    await DB.put(CONFIG.STORES.CONTENTS, state.activeChapterContent);
+                    Controller.showToast('각주가 성공적으로 추가되었습니다.', 'success');
+                    
+                    // 모달 닫고 UI 갱신
+                    ModalManager.close();
+                    View.render();
+                },
                 'execute-context-menu': (el) => {
                     const index = parseInt(el.dataset.index, 10);
-                    const allContextMenuItems = [
-                        ...(CONFIG.DEFAULT_CONTEXT_MENU_ITEMS || []),
-                        ...(state.activeProject?.settings?.contextMenuItems || [])
-                    ];
+                    // [수정] customPrompts 대신 contextMenuItems를 참조하도록 변경
+                    const allContextMenuItems = state.activeProject?.settings?.contextMenuItems || [];
                     const menuItem = allContextMenuItems[index];
 
-                    if (menuItem && state.contextMenu.selectedText) {
+                    if (!menuItem) return;
+
+                    // ================== ▼▼▼ [로직 수정 시작] ▼▼▼ ==================
+                    // 1. 메뉴 아이템에 'action'이 정의되어 있는지 확인합니다.
+                    if (menuItem.action && typeof Controller.ACTION_HANDLERS[menuItem.action] === 'function') {
+                        // 2. action이 있다면 해당 핸들러를 직접 호출합니다.
+                        Controller.ACTION_HANDLERS[menuItem.action]();
+                    } 
+                    // 3. action이 없고 'template'이 있다면, 기존 프롬프트 복사 로직을 실행합니다.
+                    else if (menuItem.template && state.contextMenu.selectedText) {
                         Controller.processAndCopyPrompt(menuItem.template, `실행: ${menuItem.name}`);
+                    } 
+                    // ================== ▲▲▲ [로직 수정 완료] ▲▲▲ ==================
+                    else {
+                        Controller.showToast('이 메뉴 항목을 실행할 수 없습니다.', 'error');
                     }
+
+                    // 메뉴 실행 후에는 항상 메뉴를 닫습니다.
                     state.contextMenu.isOpen = false;
                     View.render();
                 },
