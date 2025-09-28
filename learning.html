@@ -1043,6 +1043,79 @@ html.dark .quiz-result-score {
         opacity: 1; pointer-events: auto;
     }
 }
+/* ================================================================== */
+/* ▼▼▼ [추가] 하이라이트 및 각주 스타일 (다크모드 지원) ▼▼▼ */
+/* ================================================================== */
+
+/* --- 하이라이트 (Highlights) --- */
+.prose-readable mark {
+    background-color: rgba(250, 204, 21, 0.4); /* Tailwind yellow-300 with transparency */
+    padding: 0.1em 0.3em;
+    margin: 0 -0.1em;
+    border-radius: 4px;
+    color: inherit;
+}
+html.dark .prose-readable mark {
+    background-color: rgba(234, 179, 8, 0.5); /* Tailwind yellow-500 with transparency for dark mode */
+}
+
+/* --- 각주 (Footnotes) --- */
+/* 각주 참조 링크 (예: [1]) */
+.prose-readable .footnote-ref {
+    font-size: 0.8em;
+    vertical-align: super;
+    line-height: 0;
+}
+.prose-readable .footnote-ref a {
+    border-bottom: none !important;
+    background-color: transparent !important;
+    padding: 2px;
+    border-radius: 4px;
+    transition: background-color 0.2s, color 0.2s;
+}
+.prose-readable .footnote-ref a:hover {
+    background-color: var(--bg-hover) !important;
+    color: var(--accent-primary) !important;
+}
+
+/* 각주 목록 구분선 */
+.prose-readable .footnote-divider {
+    margin-top: 4em;
+    border-color: var(--border-color);
+}
+
+/* 각주 목록 전체 */
+.prose-readable .footnotes {
+    margin-top: 2em;
+    font-size: 0.9em;
+    color: var(--text-tertiary);
+}
+
+/* 각주 목록의 각 항목 */
+.prose-readable .footnotes li {
+    margin-bottom: 0.8em;
+    line-height: 1.6;
+}
+.prose-readable .footnotes li p {
+    font-size: 1em;
+    line-height: inherit;
+    display: inline; /* p 태그가 줄바꿈을 만들지 않도록 함 */
+}
+
+/* 본문으로 돌아가는 링크 (↩) */
+.prose-readable .footnote-backref {
+    font-size: 1.1em;
+    text-decoration: none;
+    margin-left: 0.5em;
+    border: none !important;
+    background: none !important;
+    padding: 0 4px;
+}
+.prose-readable .footnote-backref:hover {
+    background-color: var(--bg-hover) !important;
+    border-radius: 4px;
+}
+
     </style>
 </head>
 <body>
@@ -3159,17 +3232,38 @@ const View = {
                 ALLOWED_TAGS: [
                     'strong', 'b', 'em', 'i', 'p', 'br', 'ul', 'ol', 'li',
                     'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'a', 'img', 'code', 'pre', 'blockquote',
-                    'table', 'thead', 'tbody', 'tr', 'th', 'td'
+                    'table', 'thead', 'tbody', 'tr', 'th', 'td','mark', 'sup', 'section', 'hr', 'a'
                 ],
                 // ▼▼▼ [추가] th, td 태그의 정렬(align) 속성을 허용합니다. ▼▼▼
-                ALLOWED_ATTR: ['align']
+                ALLOWED_ATTR: ['align','id', 'href', 'role', 'class']
             };
             let finalHtml = '';
 
             const processContent = (textContent) => {
-                const boldProcessed = Utils.customBoldParser(textContent);
-                const markdownProcessed = marked.parse(boldProcessed);
-                return DOMPurify.sanitize(markdownProcessed, allowedTagsConfig);
+                const parsed = marked.lexer(textContent);
+                const footnotes = marked.options.footnotes || {};
+                const footnoteOrder = marked.options.footnoteOrder || [];
+                
+                let footnotesHtml = '';
+                if (footnoteOrder.length > 0) {
+                    footnotesHtml += '<hr class="footnote-divider"><section class="footnotes"><ol>';
+                    footnoteOrder.forEach((name, index) => {
+                        const note = footnotes[name.toLowerCase()];
+                        if (note) {
+                            const backRef = `<a href="#fnref:${name}" class="footnote-backref" role="doc-backlink">↩</a>`;
+                            // 각주 내용 자체도 마크다운으로 파싱합니다.
+                            const noteContent = marked.parseInline(note.text);
+                            footnotesHtml += `<li id="fn:${name}">${noteContent}${backRef}</li>`;
+                        }
+                    });
+                    footnotesHtml += '</ol></section>';
+                }
+
+                const bodyHtml = marked.parser(parsed);
+                const cleanBody = DOMPurify.sanitize(bodyHtml, allowedTagsConfig);
+                const cleanFootnotes = DOMPurify.sanitize(footnotesHtml, allowedTagsConfig);
+
+                return cleanBody + cleanFootnotes;
             };
 
             if ((effectiveMode === 'manuscript' || effectiveMode === 'both') && hasManuscript) {
@@ -3566,6 +3660,102 @@ renderQuizResultView() {
                 this.initializeConfig();
                 ModalManager.init();
                 marked.setOptions({ gfm: true, breaks: true });
+                const highlightExtension = {
+                    name: 'highlight',
+                    level: 'inline',
+                    start(src) { return src.indexOf('=='); },
+                    tokenizer(src, tokens) {
+                        const rule = /^==([^=]+)==/;
+                        const match = rule.exec(src);
+                        if (match) {
+                        return {
+                            type: 'highlight',
+                            raw: match[0],
+                            text: match[1].trim(),
+                        };
+                        }
+                    },
+                    renderer(token) {
+                        return `<mark>${token.text}</mark>`;
+                    },
+                    };
+
+                    const footnoteExtension = {
+                    name: 'footnote',
+                    level: 'block',
+                    start(src) { return src.indexOf('[^'); },
+                    tokenizer(src, tokens) {
+                        const footnoteDefRule = /^\[\^([^\]]+)\]: (.*)(?:\n|$)/;
+                        const footnoteRefRule = /^\[\^([^\]]+)\]/;
+
+                        let match;
+                        if (match = footnoteDefRule.exec(src)) {
+                        if (!this.lexer.options.footnotes) {
+                            this.lexer.options.footnotes = {};
+                        }
+                        this.lexer.options.footnotes[match[1].toLowerCase()] = {
+                            text: match[2]
+                        };
+                        return {
+                            type: 'footnote',
+                            raw: match[0],
+                            name: match[1],
+                            text: match[2],
+                            isDefinition: true,
+                        };
+                        }
+                        
+                        if (match = footnoteRefRule.exec(src)) {
+                        if (!this.lexer.options.footnoteOrder) {
+                            this.lexer.options.footnoteOrder = [];
+                        }
+                        const name = match[1].toLowerCase();
+                        if (this.lexer.options.footnoteOrder.indexOf(name) === -1) {
+                            this.lexer.options.footnoteOrder.push(name);
+                        }
+                        return {
+                            type: 'footnote',
+                            raw: match[0],
+                            name: match[1],
+                            isReference: true,
+                        };
+                        }
+                    },
+                    renderer(token) {
+                        if (token.isReference) {
+                        const name = token.name.toLowerCase();
+                        const order = this.parser.options.footnoteOrder || [];
+                        const index = order.indexOf(name) + 1;
+                        if (index > 0) {
+                            return `<sup id="fnref:${name}" class="footnote-ref"><a href="#fn:${name}">${index}</a></sup>`;
+                        }
+                        return token.raw;
+                        }
+                        // 각주 정의는 렌더링 시 아무것도 출력하지 않습니다. (나중에 한꺼번에 처리)
+                        return '';
+                    }
+                    };
+
+                    // 위에서 정의한 확장 기능들을 marked에 등록합니다.
+                    marked.use({
+                    extensions: [highlightExtension, footnoteExtension],
+                    // walkTokens를 사용하여 각주 정의를 미리 파싱하고, 렌더링 시 참조할 수 있도록 준비합니다.
+                    walkTokens(token) {
+                        if (token.type === 'footnote' && token.isDefinition) {
+                        if (!this.options.footnotes) this.options.footnotes = {};
+                        this.options.footnotes[token.name.toLowerCase()] = { text: token.text };
+                        }
+                    },
+                    // 렌더링 전 상태를 초기화하는 훅
+                    hooks: {
+                        preprocess(markdown) {
+                        // 파싱 전에 각주 순서와 정의 목록을 초기화합니다.
+                        this.options.footnoteOrder = [];
+                        this.options.footnotes = {};
+                        return markdown;
+                        }
+                    }
+                    });
                 this.bindGlobalEventListeners();
                 
                 // URL 해시 변경 이벤트를 감지하도록 리스너를 추가합니다.
@@ -3921,19 +4111,13 @@ renderQuizResultView() {
             },
             getCombinedActions() {
                 if (!state.activeProject) return [];
-                const customActions = state.activeProject.settings.customPrompts || [];
-                
-                // 기본 액션을 기능에 따라 그룹화합니다.
-                const analysisGroup = {
-                    title: '콘텐츠 분석',
-                    actions: CONFIG.DEFAULT_ACTIONS.filter(a => ['default-fact-check', 'default-summarize', 'default-keywords'].includes(a.id))
-                };
-                const creationGroup = {
-                    title: '콘텐츠 생성',
-                    actions: CONFIG.DEFAULT_ACTIONS.filter(a => ['default-tone-unify', 'default-info-add', 'default-simplify', 'default-expand'].includes(a.id))
-                };
-                const snapshotGroup = {
-                    title: '버전 관리',
+
+                // 1. 프로젝트 설정에 저장된 커스텀 프롬프트 목록을 가져옵니다. 이것이 유일한 기준이 됩니다.
+                const customPrompts = state.activeProject.settings.customPrompts || [];
+
+                // 2. '수동 스냅샷'과 같이 설정에서 관리되지 않는 시스템 고유 액션을 정의합니다.
+                const systemActionsGroup = {
+                    title: '시스템',
                     actions: [{
                         id: 'manual-snapshot',
                         name: '수동 스냅샷',
@@ -3941,13 +4125,16 @@ renderQuizResultView() {
                         template: '수동 스냅샷을 생성합니다.'
                     }]
                 };
-                const customGroup = {
-                    title: '사용자 정의',
-                    actions: customActions
+
+                // 3. 사용자가 설정한 프롬프트들을 '사용자 정의' 그룹으로 묶습니다.
+                const userPromptsGroup = {
+                    title: '사용자 정의 프롬프트',
+                    actions: customPrompts
                 };
 
-                // 내용이 있는 그룹만 필터링하여 반환합니다.
-                return [analysisGroup, creationGroup, snapshotGroup, customGroup].filter(g => g.actions.length > 0);
+                // 4. 내용이 있는 그룹만 필터링하여 반환합니다. 
+                //    이제 하드코딩된 기본 그룹이 없으므로 중복이 발생하지 않습니다.
+                return [userPromptsGroup, systemActionsGroup].filter(g => g.actions.length > 0);
             },
             async processAndCopyPrompt(template, actionTitle) {
                 if (!template) {
@@ -5550,12 +5737,15 @@ Micro-interactions are the small, often unnoticed animations and design elements
                     updatedAt: new Date().toISOString(),
                     toc: {
                         title: name,
-                        // 'children' 속성을 항상 빈 배열로 초기화합니다.
-                        children: [] 
+                        children: []
                     },
                     settings: {
+                        // 1. 기본 설정 템플릿을 가져옵니다.
                         ...CONFIG.DEFAULT_PROJECT_SETTINGS,
-                        customPrompts: []
+                        // 2. 기본 커스텀 버튼 목록을 '깊은 복사'하여 고유 ID를 부여하고 할당합니다.
+                        customPrompts: CONFIG.DEFAULT_ACTIONS.map(p => ({ ...p, id: Utils.generateId('cp') })),
+                        // 3. 기본 컨텍스트 메뉴 목록을 '깊은 복사'하여 고유 ID를 부여하고 할당합니다.
+                        contextMenuItems: CONFIG.DEFAULT_CONTEXT_MENU_ITEMS.map(m => ({ ...m, id: Utils.generateId('cmi') }))
                     }
                 };
                 return {
@@ -6593,16 +6783,20 @@ Path: ${input.dataset.path}
                                 const project = state.activeProject;
                                 if (!project) throw new Error('활성 프로젝트가 없습니다.');
 
-                                // 기본 설정을 깊은 복사하여 새 객체로 만듭니다.
-                                const defaultSettings = JSON.parse(JSON.stringify(CONFIG.DEFAULT_PROJECT_SETTINGS));
+                                // 1. 기존 설정 객체를 완전히 새로운 객체로 교체합니다.
+                                //    CONFIG.DEFAULT_PROJECT_SETTINGS를 복사하여 기본 필드(장르, 스타일 등)를 가져옵니다.
+                                const newSettings = JSON.parse(JSON.stringify(CONFIG.DEFAULT_PROJECT_SETTINGS));
                                 
-                                // 기본 프롬프트와 컨텍스트 메뉴는 ID를 새로 생성하여 할당합니다.
-                                defaultSettings.customPrompts = CONFIG.DEFAULT_ACTIONS.map(p => ({...p, id: Utils.generateId('cp')}));
-                                defaultSettings.contextMenuItems = CONFIG.DEFAULT_CONTEXT_MENU_ITEMS.map(m => ({...m, id: Utils.generateId('cmi')}));
+                                // 2. 기본 커스텀 버튼과 컨텍스트 메뉴를 '새로운 ID'와 함께 명시적으로 할당합니다.
+                                //    이는 중복 문제를 완벽히 방지합니다.
+                                newSettings.customPrompts = CONFIG.DEFAULT_ACTIONS.map(p => ({ ...p, id: Utils.generateId('cp') }));
+                                newSettings.contextMenuItems = CONFIG.DEFAULT_CONTEXT_MENU_ITEMS.map(m => ({ ...m, id: Utils.generateId('cmi') }));
                                 
-                                project.settings = defaultSettings;
+                                // 3. 프로젝트의 settings 객체 참조를 이 새로운 객체로 완전히 교체합니다.
+                                project.settings = newSettings;
                                 project.updatedAt = new Date().toISOString();
 
+                                // (이하 로직은 기존과 동일)
                                 const projectInList = state.projects.find(p => p.id === project.id);
                                 if (projectInList) {
                                     projectInList.settings = project.settings;
@@ -6611,10 +6805,9 @@ Path: ${input.dataset.path}
 
                                 await DB.put(CONFIG.STORES.PROJECTS, project);
                                 
-                                ModalManager.close(); // 확인 모달 닫기
+                                ModalManager.close();
                                 Controller.showToast('프로젝트 설정이 기본값으로 초기화되었습니다.', 'success');
 
-                                // 설정 모달을 다시 열어 초기화된 상태를 보여줍니다.
                                 Controller.ACTION_HANDLERS['open-settings']();
 
                             } catch (error) {
