@@ -1129,6 +1129,41 @@ html.dark .prose-readable mark {
     border-radius: 4px;
 }
 
+.highlight-delete-btn {
+    position: absolute;
+    transform: translate(-50%, -100%); /* 버튼의 중앙 상단이 커서 위치에 오도록 조정 */
+    z-index: 2600; /* 컨텍스트 메뉴보다 위에 표시 */
+    background-color: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 9999px; /* 원형 버튼 */
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: var(--shadow-md);
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+}
+.highlight-delete-btn:hover {
+    transform: translate(-50%, -100%) scale(1.1);
+    background-color: #fef2f2; /* red-50 */
+    color: var(--accent-danger);
+}
+html.dark .highlight-delete-btn:hover {
+    background-color: rgba(239, 68, 68, 0.2);
+}
+
+/* 하이라이트 삭제 버튼을 담을 컨테이너 */
+#highlight-menu-root {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 0;
+    height: 0;
+    z-index: 2550;
+}
+
     </style>
 </head>
 <body>
@@ -1136,6 +1171,7 @@ html.dark .prose-readable mark {
     <div id="modal-root"></div>
     <div id="toast-root"></div>
     <div id="app-tooltip" class="app-tooltip"></div>
+    <div id="highlight-menu-root"></div>
     <script type="module">
         // ===================================================================================
 // 통합 학습 및 저작 시스템 v3.16 (UX 개선)
@@ -3910,6 +3946,62 @@ renderQuizResultView() {
                 }
             }
         },
+        /**
+ * [신규] 하이라이트 삭제 버튼을 특정 위치에 표시합니다.
+ * @param {HTMLElement} markElement - 클릭된 <mark> 요소
+ * @param {MouseEvent} event - 클릭 이벤트 객체
+ */
+showHighlightDeleteButton(markElement, event) {
+    // 임시 ID를 부여하여 어떤 마크를 삭제할지 식별
+    const tempId = `mark_${Date.now()}`;
+    markElement.dataset.tempId = tempId;
+
+    const root = document.getElementById('highlight-menu-root');
+    if (!root) return;
+    
+    // 페이지 스크롤 위치를 고려하여 버튼의 절대 위치 계산
+    const top = event.clientY + window.scrollY - 10;
+    const left = event.clientX + window.scrollX;
+
+    root.innerHTML = `
+        <button class="highlight-delete-btn"
+                style="top: ${top}px; left: ${left}px;"
+                data-action="delete-highlight"
+                data-target-id="${tempId}"
+                title="하이라이트 삭제">
+            ${Heroicons.render('x-mark', { class: 'w-4 h-4' })}
+        </button>
+    `;
+},
+
+/**
+ * [신규] 표시된 하이라이트 삭제 버튼을 숨깁니다.
+ */
+hideHighlightDeleteButton() {
+    const root = document.getElementById('highlight-menu-root');
+    if (root) root.innerHTML = '';
+},
+
+/**
+ * [신규] 사용자가 하이라이트를 클릭했을 때의 동작을 처리합니다.
+ * @param {MouseEvent} event - 클릭 이벤트 객체
+ */
+handleHighlightClick(event) {
+    const target = event.target;
+    const clickedMark = target.closest('mark');
+    
+    // <mark> 태그나 삭제 버튼 자체를 클릭한 것이 아니라면, 기존 버튼을 숨깁니다.
+    if (!clickedMark && !target.closest('.highlight-delete-btn')) {
+        this.hideHighlightDeleteButton();
+        return;
+    }
+
+    // <mark> 태그를 클릭했다면, 해당 위치에 삭제 버튼을 표시합니다.
+    if (clickedMark) {
+        event.stopPropagation(); // 이벤트 버블링을 막아 다른 클릭 핸들러 방해 방지
+        this.showHighlightDeleteButton(clickedMark, event);
+    }
+},
             // [추가] 다른 탭의 변경사항을 반영하기 위한 데이터 새로고침 및 UI 렌더링 함수
         async reloadDataAndRender(payload) {
             console.log('[Controller] 데이터 새로고침 및 UI 렌더링을 시작합니다.', payload);
@@ -4412,6 +4504,7 @@ renderQuizResultView() {
             },
             bindGlobalEventListeners() {
                 const handleAction = e => {
+                    this.handleHighlightClick(e);
                     const trigger = e.target.closest('[data-action]');
                     if (!trigger || trigger.matches('form[data-action]')) return;
                     const action = trigger.dataset.action;
@@ -6804,7 +6897,37 @@ Path: ${input.dataset.path}
                         Controller.handleGlobalSearch(input.value);
                     }
                 },
+                'delete-highlight': async (el) => {
+                    const targetId = el.dataset.targetId;
+                    const markToDelete = document.querySelector(`mark[data-temp-id="${targetId}"]`);
 
+                    if (!markToDelete) return;
+
+                    const sourcePanel = markToDelete.closest('[data-source]');
+                    if (!sourcePanel) return;
+
+                    const dataSourceKey = sourcePanel.dataset.source;
+
+                    // <mark> 태그를 제거(unwrap)합니다.
+                    const parent = markToDelete.parentNode;
+                    while (markToDelete.firstChild) {
+                        parent.insertBefore(markToDelete.firstChild, markToDelete);
+                    }
+                    parent.removeChild(markToDelete);
+                    parent.normalize();
+
+                    // 변경사항을 저장합니다.
+                    const updatedHtml = sourcePanel.innerHTML;
+                    const newMarkdown = Controller.turndownService.turndown(updatedHtml);
+                    state.activeChapterContent[dataSourceKey] = newMarkdown;
+                    await DB.put(CONFIG.STORES.CONTENTS, state.activeChapterContent);
+                    
+                    Controller.hideHighlightDeleteButton(); // 삭제 버튼 숨기기
+                    Controller.showToast('하이라이트가 삭제되었습니다.', 'info');
+                    
+                    // 화면을 다시 렌더링하여 변경사항을 완전히 반영합니다.
+                    View.render();
+                },
                 // [신규] 다중 삭제 핸들러: 선택된 모든 항목을 한 번에 삭제합니다.
                 'toc-context-delete': () => {
                     const selectedPaths = ModalManager.data.selectedTocPaths;
@@ -7200,73 +7323,72 @@ Path: ${input.dataset.path}
                 },
                 'context-highlight': async () => {
                     const selection = window.getSelection();
+                    if (!selection.rangeCount || selection.isCollapsed) return;
 
-                    if (!selection.rangeCount || selection.isCollapsed) {
-                        console.error('[Debug] 하이라이트 실패: 액션 실행 시점에 유효한 선택 영역이 없습니다.');
-                        Controller.showToast('하이라이트할 영역을 다시 선택해주세요.', 'error');
-                        state.contextMenu.isOpen = false;
-                        View.render();
-                        return;
-                    }
-                    const range = selection.getRangeAt(0);
-
-                    // ▼▼▼ [핵심 로직 1: 대상 패널 동적 식별] ▼▼▼
-                    // 사용자가 선택한 텍스트에서 가장 가까운 [data-source] 속성을 가진 부모 요소를 찾습니다.
-                    // 이를 통해 작업 대상이 'manuscript'인지 'translation'인지 동적으로 결정합니다.
-                    const sourcePanel = range.commonAncestorContainer.nodeType === Node.ELEMENT_NODE
-                        ? range.commonAncestorContainer.closest('[data-source]')
-                        : range.commonAncestorContainer.parentElement.closest('[data-source]');
+                    const userRange = selection.getRangeAt(0);
+                    const sourcePanel = userRange.commonAncestorContainer.nodeType === Node.ELEMENT_NODE
+                        ? userRange.commonAncestorContainer.closest('[data-source]')
+                        : userRange.commonAncestorContainer.parentElement.closest('[data-source]');
 
                     if (!sourcePanel) {
-                        console.error('[Debug] 하이라이트 실패: 데이터 소스(manuscript/translation)를 포함하는 패널을 찾을 수 없습니다.');
                         Controller.showToast('하이라이트는 원문 또는 번역문 영역에서만 가능합니다.', 'error');
                         return;
                     }
-                    // 'manuscript' 또는 'translation' 문자열이 dataSourceKey에 저장됩니다.
                     const dataSourceKey = sourcePanel.dataset.source;
-                    // ▲▲▲ [핵심 로직 1 완료] ▲▲▲
+
+                    // 1. 병합될 최종 범위를 담을 새 Range 객체를 생성하고, 사용자의 선택으로 초기화합니다.
+                    const mergedRange = userRange.cloneRange();
+                    const marksToRemove = [];
+
+                    // 2. 현재 패널 내의 모든 기존 <mark> 태그를 찾습니다.
+                    const existingMarks = sourcePanel.querySelectorAll('mark');
+                    existingMarks.forEach(mark => {
+                        // 3. 사용자의 선택 영역과 기존 하이라이트가 겹치는지 확인합니다.
+                        if (userRange.intersectsNode(mark)) {
+                            // 4. 겹치는 경우, 병합될 범위(mergedRange)를 확장합니다.
+                            const markRange = document.createRange();
+                            markRange.selectNode(mark);
+                            
+                            if (markRange.compareBoundaryPoints(Range.START_TO_START, mergedRange) < 0) {
+                                mergedRange.setStartBefore(mark);
+                            }
+                            if (markRange.compareBoundaryPoints(Range.END_TO_END, mergedRange) > 0) {
+                                mergedRange.setEndAfter(mark);
+                            }
+                            // 5. 나중에 제거하기 위해 겹치는 마크를 목록에 추가합니다.
+                            marksToRemove.push(mark);
+                        }
+                    });
+
+                    // 6. 겹쳤던 기존 하이라이트들을 먼저 제거(unwrap)합니다.
+                    marksToRemove.forEach(mark => {
+                        const parent = mark.parentNode;
+                        while (mark.firstChild) {
+                            parent.insertBefore(mark.firstChild, mark);
+                        }
+                        parent.removeChild(mark);
+                        parent.normalize(); // 인접한 텍스트 노드를 합쳐줍니다.
+                    });
                     
-                    // [디버깅] 콘솔에서 이 로그를 확인하여 대상이 올바르게 잡혔는지 검증할 수 있습니다.
-                    console.log(`[Debug] 하이라이트 대상 패널: "${dataSourceKey}"`);
-
-                    const ancestor = range.commonAncestorContainer;
-                    const parentMark = (ancestor.nodeType === Node.ELEMENT_NODE ? ancestor : ancestor.parentElement).closest('mark');
-
-                    if (parentMark) {
-                        console.log('[Debug] 하이라이트 해제를 시도합니다.');
-                        const parent = parentMark.parentNode;
-                        while (parentMark.firstChild) {
-                            parent.insertBefore(parentMark.firstChild, parentMark);
-                        }
-                        parent.removeChild(parentMark);
-                        parent.normalize();
-                    } else {
-                        console.log('[Debug] 하이라이트 적용을 시도합니다.');
-                        const mark = document.createElement('mark');
-                        try {
-                            range.surroundContents(mark);
-                        } catch (e) {
-                            console.warn('[Debug] surroundContents 실패. 대체 방식을 사용합니다.', e.message);
-                            mark.appendChild(range.extractContents());
-                            range.insertNode(mark);
-                        }
+                    // 7. 최종적으로 병합된 범위에 새로운 <mark> 태그를 적용합니다.
+                    const newMark = document.createElement('mark');
+                    try {
+                        mergedRange.surroundContents(newMark);
+                    } catch (e) {
+                        // 범위가 복잡한 DOM 구조를 가질 경우 대체 방식 사용
+                        newMark.appendChild(mergedRange.extractContents());
+                        mergedRange.insertNode(newMark);
                     }
 
+                    // 8. 변경된 내용을 저장합니다.
                     const updatedHtml = sourcePanel.innerHTML;
                     const newMarkdown = Controller.turndownService.turndown(updatedHtml);
-                    
-                    // ▼▼▼ [핵심 로직 2: 올바른 데이터 필드에 저장] ▼▼▼
-                    // 1단계에서 동적으로 찾은 dataSourceKey('translation' 또는 'manuscript')를 사용하여
-                    // state 객체의 정확한 필드를 업데이트합니다.
                     state.activeChapterContent[dataSourceKey] = newMarkdown;
-                    // ▲▲▲ [핵심 로직 2 완료] ▲▲▲
-
                     await DB.put(CONFIG.STORES.CONTENTS, state.activeChapterContent);
-                    Controller.showToast('하이라이트가 적용/해제되었습니다.', 'success');
-                    
+
+                    Controller.showToast('하이라이트가 적용되었습니다.', 'success');
                     selection.removeAllRanges();
-                    
-                    // 메뉴 닫기 및 렌더링은 상위 핸들러('execute-context-menu')에서 처리합니다.
+                    // 메뉴 닫기 및 렌더링은 상위 핸들러에서 처리합니다.
                 },
 
                 // learning.html: 5937번째 줄 근처
