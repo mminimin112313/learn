@@ -7008,49 +7008,42 @@ Path: ${input.dataset.path}
                 },
 
                 // ▼▼▼ [신규 핸들러 2] 초기화 실행 (이중 확인) ▼▼▼
-                // 수정할 코드 (이 코드로 전체를 교체하세요)
-'confirm-reset-settings': () => {
-    ModalManager.open('confirm', {
-        title: '최종 확인',
-        message: '정말로 현재 프로젝트의 모든 설정을 기본값으로 되돌리시겠습니까? 저장된 프롬프트와 메뉴 등이 모두 사라집니다.',
-        confirmText: '네, 초기화합니다',
-        onConfirm: async () => {
-            try {
-                const project = state.activeProject;
-                if (!project) throw new Error('활성 프로젝트가 없습니다.');
+                'confirm-reset-settings': () => {
+                    ModalManager.open('confirm', {
+                        title: '최종 확인',
+                        message: '정말로 현재 프로젝트의 모든 설정을 기본값으로 되돌리시겠습니까? 저장된 프롬프트와 메뉴 등이 모두 사라집니다.',
+                        confirmText: '네, 초기화합니다',
+                        onConfirm: async () => {
+                            try {
+                                const project = state.activeProject;
+                                if (!project) throw new Error('활성 프로젝트가 없습니다.');
 
-                // 기본 설정을 깊은 복사하여 새 객체로 만듭니다.
-                const defaultSettings = JSON.parse(JSON.stringify(CONFIG.DEFAULT_PROJECT_SETTINGS));
-                
-                // [핵심 수정] 기본 프롬프트와 컨텍스트 메뉴는 원본 소스에서 ID를 새로 생성하여 할당합니다.
-                defaultSettings.customPrompts = CONFIG.DEFAULT_ACTIONS.map(p => ({...p, id: Utils.generateId('cp')}));
-                defaultSettings.contextMenuItems = CONFIG.DEFAULT_CONTEXT_MENU_ITEMS.map(m => ({...m, id: Utils.generateId('cmi')}));
-                
-                project.settings = defaultSettings;
-                project.updatedAt = new Date().toISOString();
+                                // ================== ▼▼▼ [로직 수정 시작] ▼▼▼ ==================
+                                // 중앙 설정 객체를 깊은 복사하여 프로젝트 설정을 덮어씁니다.
+                                project.settings = JSON.parse(JSON.stringify(CONFIG.DEFAULT_PROJECT_SETTINGS));
+                                project.updatedAt = new Date().toISOString();
+                                // ================== ▲▲▲ [로직 수정 완료] ▲▲▲ ==================
 
-                const projectInList = state.projects.find(p => p.id === project.id);
-                if (projectInList) {
-                    projectInList.settings = project.settings;
-                    projectInList.updatedAt = project.updatedAt;
-                }
+                                const projectInList = state.projects.find(p => p.id === project.id);
+                                if (projectInList) {
+                                    projectInList.settings = project.settings;
+                                    projectInList.updatedAt = project.updatedAt;
+                                }
 
-                await DB.put(CONFIG.STORES.PROJECTS, project);
-                
-                ModalManager.close(); // 확인 모달 닫기
-                Controller.showToast('프로젝트 설정이 기본값으로 초기화되었습니다.', 'success');
+                                await DB.put(CONFIG.STORES.PROJECTS, project);
+                                
+                                ModalManager.close();
+                                Controller.showToast('프로젝트 설정이 기본값으로 초기화되었습니다.', 'success');
 
-                // 설정 모달을 다시 열어 초기화된 상태를 보여줍니다.
-                // 이렇게 하면 사용자가 변경사항을 즉시 확인할 수 있습니다.
-                Controller.ACTION_HANDLERS['open-settings']();
+                                Controller.ACTION_HANDLERS['open-settings']();
 
-            } catch (error) {
-                console.error("설정 초기화 실패:", error);
-                Controller.showToast(`오류 발생: ${error.message}`, 'error');
-            }
-        }
-    });
-},
+                            } catch (error) {
+                                console.error("설정 초기화 실패:", error);
+                                Controller.showToast(`오류 발생: ${error.message}`, 'error');
+                            }
+                        }
+                    });
+                },
                 'select-chapter': (el) => {
                     const projectId = state.activeProjectId;
                     const chapterPath = el.dataset.path;
