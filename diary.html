@@ -57,12 +57,13 @@
             background-color: var(--bg-main);
             color: var(--text-primary);
         }
-        .fade-in {
-            animation: fadeIn 0.5s ease-in-out;
+        /* Page Transitions & Animations */
+        .view-container {
+            animation: fadeIn 0.3s ease-in-out;
         }
         @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
+            from { opacity: 0; }
+            to { opacity: 1; }
         }
         .card {
             background-color: var(--bg-card);
@@ -84,27 +85,73 @@
         ::-webkit-scrollbar-thumb:hover {
             background: #999;
         }
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 50;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
+        }
+        .modal-overlay.visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .modal-content {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 1rem;
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+            transform: scale(0.95);
+            transition: transform 0.3s ease;
+            width: 90%;
+            max-width: 400px;
+        }
+        .modal-overlay.visible .modal-content {
+            transform: scale(1);
+        }
     </style>
 </head>
 <body class="antialiased">
     <div id="app">
-        <!-- 앱 콘텐츠가 여기에 렌더링됩니다. -->
+        <!-- 스플래시 스크린 -->
         <div class="flex items-center justify-center h-screen">
             <div class="text-center">
-                <p class="text-lg text-gray-600">Mind Archive를 초기화하는 중...</p>
+                <h1 class="text-3xl font-bold text-gray-700">Mind Archive</h1>
                 <div class="mt-4 w-16 h-16 border-4 border-dashed rounded-full animate-spin border-gray-400 mx-auto"></div>
+                <p class="mt-4 text-gray-500">초기화하는 중...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- === Modal Template === -->
+    <div id="confirmation-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h3 id="modal-title" class="text-xl font-bold mb-4"></h3>
+            <p id="modal-message" class="text-text-secondary mb-6"></p>
+            <div class="flex justify-end space-x-4">
+                <button id="modal-cancel-button" class="px-6 py-2 rounded-lg bg-gray-200 hover:bg-gray-300 font-semibold">취소</button>
+                <button id="modal-confirm-button" class="px-6 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 font-semibold">확인</button>
             </div>
         </div>
     </div>
 
     <!-- === 뷰 템플릿 === -->
     <template id="login-view">
-        <div class="flex items-center justify-center h-screen bg-gray-50 fade-in">
+        <div class="flex items-center justify-center h-screen bg-gray-50 view-container">
             <div class="text-center p-8 max-w-sm mx-auto">
                 <h1 class="text-4xl font-bold text-gray-800">Mind Archive</h1>
                 <p class="mt-4 text-lg text-gray-600">당신의 생각과 감정을 기록하고, 통찰을 발견하세요.</p>
                 <button id="login-button" class="mt-8 w-full bg-white border border-gray-300 text-gray-700 font-semibold py-3 px-4 rounded-lg shadow-sm hover:bg-gray-100 transition-colors duration-300 flex items-center justify-center">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5 mr-3"><path d="M20.94 11c-.1-2.23-1.2-4.24-2.84-5.65S14.83 3.1 12.6 3.03h-.01c-2.2.07-4.25 1.15-5.7 2.8-1.45 1.64-2.4 3.8-2.58 6.17-.05.67-.05 1.33 0 2-.18 2.37.87 4.73 2.58 6.37 1.45 1.65 3.5 2.73 5.7 2.8h.01c2.23-.07 4.28-1.18 5.84-2.8s2.43-3.8 2.5-6.14c.05-.67.05-1.33 0-2z"/><path d="M12 12c-2 0-3.5-1.5-3.5-3.5s1.5-3.5 3.5-3.5 3.5 1.5 3.5 3.5-1.5 3.5-3.5 3.5z"/></svg>
+                    <svg class="w-5 h-5 mr-3" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.94 11c-.1-2.23-1.2-4.24-2.84-5.65S14.83 3.1 12.6 3.03h-.01c-2.2.07-4.25 1.15-5.7 2.8-1.45 1.64-2.4 3.8-2.58 6.17-.05.67-.05 1.33 0 2-.18 2.37.87 4.73 2.58 6.37 1.45 1.65 3.5 2.73 5.7 2.8h.01c2.23-.07 4.28-1.18 5.84-2.8s2.43-3.8 2.5-6.14c.05-.67.05-1.33 0-2z"/><path d="M12 12c-2 0-3.5-1.5-3.5-3.5s1.5-3.5 3.5-3.5 3.5 1.5 3.5 3.5-1.5 3.5-3.5 3.5z"/></svg>
                     Google 계정으로 시작하기
                 </button>
                 <p class="mt-4 text-xs text-gray-500">계속 진행함으로써, 귀하는 데이터가 로컬 장치 및 귀하의 개인 Firebase 계정에 안전하게 저장되는 것에 동의합니다.</p>
@@ -157,7 +204,7 @@
                         <i data-lucide="menu" class="w-6 h-6"></i>
                     </button>
                     <h1 id="view-title" class="text-xl font-semibold">대시보드</h1>
-                    <div id="sync-status" class="flex items-center text-sm text-gray-500">
+                    <div id="sync-status" class="flex items-center text-sm text-gray-500 cursor-pointer">
                         <div id="sync-indicator" class="w-3 h-3 rounded-full bg-green-500 mr-2"></div>
                         <span id="sync-text">동기화 완료</span>
                     </div>
@@ -170,7 +217,9 @@
     </template>
     
     <template id="dashboard-view">
-        <div class="fade-in space-y-8">
+        <div class="view-container space-y-8">
+            <!-- 온보딩 카드가 여기에 동적으로 추가될 수 있습니다. -->
+            <div id="onboarding-card-container"></div>
             <div class="card">
                 <h2 class="text-2xl font-bold mb-1" id="welcome-message"></h2>
                 <p class="text-text-secondary mb-4">오늘 하루는 어떠셨나요? 감정을 기록하고 하루를 정리해보세요.</p>
@@ -209,12 +258,12 @@
     </template>
 
     <template id="editor-view">
-        <div class="fade-in max-w-4xl mx-auto">
+        <div class="view-container max-w-4xl mx-auto">
             <div class="card">
                 <div class="flex justify-between items-center mb-4">
                     <a href="#/dashboard" class="text-text-secondary hover:text-text-primary"><i data-lucide="arrow-left" class="inline-block"></i> 돌아가기</a>
                     <div>
-                        <span id="editor-save-status" class="text-sm text-text-secondary mr-4"></span>
+                        <span id="editor-save-status" class="text-sm text-text-secondary mr-4 transition-opacity duration-500"></span>
                         <button id="delete-entry-button" class="text-red-500 hover:text-red-700 font-semibold hidden">삭제</button>
                     </div>
                 </div>
@@ -240,7 +289,7 @@
 
     <!-- 나머지 뷰 템플릿 (Calendar, Graphs, Search, AI) -->
     <template id="calendar-view">
-        <div class="fade-in card">
+        <div class="view-container card">
              <div id="calendar-header" class="flex items-center justify-between mb-4">
                 <button id="prev-month" class="p-2 rounded-md hover:bg-gray-100"><i data-lucide="chevron-left"></i></button>
                 <h2 id="current-month-year" class="text-xl font-bold"></h2>
@@ -253,9 +302,17 @@
     </template>
     
     <template id="graphs-view">
-         <div class="fade-in space-y-8">
+         <div class="view-container space-y-8">
              <div class="card">
-                <h3 class="text-xl font-semibold mb-4">감정 변화 추이</h3>
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-xl font-semibold">감정 변화 추이</h3>
+                    <select id="graph-range-selector" class="p-2 border rounded-md">
+                        <option value="7">최근 7일</option>
+                        <option value="30" selected>최근 30일</option>
+                        <option value="90">최근 90일</option>
+                        <option value="365">지난 1년</option>
+                    </select>
+                </div>
                 <canvas id="mood-chart"></canvas>
             </div>
              <div class="card">
@@ -268,9 +325,9 @@
     </template>
     
     <template id="search-view">
-        <div class="fade-in card">
+        <div class="view-container card">
             <div class="mb-4">
-                <input type="search" id="search-input" class="w-full p-3 border border-border-color rounded-lg" placeholder="검색어를 입력하세요...">
+                <input type="search" id="search-input" class="w-full p-3 border border-border-color rounded-lg" placeholder="검색어 또는 #태그를 입력하세요...">
             </div>
             <div id="search-results" class="space-y-4 mt-6">
                 <!-- 검색 결과가 여기에 표시됩니다. -->
@@ -279,7 +336,7 @@
     </template>
     
     <template id="ai-view">
-        <div class="fade-in card space-y-6">
+        <div class="view-container card space-y-6">
             <h2 class="text-2xl font-bold">AI 인사이트</h2>
             <p class="text-text-secondary">AI를 활용해 기록을 분석하고 새로운 통찰을 얻어보세요. 아래 프롬프트를 복사하여 즐겨 사용하는 AI 챗봇(ChatGPT, Gemini 등)에 붙여넣어 사용하세요.</p>
             
@@ -290,6 +347,11 @@
                     <option value="mood_pattern">감정 패턴 분석하기</option>
                     <option value="problem_solution">고민에 대한 조언 구하기</option>
                 </select>
+            </div>
+
+            <div id="ai-problem-input-container" class="hidden">
+                 <label for="ai-problem-input" class="block font-semibold mb-2">분석하고 싶은 고민이나 질문</label>
+                 <input type="text" id="ai-problem-input" class="w-full p-2 border border-border-color rounded-lg" placeholder="예: 최근 의욕이 없는 이유를 모르겠어요.">
             </div>
 
             <div>
@@ -337,9 +399,18 @@
                 this.userId = null;
                 this.broadcastChannel = new BroadcastChannel('mind_archive_channel');
                 this.broadcastChannel.onmessage = this.handleBroadcastMessage.bind(this);
+                this.modal = {
+                    element: document.getElementById('confirmation-modal'),
+                    title: document.getElementById('modal-title'),
+                    message: document.getElementById('modal-message'),
+                    confirmButton: document.getElementById('modal-confirm-button'),
+                    cancelButton: document.getElementById('modal-cancel-button'),
+                    resolve: null
+                };
             }
 
             async init() {
+                this.setupModal();
                 await this.dbService.init();
                 this.authService.init();
             }
@@ -348,29 +419,26 @@
                 const appContainer = document.getElementById('app');
                 if (user) {
                     this.userId = user.uid;
-                    if (!this.views.shell) { // 셸 뷰는 한 번만 초기화
+                    if (!this.views.shell) {
                         this.views.shell = new ShellView(this);
-                        this.views.shell.render(user); // 셸 뷰 렌더링
+                        appContainer.innerHTML = '';
+                        this.views.shell.render(user);
                         this.initViews();
                     } else {
-                        // 이미 로그인 된 상태에서 새로고침 시
                         this.views.shell.updateUser(user);
                     }
                     this.dbService.listenForRemoteChanges(this.userId);
-                    this.router.handleRouteChange(); // 인증 후 라우팅 처리
+                    this.router.handleRouteChange();
                 } else {
                     this.userId = null;
                     this.dbService.stopListeningForRemoteChanges();
                     appContainer.innerHTML = '';
-                    if (!this.views.login) {
-                        this.views.login = new LoginView(this);
-                    }
+                    if (!this.views.login) this.views.login = new LoginView(this);
                     this.views.login.render();
                 }
             }
 
             initViews() {
-                 // 각칙(Specific Views) 초기화
                 this.views.dashboard = new DashboardView(this);
                 this.views.editor = new EditorView(this);
                 this.views.calendar = new CalendarView(this);
@@ -378,15 +446,39 @@
                 this.views.search = new SearchView(this);
                 this.views.ai = new AiView(this);
             }
-
+            
             handleBroadcastMessage(event) {
-                if (event.data.type === 'db_updated' && this.currentView) {
-                    // 현재 뷰를 다시 렌더링하여 데이터 변경사항을 반영
-                    this.router.handleRouteChange(true); // force rerender
-                }
-                 if (event.data.type === 'auth_change' && event.data.action === 'logout') {
+                const { type, payload } = event.data;
+                if (type === 'auth_change' && payload.action === 'logout') {
                     window.location.reload();
+                    return;
                 }
+                if (this.currentView?.handleDataChange) {
+                    this.currentView.handleDataChange(type, payload);
+                }
+            }
+
+            setupModal() {
+                this.modal.cancelButton.addEventListener('click', () => this.resolveModal(false));
+                this.modal.confirmButton.addEventListener('click', () => this.resolveModal(true));
+            }
+
+            showConfirmationModal({ title, message, confirmText = '확인' }) {
+                return new Promise(resolve => {
+                    this.modal.resolve = resolve;
+                    this.modal.title.textContent = title;
+                    this.modal.message.textContent = message;
+                    this.modal.confirmButton.textContent = confirmText;
+                    this.modal.element.classList.add('visible');
+                });
+            }
+
+            resolveModal(result) {
+                if (this.modal.resolve) {
+                    this.modal.resolve(result);
+                    this.modal.resolve = null;
+                }
+                this.modal.element.classList.remove('visible');
             }
         }
 
@@ -394,24 +486,19 @@
         class View {
             constructor(app, templateId, viewName, viewTitle) {
                 this.app = app;
-                this.templateId = templateId; // Store ID, not the node
-                this.container = null; // 셸 뷰의 #content-area
+                this.templateId = templateId;
+                this.container = null;
                 this.viewName = viewName;
                 this.viewTitle = viewTitle;
             }
 
             show() {
-                if(this.app.currentView) this.app.currentView.hide();
+                if (this.app.currentView) this.app.currentView.hide();
                 
                 this.container = document.getElementById('content-area');
-                if(!this.container) {
-                    console.error("#content-area not found!");
-                    return;
-                }
+                if (!this.container) return;
 
-                // Clone the template right before using it to ensure it's always fresh
                 const templateNode = document.getElementById(this.templateId).content.cloneNode(true);
-                
                 this.container.innerHTML = '';
                 this.container.appendChild(templateNode);
                 this.app.views.shell.setActiveView(this.viewName, this.viewTitle);
@@ -419,6 +506,14 @@
             }
             
             hide() { /* 자식 클래스에서 필요시 구현 */ }
+
+            handleDataChange(type, payload) {
+                // 기본적으로 데이터 변경 시 뷰를 다시 렌더링
+                // 성능 최적화가 필요한 뷰는 이 메소드를 오버라이드
+                if (type.startsWith('entry_')) {
+                    this.app.router.handleRouteChange(true); // force rerender
+                }
+            }
         }
 
         class AuthService {
@@ -451,7 +546,7 @@
 
             async init() {
                 return new Promise((resolve, reject) => {
-                    const request = indexedDB.open('MindArchiveDB', 2);
+                    const request = indexedDB.open('MindArchiveDB', 3);
                     request.onerror = (event) => reject("IndexedDB error: " + event.target.errorCode);
                     request.onsuccess = (event) => {
                         this.db = event.target.result;
@@ -465,11 +560,33 @@
                             store.createIndex('createdAt', 'createdAt', { unique: false });
                             store.createIndex('isSynced', 'isSynced', { unique: false });
                         }
+                        if (!db.objectStoreNames.contains('app_state')) {
+                             db.createObjectStore('app_state', { keyPath: 'key' });
+                        }
                     };
                 });
             }
 
-            // ... (CRUD 메서드는 각칙 View 내부에서 직접 호출)
+            async getState(key) {
+                return new Promise((resolve, reject) => {
+                    const transaction = this.db.transaction('app_state', 'readonly');
+                    const store = transaction.objectStore('app_state');
+                    const request = store.get(key);
+                    request.onsuccess = () => resolve(request.result?.value);
+                    request.onerror = () => reject(request.error);
+                });
+            }
+
+            async saveState(key, value) {
+                 return new Promise((resolve, reject) => {
+                    const transaction = this.db.transaction('app_state', 'readwrite');
+                    const store = transaction.objectStore('app_state');
+                    store.put({ key, value });
+                    transaction.oncomplete = () => resolve();
+                    transaction.onerror = () => reject(transaction.error);
+                });
+            }
+
             async getEntry(id) {
                 return new Promise((resolve, reject) => {
                     const transaction = this.db.transaction('entries', 'readonly');
@@ -485,7 +602,7 @@
                     const transaction = this.db.transaction('entries', 'readonly');
                     const store = transaction.objectStore('entries');
                     const request = store.getAll();
-                    request.onsuccess = () => resolve(request.result);
+                    request.onsuccess = () => resolve(request.result || []);
                     request.onerror = () => reject(request.error);
                 });
             }
@@ -499,7 +616,7 @@
                     const store = transaction.objectStore('entries');
                     const request = store.put(entry);
                     transaction.oncomplete = () => {
-                         this.broadcastChannel.postMessage({ type: 'db_updated' });
+                        this.broadcastChannel.postMessage({ type: 'entry_saved', payload: { id: entry.id } });
                         this.syncWithFirestore();
                         resolve();
                     };
@@ -509,20 +626,17 @@
 
             async deleteEntry(id, userId) {
                  return new Promise(async (resolve, reject) => {
-                    // 1. IndexedDB에서 삭제
                     const transaction = this.db.transaction('entries', 'readwrite');
                     const store = transaction.objectStore('entries');
                     store.delete(id);
                     
                     transaction.oncomplete = async () => {
                         try {
-                            // 2. Firestore에서 삭제
                             await window.deleteDoc(window.doc(this.firestore, `users/${userId}/entries`, id));
-                            this.broadcastChannel.postMessage({ type: 'db_updated' });
+                            this.broadcastChannel.postMessage({ type: 'entry_deleted', payload: { id } });
                             resolve();
                         } catch (error) {
                             console.error("Firestore delete failed:", error);
-                            // Firestore 삭제 실패 시 복구 로직 (예: 삭제 큐에 추가)을 고려할 수 있음
                             reject(error);
                         }
                     };
@@ -531,28 +645,29 @@
             }
 
             startSyncLoop() {
-                setInterval(() => this.syncWithFirestore(), 30 * 1000); // 30초마다 동기화 시도
+                setInterval(() => this.syncWithFirestore(), 30 * 1000);
             }
             
             async syncWithFirestore() {
-                if (!navigator.onLine || !this.app || !this.app.userId) return;
+                if (!navigator.onLine || !window.app || !window.app.userId) return;
+                const userId = window.app.userId;
 
                 const transaction = this.db.transaction('entries', 'readwrite');
                 const store = transaction.objectStore('entries');
                 const syncIndex = store.index('isSynced');
-                const request = syncIndex.getAll(false); // isSynced가 false인 모든 항목 가져오기
+                const request = syncIndex.getAll(false);
 
                 request.onsuccess = async () => {
                     const entriesToSync = request.result;
                     if (entriesToSync.length === 0) {
-                        if(this.app.views.shell) this.app.views.shell.updateSyncStatus('synced');
+                        if(window.app.views.shell) window.app.views.shell.updateSyncStatus('synced');
                         return;
                     }
-                    if(this.app.views.shell) this.app.views.shell.updateSyncStatus('syncing', entriesToSync.length);
+                    if(window.app.views.shell) window.app.views.shell.updateSyncStatus('syncing', entriesToSync.length);
                     
                     const batch = window.writeBatch(this.firestore);
                     entriesToSync.forEach(entry => {
-                        const docRef = window.doc(this.firestore, `users/${this.app.userId}/entries`, entry.id);
+                        const docRef = window.doc(this.firestore, `users/${userId}/entries`, entry.id);
                         const { isSynced, ...firestoreEntry } = entry;
                         batch.set(docRef, firestoreEntry);
                     });
@@ -565,39 +680,42 @@
                             entry.isSynced = true;
                             updateStore.put(entry);
                         });
-                        if(this.app.views.shell) this.app.views.shell.updateSyncStatus('synced');
+                        if(window.app.views.shell) window.app.views.shell.updateSyncStatus('synced');
                     } catch (error) {
                         console.error("Firestore sync failed:", error);
-                        if(this.app.views.shell) this.app.views.shell.updateSyncStatus('error');
+                        if(window.app.views.shell) window.app.views.shell.updateSyncStatus('error');
                     }
                 };
             }
             
             listenForRemoteChanges(userId) {
-                this.stopListeningForRemoteChanges(); // 기존 리스너 중지
+                this.stopListeningForRemoteChanges();
                 const q = window.collection(this.firestore, `users/${userId}/entries`);
                 this.unsubscribe = window.onSnapshot(q, async (querySnapshot) => {
-                    if (querySnapshot.metadata.hasPendingWrites) return; // 로컬 변경은 무시
+                    if (querySnapshot.metadata.hasPendingWrites) return;
 
                     const transaction = this.db.transaction('entries', 'readwrite');
                     const store = transaction.objectStore('entries');
                     
                     for (const docChange of querySnapshot.docChanges()) {
-                        const remoteEntry = { ...docChange.doc.data(), id: docChange.doc.id, isSynced: true };
-                        if (docChange.type === "added" || docChange.type === "modified") {
-                             const localEntry = await this.getEntry(remoteEntry.id);
-                             // 로컬 변경사항이 더 최신이면 덮어쓰지 않음
+                        const changeType = docChange.type;
+                        const docId = docChange.doc.id;
+                        const remoteEntry = { ...docChange.doc.data(), id: docId, isSynced: true };
+                        
+                        const localEntry = await this.getEntry(docId);
+                        
+                        if (changeType === "added" || changeType === "modified") {
                              if (!localEntry || localEntry.updatedAt < remoteEntry.updatedAt) {
                                 store.put(remoteEntry);
+                                this.broadcastChannel.postMessage({ type: 'entry_saved', payload: { id: docId } });
                              }
-                        } else if (docChange.type === "removed") {
-                            store.delete(docChange.doc.id);
+                        } else if (changeType === "removed") {
+                            if (localEntry) {
+                                store.delete(docId);
+                                this.broadcastChannel.postMessage({ type: 'entry_deleted', payload: { id: docId } });
+                            }
                         }
                     }
-
-                    transaction.oncomplete = () => {
-                        this.broadcastChannel.postMessage({ type: 'db_updated' });
-                    };
                 }, (error) => {
                     console.error("Firestore listener error: ", error);
                 });
@@ -618,15 +736,18 @@
             }
 
             handleRouteChange(forceRerender = false) {
-                if (!this.app.userId) return; // 로그인되지 않았으면 라우팅 안 함
+                if (!this.app.userId) return;
 
                 const hash = window.location.hash || '#/dashboard';
-                const [path, id] = hash.slice(2).split('/');
+                const [pathWithQuery, ] = hash.slice(2).split('&');
+                const [path, id] = pathWithQuery.split('/');
+
                 const viewName = path || 'dashboard';
                 const view = this.app.views[viewName];
 
-                if (view && (view !== this.app.currentView || forceRerender || id)) {
-                    view.render(id);
+                if (view && (view !== this.app.currentView || forceRerender || id || hash.includes('?'))) {
+                    const urlParams = new URLSearchParams(hash.split('?')[1] || '');
+                    view.render(id, urlParams);
                 } else if (!view) {
                     window.location.hash = '#/dashboard';
                 }
@@ -648,7 +769,6 @@
                 document.getElementById('login-button').addEventListener('click', () => {
                     this.app.authService.signIn().catch(error => {
                         console.error("Login failed:", error);
-                        alert("로그인에 실패했습니다. 다시 시도해주세요.");
                     });
                 });
             }
@@ -663,7 +783,6 @@
 
             render(user) {
                 const template = document.getElementById(this.templateId).content.cloneNode(true);
-                this.container.innerHTML = '';
                 this.container.appendChild(template);
                 lucide.createIcons();
                 this.updateUser(user);
@@ -678,22 +797,21 @@
             addEventListeners() {
                 document.getElementById('logout-button').addEventListener('click', (e) => {
                     e.preventDefault();
-                    this.app.broadcastChannel.postMessage({ type: 'auth_change', action: 'logout' });
+                    this.app.broadcastChannel.postMessage({ type: 'auth_change', payload: { action: 'logout' } });
                     this.app.authService.signOut();
+                });
+
+                document.getElementById('sync-status').addEventListener('click', () => {
+                    this.app.dbService.syncWithFirestore();
                 });
 
                 const sidebar = document.getElementById('sidebar');
                 const menuToggle = document.getElementById('menu-toggle');
-                menuToggle.addEventListener('click', () => {
-                    sidebar.classList.toggle('-translate-x-full');
-                });
+                menuToggle.addEventListener('click', () => sidebar.classList.toggle('-translate-x-full'));
                 
-                // 네비게이션 링크 클릭 시 사이드바 닫기 (모바일 뷰)
                 document.querySelectorAll('.nav-link').forEach(link => {
                     link.addEventListener('click', () => {
-                        if (window.innerWidth < 768) {
-                           sidebar.classList.add('-translate-x-full');
-                        }
+                        if (window.innerWidth < 768) sidebar.classList.add('-translate-x-full');
                     });
                 });
             }
@@ -711,6 +829,7 @@
             updateSyncStatus(status, count = 0) {
                  const indicator = document.getElementById('sync-indicator');
                  const text = document.getElementById('sync-text');
+                 if(!indicator || !text) return;
                  switch(status) {
                     case 'syncing':
                         indicator.className = 'w-3 h-3 rounded-full bg-yellow-500 animate-pulse';
@@ -736,10 +855,29 @@
                 this.show();
                 document.getElementById('welcome-message').textContent = `안녕하세요, ${this.app.authService.auth.currentUser.displayName}님!`;
                 
-                const entries = await this.app.dbService.getAllEntries();
-                entries.sort((a, b) => b.createdAt - a.createdAt);
+                const entries = (await this.app.dbService.getAllEntries()).filter(e => !e.isDeleted);
+                
+                this.renderOnboarding(entries);
+                this.renderRecentEntries(entries);
+                this.renderMoodSummary(entries);
+                this.renderStats(entries);
+            }
 
-                // 최근 기록 렌더링
+            renderOnboarding(entries) {
+                const container = document.getElementById('onboarding-card-container');
+                if (entries.length === 0) {
+                    container.innerHTML = `
+                        <div class="card bg-green-50 border-l-4 border-green-500">
+                            <h3 class="font-bold text-green-800">Mind Archive에 오신 것을 환영합니다!</h3>
+                            <p class="text-green-700 mt-2">첫 기록을 작성하여 당신의 생각을 보관해보세요. "오늘 하루를 한 단어로 표현한다면?"과 같은 간단한 질문으로 시작해보는 건 어떨까요?</p>
+                        </div>`;
+                } else {
+                    container.innerHTML = '';
+                }
+            }
+            
+            renderRecentEntries(entries) {
+                entries.sort((a, b) => b.createdAt - a.createdAt);
                 const recentList = document.getElementById('recent-entries-list');
                 recentList.innerHTML = entries.length > 0 ? '' : '<p class="text-text-secondary">아직 작성된 기록이 없습니다.</p>';
                 entries.slice(0, 3).forEach(entry => {
@@ -748,7 +886,7 @@
                     entryEl.className = 'block p-4 border rounded-lg hover:bg-gray-50';
                     const date = new Date(entry.createdAt).toLocaleDateString('ko-KR');
                     const moodIcon = MOODS[entry.mood]?.icon || '';
-                    const contentPreview = entry.content.substring(0, 50) + '...';
+                    const contentPreview = entry.content.substring(0, 50) + (entry.content.length > 50 ? '...' : '');
                     entryEl.innerHTML = `
                         <div class="flex justify-between items-center">
                             <p class="font-semibold">${moodIcon} ${date}</p>
@@ -758,15 +896,20 @@
                     `;
                     recentList.appendChild(entryEl);
                 });
+            }
 
-                // 감정 요약
-                 const moodSummary = document.getElementById('mood-summary');
+            renderMoodSummary(entries) {
+                const moodSummary = document.getElementById('mood-summary');
                 moodSummary.innerHTML = '';
-                 const recent7DaysEntries = entries.filter(e => window.dateFns.differenceInDays(new Date(), new Date(e.createdAt)) < 7);
+                const recent7DaysEntries = entries.filter(e => window.dateFns.differenceInDays(new Date(), new Date(e.createdAt)) < 7);
                 const moodCounts = recent7DaysEntries.reduce((acc, entry) => {
                     if(entry.mood) acc[entry.mood] = (acc[entry.mood] || 0) + 1;
                     return acc;
                 }, {});
+                if(Object.keys(moodCounts).length === 0) {
+                    moodSummary.innerHTML = `<p class="text-text-secondary">최근 기록이 없습니다.</p>`;
+                    return;
+                }
                 Object.keys(MOODS).forEach(key => {
                     const count = moodCounts[key] || 0;
                     const el = document.createElement('div');
@@ -774,10 +917,10 @@
                     el.innerHTML = `<span class="text-3xl">${MOODS[key].icon}</span><p class="text-sm font-bold">${count}</p>`;
                     moodSummary.appendChild(el);
                 });
-                
-                // 통계 요약
+            }
+            
+            renderStats(entries) {
                 document.getElementById('total-entries-stat').textContent = entries.length;
-                // 연속 기록일 계산
                 const dates = [...new Set(entries.map(e => window.dateFns.format(new Date(e.createdAt), 'yyyy-MM-dd')))].sort().reverse();
                 let streak = 0;
                 if (dates.length > 0) {
@@ -786,41 +929,74 @@
                     if (dates[0] === today || dates[0] === yesterday) {
                         streak = 1;
                         for (let i = 0; i < dates.length - 1; i++) {
-                            const diff = window.dateFns.differenceInDays(new Date(dates[i]), new Date(dates[i+1]));
-                            if (diff === 1) streak++;
+                            if (window.dateFns.differenceInDays(new Date(dates[i]), new Date(dates[i+1])) === 1) streak++;
                             else break;
                         }
                     }
                 }
                 document.getElementById('streak-stat').textContent = streak;
-
             }
         }
         
         class EditorView extends View {
             constructor(app) {
                 super(app, 'editor-view', 'editor', '기록 작성');
-                this.currentEntryId = null;
-                this.debouncedSave = debounce(this.save.bind(this), 1000);
+                this.currentEntry = null;
+                this.saveTimer = null;
+                this.debouncedSave = debounce(this.save.bind(this), 1500);
             }
 
-            async render(id) {
-                this.currentEntryId = id;
+            async render(id, urlParams) {
                 this.show();
-                this.setTitle(id);
                 this.setupMoodSelector();
                 this.addEventListeners();
                 
-                if (id === 'new') {
-                    this.resetForm();
-                } else {
-                    const entry = await this.app.dbService.getEntry(id);
-                    if (entry) this.loadForm(entry);
+                const draft = await this.app.dbService.getState('draft');
+                if (id === 'new' && draft?.content) {
+                    const restore = await this.app.showConfirmationModal({
+                        title: '임시 저장된 글',
+                        message: '작성 중이던 글이 있습니다. 불러오시겠습니까?',
+                        confirmText: '불러오기'
+                    });
+                    if (restore) {
+                        this.currentEntry = draft;
+                    }
                 }
+                
+                if (this.currentEntry) { // Draft restored
+                    this.loadForm(this.currentEntry);
+                } else if (id && id !== 'new') { // Editing existing entry
+                    const entry = await this.app.dbService.getEntry(id);
+                    if (entry) {
+                        this.currentEntry = entry;
+                        this.loadForm(this.currentEntry);
+                    } else {
+                        alert('해당 기록을 찾을 수 없습니다. 대시보드로 이동합니다.');
+                        window.location.hash = '#/dashboard';
+                        return;
+                    }
+                } else { // Creating new entry
+                    this.currentEntry = {
+                        id: crypto.randomUUID(),
+                        content: '',
+                        mood: null,
+                        tags: [],
+                        createdAt: Date.now(),
+                        isNew: true,
+                    };
+                    const dateFromUrl = urlParams.get('date');
+                    if(dateFromUrl) {
+                        this.currentEntry.createdAt = new Date(dateFromUrl).getTime();
+                    }
+                    this.resetForm();
+                }
+
+                this.setTitle();
             }
 
-            setTitle(id) {
-                this.app.views.shell.setActiveView(this.viewName, id === 'new' ? '새 기록 작성' : '기록 수정');
+            setTitle() {
+                const isNew = this.currentEntry?.isNew || false;
+                this.app.views.shell.setActiveView(this.viewName, isNew ? '새 기록 작성' : '기록 수정');
             }
 
             setupMoodSelector() {
@@ -837,7 +1013,11 @@
 
             addEventListeners() {
                 const contentEl = document.getElementById('entry-content');
-                contentEl.addEventListener('input', this.debouncedSave);
+                contentEl.addEventListener('input', () => {
+                    this.updateSaveStatus('typing');
+                    this.saveDraft();
+                    this.debouncedSave();
+                });
                 
                 document.getElementById('entry-date').addEventListener('change', this.debouncedSave);
                 document.getElementById('entry-tags').addEventListener('input', this.debouncedSave);
@@ -850,26 +1030,31 @@
                     }
                 });
 
-                document.getElementById('delete-entry-button').addEventListener('click', async () => {
-                     if (confirm("정말로 이 기록을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.")) {
-                        await this.app.dbService.deleteEntry(this.currentEntryId, this.app.userId);
-                        window.location.hash = '#/dashboard';
-                    }
+                document.getElementById('delete-entry-button').addEventListener('click', () => this.handleDelete());
+            }
+
+            async handleDelete() {
+                const confirmed = await this.app.showConfirmationModal({
+                    title: '기록 삭제',
+                    message: '정말로 이 기록을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.',
+                    confirmText: '삭제'
                 });
+                if (confirmed) {
+                    await this.app.dbService.deleteEntry(this.currentEntry.id, this.app.userId);
+                    await this.app.dbService.saveState('draft', null); // Clear draft if deleting
+                    window.location.hash = '#/dashboard';
+                }
             }
 
             updateSelectedMood(selectedMood) {
                  document.querySelectorAll('#mood-selector button').forEach(btn => {
-                    if (btn.dataset.mood === selectedMood) {
-                        btn.classList.add('bg-gray-200', 'scale-125');
-                    } else {
-                        btn.classList.remove('bg-gray-200', 'scale-125');
-                    }
+                    btn.classList.toggle('bg-gray-200', btn.dataset.mood === selectedMood);
+                    btn.classList.toggle('scale-125', btn.dataset.mood === selectedMood);
                 });
             }
 
             resetForm() {
-                document.getElementById('entry-date').valueAsDate = new Date();
+                document.getElementById('entry-date').value = window.dateFns.format(new Date(this.currentEntry.createdAt), 'yyyy-MM-dd');
                 document.getElementById('entry-content').value = '';
                 document.getElementById('entry-tags').value = '';
                 this.updateSelectedMood(null);
@@ -881,40 +1066,60 @@
                 document.getElementById('entry-content').value = entry.content;
                 document.getElementById('entry-tags').value = entry.tags ? entry.tags.join(', ') : '';
                 this.updateSelectedMood(entry.mood);
-                document.getElementById('delete-entry-button').classList.remove('hidden');
+                if (!entry.isNew) {
+                    document.getElementById('delete-entry-button').classList.remove('hidden');
+                }
+            }
+
+            updateSaveStatus(status) {
+                 const statusEl = document.getElementById('editor-save-status');
+                 if (!statusEl) return;
+                 
+                 clearTimeout(this.saveTimer);
+                 statusEl.classList.remove('opacity-0');
+
+                 if (status === 'typing') {
+                    statusEl.textContent = '입력 중...';
+                 } else if (status === 'saving') {
+                    statusEl.textContent = '저장 중...';
+                 } else if (status === 'saved') {
+                    statusEl.textContent = '저장됨';
+                    this.saveTimer = setTimeout(() => statusEl.classList.add('opacity-0'), 2000);
+                 }
+            }
+            
+            async saveDraft() {
+                 if (!this.currentEntry) return;
+                 this.collectFormData();
+                 await this.app.dbService.saveState('draft', this.currentEntry);
+            }
+
+            collectFormData() {
+                if (!this.currentEntry) return;
+                this.currentEntry.content = document.getElementById('entry-content').value;
+                this.currentEntry.mood = document.querySelector('#mood-selector button.scale-125')?.dataset.mood || null;
+                this.currentEntry.tags = document.getElementById('entry-tags').value.split(',').map(t => t.trim()).filter(Boolean);
+                this.currentEntry.createdAt = new Date(document.getElementById('entry-date').value).getTime();
             }
 
             async save() {
-                const statusEl = document.getElementById('editor-save-status');
-                statusEl.textContent = '저장 중...';
-
-                const content = document.getElementById('entry-content').value;
-                if (!content.trim() && this.currentEntryId === 'new') return; // 새 글인데 내용 없으면 저장 안함
-
-                const selectedMood = document.querySelector('#mood-selector button.scale-125')?.dataset.mood;
-                const entryDate = document.getElementById('entry-date').value;
+                if (!this.currentEntry || !this.currentEntry.content.trim()) return;
                 
-                let entry;
-                if (this.currentEntryId === 'new') {
-                    entry = {
-                        id: crypto.randomUUID(),
-                        createdAt: new Date(entryDate).getTime() || Date.now(),
-                    };
+                this.updateSaveStatus('saving');
+                this.collectFormData();
+
+                const isNew = this.currentEntry.isNew;
+                if (isNew) delete this.currentEntry.isNew;
+
+                await this.app.dbService.saveEntry(this.currentEntry);
+                await this.app.dbService.saveState('draft', null); // Clear draft on successful save
+
+                this.updateSaveStatus('saved');
+                
+                if (isNew) {
+                    window.location.hash = `#/editor/${this.currentEntry.id}`;
                 } else {
-                    entry = await this.app.dbService.getEntry(this.currentEntryId);
-                    entry.createdAt = new Date(entryDate).getTime() || entry.createdAt;
-                }
-                
-                entry.content = content;
-                entry.mood = selectedMood || null;
-                entry.tags = document.getElementById('entry-tags').value.split(',').map(t => t.trim()).filter(Boolean);
-                
-                await this.app.dbService.saveEntry(entry);
-                statusEl.textContent = `마지막 저장: ${new Date().toLocaleTimeString()}`;
-                
-                if(this.currentEntryId === 'new') {
-                    // 새 글 저장 후에는 편집 URL로 이동하여 중복 생성을 방지
-                    window.location.hash = `#/editor/${entry.id}`;
+                     this.setTitle();
                 }
             }
         }
@@ -943,7 +1148,7 @@
             }
 
             async renderCalendar() {
-                const entries = await this.app.dbService.getAllEntries();
+                const entries = (await this.app.dbService.getAllEntries()).filter(e => !e.isDeleted);
                 const entriesByDate = entries.reduce((acc, entry) => {
                     const dateStr = window.dateFns.format(new Date(entry.createdAt), 'yyyy-MM-dd');
                     if (!acc[dateStr]) acc[dateStr] = [];
@@ -955,9 +1160,8 @@
                 const grid = document.getElementById('calendar-grid');
                 grid.innerHTML = '';
 
-                // 요일 헤더
                 ['일', '월', '화', '수', '목', '금', '토'].forEach(day => {
-                    grid.innerHTML += `<div class="text-center font-semibold text-text-secondary text-sm">${day}</div>`;
+                    grid.innerHTML += `<div class="text-center font-semibold text-text-secondary text-sm py-2">${day}</div>`;
                 });
 
                 const startOfMonth = window.dateFns.startOfMonth(this.currentDate);
@@ -968,20 +1172,20 @@
                 let day = startDate;
                 while (day <= endDate) {
                     const cell = document.createElement('div');
-                    cell.className = "h-24 border border-border-color p-1 overflow-hidden";
+                    cell.className = "h-24 border border-border-color p-1 overflow-y-auto cursor-pointer hover:bg-gray-50";
                     if (!window.dateFns.isSameMonth(day, this.currentDate)) {
-                        cell.classList.add('bg-gray-50');
+                        cell.classList.add('bg-gray-50', 'text-gray-400');
                     }
                     
                     const dateStr = window.dateFns.format(day, 'yyyy-MM-dd');
-                    const dayEntries = entriesByDate[dateStr];
+                    cell.dataset.date = dateStr;
                     
                     cell.innerHTML = `<span class="text-sm ${window.dateFns.isToday(day) ? 'font-bold text-green-600' : ''}">${window.dateFns.format(day, 'd')}</span>`;
                     
-                    if (dayEntries) {
+                    if (entriesByDate[dateStr]) {
                         const entriesContainer = document.createElement('div');
                         entriesContainer.className = "mt-1 space-y-1";
-                        dayEntries.forEach(entry => {
+                        entriesByDate[dateStr].forEach(entry => {
                             const entryEl = document.createElement('a');
                             entryEl.href = `#/editor/${entry.id}`;
                             entryEl.className = 'block text-xs truncate text-text-secondary hover:text-text-primary';
@@ -989,18 +1193,23 @@
                             entriesContainer.appendChild(entryEl);
                         });
                          cell.appendChild(entriesContainer);
-                    } else if (window.dateFns.isSameMonth(day, this.currentDate)) {
-                         const newEntryLink = document.createElement('a');
-                         newEntryLink.href = '#/editor/new';
-                         newEntryLink.className = "opacity-0 hover:opacity-100 flex items-center justify-center h-full text-gray-400";
-                         newEntryLink.innerHTML = `<i data-lucide="plus" class="w-6 h-6"></i>`;
-                         cell.appendChild(newEntryLink);
                     }
+
+                    cell.addEventListener('click', (e) => {
+                        // Prevent navigation if clicking on an existing entry link
+                        if (e.target.closest('a')) return;
+                        const clickedDate = e.currentTarget.dataset.date;
+                        const dayEntries = entriesByDate[clickedDate];
+                        if (dayEntries && dayEntries.length > 0) {
+                            window.location.hash = `#/editor/${dayEntries[0].id}`;
+                        } else {
+                            window.location.hash = `#/editor/new?date=${clickedDate}`;
+                        }
+                    });
 
                     grid.appendChild(cell);
                     day = window.dateFns.addDays(day, 1);
                 }
-                lucide.createIcons();
             }
         }
         
@@ -1012,33 +1221,41 @@
 
             async render() {
                 this.show();
-                const entries = await this.app.dbService.getAllEntries();
+                this.addEventListeners();
+                this.updateView();
+            }
+            
+            addEventListeners() {
+                document.getElementById('graph-range-selector').addEventListener('change', () => this.updateView());
+            }
+
+            async updateView() {
+                const entries = (await this.app.dbService.getAllEntries()).filter(e => !e.isDeleted);
                 this.renderMoodChart(entries);
                 this.renderTagCloud(entries);
             }
 
             renderMoodChart(entries) {
+                const days = parseInt(document.getElementById('graph-range-selector').value);
                 const ctx = document.getElementById('mood-chart').getContext('2d');
-                const last30DaysEntries = entries.filter(e => window.dateFns.differenceInDays(new Date(), new Date(e.createdAt)) < 30);
+                const filteredEntries = entries.filter(e => window.dateFns.differenceInDays(new Date(), new Date(e.createdAt)) < days);
                 
                 const labels = [];
                 const data = {};
                 Object.keys(MOODS).forEach(key => data[key] = []);
 
-                for (let i = 29; i >= 0; i--) {
+                for (let i = days - 1; i >= 0; i--) {
                     const date = window.dateFns.subDays(new Date(), i);
                     labels.push(window.dateFns.format(date, 'M/d'));
                     const dateStr = window.dateFns.format(date, 'yyyy-MM-dd');
-                    const entriesOnDate = last30DaysEntries.filter(e => window.dateFns.format(new Date(e.createdAt), 'yyyy-MM-dd') === dateStr);
+                    const entriesOnDate = filteredEntries.filter(e => window.dateFns.format(new Date(e.createdAt), 'yyyy-MM-dd') === dateStr);
                     
                     const moodCounts = entriesOnDate.reduce((acc, e) => {
                         if(e.mood) acc[e.mood] = (acc[e.mood] || 0) + 1;
                         return acc;
                     }, {});
 
-                    Object.keys(MOODS).forEach(key => {
-                        data[key].push(moodCounts[key] || 0);
-                    });
+                    Object.keys(MOODS).forEach(key => data[key].push(moodCounts[key] || 0));
                 }
                 
                 if (this.chart) this.chart.destroy();
@@ -1050,10 +1267,12 @@
                         datasets: Object.keys(MOODS).map(key => ({
                             label: MOODS[key].label,
                             data: data[key],
-                            // borderColor: 'your_color_logic_here',
-                            tension: 0.1
+                            tension: 0.1,
+                            pointRadius: 2,
+                            borderWidth: 2,
                         }))
-                    }
+                    },
+                    options: { responsive: true, maintainAspectRatio: false }
                 });
             }
 
@@ -1061,21 +1280,22 @@
                 const tagCloud = document.getElementById('tag-cloud');
                 tagCloud.innerHTML = '';
                 const tagCounts = entries.reduce((acc, entry) => {
-                    if (entry.tags) {
-                        entry.tags.forEach(tag => {
-                            acc[tag] = (acc[tag] || 0) + 1;
-                        });
-                    }
+                    if (entry.tags) entry.tags.forEach(tag => acc[tag] = (acc[tag] || 0) + 1);
                     return acc;
                 }, {});
 
-                const sortedTags = Object.entries(tagCounts).sort((a, b) => b[1] - a[1]).slice(0, 20);
+                const sortedTags = Object.entries(tagCounts).sort((a, b) => b[1] - a[1]).slice(0, 30);
                 const maxCount = sortedTags[0]?.[1] || 1;
+                
+                if (sortedTags.length === 0) {
+                    tagCloud.innerHTML = '<p class="text-text-secondary">기록된 태그가 없습니다.</p>';
+                    return;
+                }
 
                 sortedTags.forEach(([tag, count]) => {
                     const tagEl = document.createElement('a');
-                    tagEl.href = `#/search?query=${encodeURIComponent(tag)}`;
-                    tagEl.className = 'bg-gray-100 text-text-secondary rounded-full px-3 py-1 hover:bg-gray-200';
+                    tagEl.href = `#/search?query=${encodeURIComponent('#'+tag)}`;
+                    tagEl.className = 'bg-gray-100 text-text-secondary rounded-full px-3 py-1 hover:bg-gray-200 transition-colors';
                     const fontSize = 0.8 + (count / maxCount) * 1.2;
                     tagEl.style.fontSize = `${fontSize}rem`;
                     tagEl.textContent = `${tag} (${count})`;
@@ -1089,22 +1309,22 @@
                 super(app, 'search-view', 'search', '검색');
             }
 
-            async render(queryFromUrl) {
+            async render(id, urlParams) {
                 this.show();
                 this.input = document.getElementById('search-input');
                 this.resultsContainer = document.getElementById('search-results');
                 
                 this.input.addEventListener('input', debounce(() => this.performSearch(), 300));
                 
+                const queryFromUrl = urlParams.get('query');
                 if(queryFromUrl) {
-                    const query = new URLSearchParams(queryFromUrl).get('query');
-                    this.input.value = query;
+                    this.input.value = decodeURIComponent(queryFromUrl);
                 }
                 this.performSearch();
             }
 
             async performSearch() {
-                const query = this.input.value.toLowerCase().trim();
+                let query = this.input.value.toLowerCase().trim();
                 this.resultsContainer.innerHTML = '';
                 
                 if (!query) {
@@ -1112,8 +1332,15 @@
                     return;
                 }
 
-                const entries = await this.app.dbService.getAllEntries();
+                const isTagSearch = query.startsWith('#');
+                if(isTagSearch) query = query.substring(1);
+
+                const entries = (await this.app.dbService.getAllEntries()).filter(e => !e.isDeleted);
+                
                 const results = entries.filter(entry => {
+                    if (isTagSearch) {
+                        return entry.tags && entry.tags.some(tag => tag.toLowerCase().includes(query));
+                    }
                     const contentMatch = entry.content.toLowerCase().includes(query);
                     const tagMatch = entry.tags && entry.tags.some(tag => tag.toLowerCase().includes(query));
                     return contentMatch || tagMatch;
@@ -1138,8 +1365,9 @@
             
             highlight(text, query) {
                 const preview = text.substring(0, 150) + (text.length > 150 ? '...' : '');
-                const regex = new RegExp(`(${query})`, 'gi');
-                return preview.replace(regex, '<mark class="bg-yellow-200">$1</mark>');
+                if (!query) return preview;
+                const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+                return preview.replace(regex, '<mark class="bg-yellow-200 rounded-sm">$1</mark>');
             }
         }
         
@@ -1154,13 +1382,16 @@
             }
 
             addEventListeners() {
+                document.getElementById('ai-analysis-type').addEventListener('change', (e) => {
+                    document.getElementById('ai-problem-input-container').classList.toggle('hidden', e.target.value !== 'problem_solution');
+                });
                 document.getElementById('generate-prompt-button').addEventListener('click', () => this.generatePrompt());
                 document.getElementById('copy-prompt-button').addEventListener('click', () => this.copyPrompt());
             }
             
             async generatePrompt() {
                 const type = document.getElementById('ai-analysis-type').value;
-                const entries = await this.app.dbService.getAllEntries();
+                const entries = (await this.app.dbService.getAllEntries()).filter(e => !e.isDeleted);
                 let prompt = '';
                 let relevantEntries = [];
                 
@@ -1174,13 +1405,21 @@
                         relevantEntries = entries.filter(e => window.dateFns.differenceInDays(new Date(), new Date(e.createdAt)) < 30);
                         break;
                     case 'problem_solution':
-                        const userProblem = window.prompt("분석하고 싶은 고민이나 질문을 입력해주세요:");
-                        if (!userProblem) return;
+                        const userProblem = document.getElementById('ai-problem-input').value;
+                        if (!userProblem) {
+                            alert("분석하고 싶은 고민이나 질문을 입력해주세요.");
+                            return;
+                        }
                         prompt = `나는 현재 "${userProblem}"이라는 고민을 하고 있습니다. 다음은 나의 과거 일기 기록들입니다. 이 기록들 속에서 나의 과거 경험, 생각, 감정들을 바탕으로 현재 나의 고민에 대한 조언이나 해결의 실마리를 찾아주세요.\n\n`;
                         relevantEntries = entries; // 모든 기록을 대상으로 함
                         break;
                 }
                 
+                if (relevantEntries.length === 0) {
+                    alert("분석할 기록이 충분하지 않습니다.");
+                    return;
+                }
+
                 relevantEntries.sort((a,b) => a.createdAt - b.createdAt);
                 
                 const entryText = relevantEntries.map(e => {
@@ -1197,36 +1436,34 @@
                 const textarea = document.getElementById('ai-prompt-output');
                 textarea.select();
                 document.execCommand('copy');
-                alert("프롬프트가 복사되었습니다!");
+                const button = document.getElementById('copy-prompt-button');
+                button.textContent = '복사 완료!';
+                setTimeout(() => button.textContent = '복사', 2000);
             }
         }
 
         // === 4. 앱 시작 ===
         document.addEventListener('DOMContentLoaded', () => {
-            // 여기에 Firebase 구성 객체를 붙여넣으세요.
-              const firebaseConfig = {
+            const firebaseConfig = {
                 apiKey: "AIzaSyBuoFZcDgoerCtGll5s-31BzvbjMVKlrKo",
                 authDomain: "mydiary-6258f.firebaseapp.com",
                 projectId: "mydiary-6258f",
                 storageBucket: "mydiary-6258f.appspot.com",
                 messagingSenderId: "678116939845",
-                appId: "1:678116939845:web:a238b50e0bc95e4356ab2c",
-                measurementId: "G-JV8MQ566ZC"
+                appId: "1:678116939845:web:a238b50e0bc95e4356ab2c"
             };
 
-            if (firebaseConfig.apiKey === "YOUR_API_KEY") {
+            if (firebaseConfig.apiKey.startsWith("YOUR_")) {
                 document.getElementById('app').innerHTML = `
-                    <div class="p-8 text-center bg-red-100 text-red-800 rounded-lg">
+                    <div class="p-8 text-center bg-red-100 text-red-800 rounded-lg max-w-lg mx-auto">
                         <h2 class="text-2xl font-bold">Firebase 설정 필요</h2>
                         <p class="mt-2">mind-archive.html 파일을 열고 <code>firebaseConfig</code> 변수를 당신의 Firebase 프로젝트 정보로 채워주세요.</p>
-                    </div>
-                `;
+                    </div>`;
                 return;
             }
 
-            const firebaseApp = window.initializeApp(firebaseConfig);
+            window.initializeApp(firebaseConfig);
             
-            // 전역 앱 인스턴스 생성 및 초기화
             const app = new App();
             window.app = app;
             app.init();
