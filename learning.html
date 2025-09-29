@@ -1177,6 +1177,9 @@ html.dark .highlight-delete-btn:hover {
 // 통합 학습 및 저작 시스템 v3.16 (UX 개선)
 // - v3.16: 빈 프로젝트 생성 기능, 스크롤 위치 기억 기능 추가 및 UX 개선
 // ===================================================================================
+const APP_VERSION = '3.17.1'; // [핵심] 현재 애플리케이션 버전을 명시합니다.
+
+
 const CONFIG = {
     DB_NAME: 'ILS_V3_DB',
     DB_VERSION: 3.17,
@@ -2790,7 +2793,7 @@ const View = {
             } = state.currentFilter;
             const categoryListHtml = state.categories.map(c => `<li class="nav-item ${type === 'category' && id === c.id ? 'active' : ''}" data-action="filter" data-filter-type="category" data-id="${c.id}"><a>${Heroicons.render('folder', { class: 'icon' })} ${c.name}</a></li>`).join('');
             const tagListHtml = state.tags.map(t => `<li class="nav-item ${type === 'tag' && id === t.name ? 'active' : ''}" data-action="filter" data-filter-type="tag" data-id="${t.name}"><a>${Heroicons.render('tag', { class: 'icon' })} ${t.name} <span class="tag-count">${t.count}</span></a></li>`).join('');
-            return `<div class="sidebar-header"><a href="#" data-action="go-dashboard" class="logo">${Heroicons.render('academic-cap', { style: 'solid' })} 학습 & 저작 v3.16</a></div><div class="sidebar-content"><div class="nav-section"><button class="btn" data-action="new-project" style="width: 100%;">${Heroicons.render('plus')} 새 프로젝트</button></div><nav class="sidebar-nav"><div class="nav-section"><h3 class="nav-section-title">라이브러리</h3><ul class="nav-list" id="library-list"><li class="nav-item ${type === 'dashboard' ? 'active' : ''}" data-action="filter" data-filter-type="dashboard"><a>${Heroicons.render('squares-2x2', { class: 'icon' })} 대시보드</a></li><li class="nav-item ${type === 'all' ? 'active' : ''}" data-action="filter" data-filter-type="all"><a>${Heroicons.render('document-duplicate', { class: 'icon' })} 모든 프로젝트</a></li></ul></div><div class="nav-section"><div class="flex justify-between items-center p-2"><h3 class="nav-section-title mb-0">카테고리</h3><button data-action="toggle-sidebar-section" data-section="categories" title="카테고리 접기/펴기" class="text-slate-400 hover:text-slate-600">${Heroicons.render(state.sidebarCollapseState.categories ? 'chevron-right' : 'chevron-down', { class: 'w-4 h-4' })}</button></div>${!state.sidebarCollapseState.categories ? `<ul class="nav-list" id="category-list">${categoryListHtml}</ul>` : ''}</div><div class="nav-section"><div class="flex justify-between items-center p-2"><h3 class="nav-section-title mb-0">태그</h3><button data-action="toggle-sidebar-section" data-section="tags" title="태그 접기/펴기" class="text-slate-400 hover:text-slate-600">${Heroicons.render(state.sidebarCollapseState.tags ? 'chevron-right' : 'chevron-down', { class: 'w-4 h-4' })}</button></div>${!state.sidebarCollapseState.tags ? `<ul class="nav-list" id="tag-list">${tagListHtml}</ul>` : ''}</div></nav></div><div class="sidebar-footer">${this.renderUserProfile()}</div>`;
+            return `<div class="sidebar-header"><a href="#" data-action="go-dashboard" class="logo">${Heroicons.render('academic-cap', { style: 'solid' })} 학습 & 저작 v${APP_VERSION}</a></div><div class="sidebar-content"> ... </div>`;
         },
         renderProjectSidebar() {
             const project = state.activeProject;
@@ -3797,6 +3800,7 @@ renderQuizResultView() {
 
         const Controller = {
             async init() {
+                 this.checkVersion();
                 if (navigator.storage && navigator.storage.persist) {
                     try {
                         const isPersisted = await navigator.storage.persisted();
@@ -3852,7 +3856,32 @@ renderQuizResultView() {
                 // 모든 데이터 로드 후, 현재 URL을 기반으로 초기 화면을 설정하고 렌더링합니다.
                 await this.handleURLNavigation();
             },
-            
+            async checkVersion() {
+                try {
+                    // 브라우저 캐시를 무시하고 항상 최신 파일을 가져오기 위해 타임스탬프를 쿼리 파라미터로 추가합니다.
+                    const response = await fetch('version.json?cache_bust=' + new Date().getTime());
+                    if (!response.ok) return; // 파일을 찾을 수 없으면 조용히 종료합니다.
+
+                    const serverVersionData = await response.json();
+                    const serverVersion = serverVersionData.version;
+
+                    console.log(`[Version Check] Current: ${APP_VERSION}, Server: ${serverVersion}`);
+
+                    // 서버 버전이 현재 앱 버전과 다를 경우에만 업데이트 알림을 표시합니다.
+                    if (serverVersion && serverVersion !== APP_VERSION) {
+                        const wantsUpdate = confirm(
+                            `새로운 버전(v${serverVersion})이 있습니다. 업데이트를 위해 페이지를 새로고침 하시겠습니까?\n\n(취소할 경우 일부 기능이 정상 작동하지 않을 수 있습니다.)`
+                        );
+
+                        if (wantsUpdate) {
+                            // location.reload(true)는 캐시를 무시하고 서버에서 리소스를 강제로 다시 로드합니다.
+                            location.reload(true);
+                        }
+                    }
+                } catch (error) {
+                    console.error("버전 확인 중 오류 발생:", error);
+                }
+            },
 
             // ▼▼▼ [수정] 이 함수 전체를 Controller 객체 내부에 새로 추가하세요 ▼▼▼
             /**
