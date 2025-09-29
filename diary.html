@@ -10,7 +10,7 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/date-fns@3.6.0/index.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/date-fns/3.6.0/cdn.min.js"></script>
 
     <!-- Firebase SDKs -->
     <script type="module">
@@ -769,6 +769,10 @@
                 document.getElementById('login-button').addEventListener('click', () => {
                     this.app.authService.signIn().catch(error => {
                         console.error("Login failed:", error);
+                        // Inform the user about the unauthorized domain issue.
+                        if (error.code === 'auth/unauthorized-domain') {
+                            alert('로그인 실패: 이 앱의 도메인이 Firebase에 등록되지 않았습니다. 개발자에게 문의하여 Firebase 콘솔의 Authentication > Settings > Authorized domains에 이 페이지의 도메인을 추가해달라고 요청하세요.');
+                        }
                     });
                 });
             }
@@ -1448,7 +1452,7 @@
                 apiKey: "AIzaSyBuoFZcDgoerCtGll5s-31BzvbjMVKlrKo",
                 authDomain: "mydiary-6258f.firebaseapp.com",
                 projectId: "mydiary-6258f",
-                storageBucket: "mydiary-6258f.appspot.com",
+                storageBucket: "mydiary-6258f.spot.com",
                 messagingSenderId: "678116939845",
                 appId: "1:678116939845:web:a238b50e0bc95e4356ab2c"
             };
