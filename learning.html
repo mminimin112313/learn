@@ -660,6 +660,38 @@ html.dark .quiz-result-score {
     font-weight: 700;
     background-color: var(--bg-tertiary); /* [수정] */
 }
+
+.prose-readable ul,
+.prose-readable ol {
+    list-style-position: outside; /* 마커(블릿, 숫자)를 텍스트 바깥쪽에 배치하여 정렬을 깔끔하게 합니다. */
+    padding-left: 2em; /* 목록 전체를 들여쓰기하여 본문과 구분합니다. */
+    margin-bottom: 1.2em; /* 목록 아래에 적절한 여백을 추가합니다. */
+}
+
+.prose-readable ul {
+    list-style-type: disc; /* 채워진 원형 블릿을 사용합니다. */
+}
+
+.prose-readable ol {
+    list-style-type: decimal; /* 1, 2, 3... 숫자를 사용합니다. */
+}
+
+.prose-readable li {
+    margin-bottom: 0.8em; /* 각 항목(li) 사이에 일관된 간격을 부여합니다. */
+    padding-left: 0.5em; /* 마커와 텍스트 사이에 약간의 공간을 줍니다. */
+}
+
+/* [핵심] li 태그 안의 p 태그가 불필요한 추가 여백을 만드는 문제 해결 */
+.prose-readable li > p {
+    margin-top: 0;
+    margin-bottom: 0; /* 단락의 기본 여백을 제거하여 li의 여백과 중첩되지 않게 합니다. */
+}
+
+/* 중첩된 목록의 상단 여백을 조정하여 부모 항목과 시각적으로 구분 */
+.prose-readable li ul,
+.prose-readable li ol {
+    margin-top: 0.8em;
+}
         
         
         /* === 푸터(Footer) 전체 스타일 (모바일 가로 스크롤 적용) === */
