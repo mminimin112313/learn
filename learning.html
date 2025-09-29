@@ -942,7 +942,7 @@ html.dark .quiz-result-score {
     font-size: 0.8rem;
     font-weight: 500;
     white-space: pre-line;
-    max-width: 350px; /* 최대 너비 증가 */
+    width: 250px; /* 최대 너비 증가 */
     z-index: 9999;
     opacity: 0;
     pointer-events: none;
@@ -5844,6 +5844,65 @@ project.settings.contextMenuItems = Utils.mergeCustomItems(savedSettings.context
                 }
             },
             applyPostRenderEffects() {
+                const tocLinks = document.querySelectorAll('.sidebar .toc-item a');
+                tocLinks.forEach(link => {
+                    const textSpan = link.querySelector('span.truncate');
+                    if (!textSpan) return;
+
+                    const path = link.dataset.path;
+                    const node = Utils.getNodeByPath(state.activeProject.toc, path);
+                    const content = node ? state.activeContentsMap.get(`${state.activeProjectId}_${node.contentId}`) : null;
+                    
+                    const isTruncated = textSpan.scrollWidth > textSpan.clientWidth;
+
+                    // 1. 콘텐츠 정보가 없으면 툴팁을 아예 표시하지 않음
+                    if (!content) {
+                        link.removeAttribute('data-tooltip');
+                        return;
+                    }
+                    
+                    // 2. 콘텐츠 정보를 바탕으로 통계 데이터 생성
+                    const manuscriptCount = content.manuscript?.length || 0;
+                    const translationCount = content.translation?.length || 0;
+                    const hasImage = !!content.imageDataUrl;
+                    const hasQuizzes = content.questions && content.questions.length > 0;
+
+                    // 3. 텍스트가 잘렸거나, 추가 정보가 하나라도 있을 경우에만 툴팁을 생성
+                    if (isTruncated || manuscriptCount > 0 || translationCount > 0 || hasImage || hasQuizzes) {
+                        const fullTitle = DOMPurify.sanitize(textSpan.textContent);
+                        
+                        // 4. 아이콘과 함께 표시될 상세 정보 HTML 생성
+                        const detailsHtml = `
+                            <hr class='border-slate-500 my-1 opacity-50'>
+                            <div class='grid grid-cols-2 gap-x-2 mt-1.5 font-normal text-xs'>
+                                <div class='flex items-center' title="원고 글자수">
+                                    ${Heroicons.render('document-text', { class: 'w-3.5 h-3.5 mr-1 flex-shrink-0' })}
+                                    <span>${Utils.formatCount(manuscriptCount)}자</span>
+                                </div>
+                                <div class='flex items-center' title="번역문 글자수">
+                                    ${Heroicons.render('language', { class: 'w-3.5 h-3.5 mr-1 flex-shrink-0' })}
+                                    <span>${Utils.formatCount(translationCount)}자</span>
+                                </div>
+                                <div class='flex items-center' title="이미지">
+                                    ${Heroicons.render(hasImage ? 'check-circle' : 'x-circle', { class: `w-3.5 h-3.5 mr-1 flex-shrink-0 ${hasImage ? 'text-green-400' : 'text-slate-500'}` })}
+                                    <span>이미지</span>
+                                </div>
+                                <div class='flex items-center' title="퀴즈">
+                                    ${Heroicons.render(hasQuizzes ? 'check-circle' : 'x-circle', { class: `w-3.5 h-3.5 mr-1 flex-shrink-0 ${hasQuizzes ? 'text-green-400' : 'text-slate-500'}` })}
+                                    <span>퀴즈</span>
+                                </div>
+                            </div>
+                        `;
+                        
+                        // 5. 최종 툴팁 HTML을 data-tooltip 속성에 할당
+                        const tooltipContent = `<div class='text-left'><div class='font-semibold mb-1'>${fullTitle}</div>${detailsHtml}</div>`;
+                        link.setAttribute('data-tooltip', tooltipContent);
+
+                    } else {
+                        // 텍스트가 잘리지도 않았고, 추가 정보도 없으면 툴팁을 제거
+                        link.removeAttribute('data-tooltip');
+                    }
+                });
                  const mainContentEl = document.querySelector('.main-content');
                 if (mainContentEl) {
                     mainContentEl.addEventListener('scroll', () => {
