@@ -394,7 +394,7 @@
         class View {
             constructor(app, templateId, viewName, viewTitle) {
                 this.app = app;
-                this.template = document.getElementById(templateId).content.cloneNode(true);
+                this.templateId = templateId; // Store ID, not the node
                 this.container = null; // 셸 뷰의 #content-area
                 this.viewName = viewName;
                 this.viewTitle = viewTitle;
@@ -408,8 +408,12 @@
                     console.error("#content-area not found!");
                     return;
                 }
+
+                // Clone the template right before using it to ensure it's always fresh
+                const templateNode = document.getElementById(this.templateId).content.cloneNode(true);
+                
                 this.container.innerHTML = '';
-                this.container.appendChild(this.template);
+                this.container.appendChild(templateNode);
                 this.app.views.shell.setActiveView(this.viewName, this.viewTitle);
                 this.app.currentView = this;
             }
@@ -758,7 +762,7 @@
                 // 감정 요약
                  const moodSummary = document.getElementById('mood-summary');
                 moodSummary.innerHTML = '';
-                 const recent7DaysEntries = entries.filter(e => dateFns.differenceInDays(new Date(), new Date(e.createdAt)) < 7);
+                 const recent7DaysEntries = entries.filter(e => window.dateFns.differenceInDays(new Date(), new Date(e.createdAt)) < 7);
                 const moodCounts = recent7DaysEntries.reduce((acc, entry) => {
                     if(entry.mood) acc[entry.mood] = (acc[entry.mood] || 0) + 1;
                     return acc;
@@ -774,15 +778,15 @@
                 // 통계 요약
                 document.getElementById('total-entries-stat').textContent = entries.length;
                 // 연속 기록일 계산
-                const dates = [...new Set(entries.map(e => dateFns.format(new Date(e.createdAt), 'yyyy-MM-dd')))].sort().reverse();
+                const dates = [...new Set(entries.map(e => window.dateFns.format(new Date(e.createdAt), 'yyyy-MM-dd')))].sort().reverse();
                 let streak = 0;
                 if (dates.length > 0) {
-                    const today = dateFns.format(new Date(), 'yyyy-MM-dd');
-                    const yesterday = dateFns.format(dateFns.subDays(new Date(), 1), 'yyyy-MM-dd');
+                    const today = window.dateFns.format(new Date(), 'yyyy-MM-dd');
+                    const yesterday = window.dateFns.format(window.dateFns.subDays(new Date(), 1), 'yyyy-MM-dd');
                     if (dates[0] === today || dates[0] === yesterday) {
                         streak = 1;
                         for (let i = 0; i < dates.length - 1; i++) {
-                            const diff = dateFns.differenceInDays(new Date(dates[i]), new Date(dates[i+1]));
+                            const diff = window.dateFns.differenceInDays(new Date(dates[i]), new Date(dates[i+1]));
                             if (diff === 1) streak++;
                             else break;
                         }
@@ -873,7 +877,7 @@
             }
 
             loadForm(entry) {
-                document.getElementById('entry-date').value = dateFns.format(new Date(entry.createdAt), 'yyyy-MM-dd');
+                document.getElementById('entry-date').value = window.dateFns.format(new Date(entry.createdAt), 'yyyy-MM-dd');
                 document.getElementById('entry-content').value = entry.content;
                 document.getElementById('entry-tags').value = entry.tags ? entry.tags.join(', ') : '';
                 this.updateSelectedMood(entry.mood);
@@ -929,11 +933,11 @@
             
             addEventListeners() {
                 document.getElementById('prev-month').addEventListener('click', () => {
-                    this.currentDate = dateFns.subMonths(this.currentDate, 1);
+                    this.currentDate = window.dateFns.subMonths(this.currentDate, 1);
                     this.renderCalendar();
                 });
                 document.getElementById('next-month').addEventListener('click', () => {
-                    this.currentDate = dateFns.addMonths(this.currentDate, 1);
+                    this.currentDate = window.dateFns.addMonths(this.currentDate, 1);
                     this.renderCalendar();
                 });
             }
@@ -941,13 +945,13 @@
             async renderCalendar() {
                 const entries = await this.app.dbService.getAllEntries();
                 const entriesByDate = entries.reduce((acc, entry) => {
-                    const dateStr = dateFns.format(new Date(entry.createdAt), 'yyyy-MM-dd');
+                    const dateStr = window.dateFns.format(new Date(entry.createdAt), 'yyyy-MM-dd');
                     if (!acc[dateStr]) acc[dateStr] = [];
                     acc[dateStr].push(entry);
                     return acc;
                 }, {});
 
-                document.getElementById('current-month-year').textContent = dateFns.format(this.currentDate, 'yyyy년 M월');
+                document.getElementById('current-month-year').textContent = window.dateFns.format(this.currentDate, 'yyyy년 M월');
                 const grid = document.getElementById('calendar-grid');
                 grid.innerHTML = '';
 
@@ -956,23 +960,23 @@
                     grid.innerHTML += `<div class="text-center font-semibold text-text-secondary text-sm">${day}</div>`;
                 });
 
-                const startOfMonth = dateFns.startOfMonth(this.currentDate);
-                const endOfMonth = dateFns.endOfMonth(this.currentDate);
-                const startDate = dateFns.startOfWeek(startOfMonth);
-                const endDate = dateFns.endOfWeek(endOfMonth);
+                const startOfMonth = window.dateFns.startOfMonth(this.currentDate);
+                const endOfMonth = window.dateFns.endOfMonth(this.currentDate);
+                const startDate = window.dateFns.startOfWeek(startOfMonth);
+                const endDate = window.dateFns.endOfWeek(endOfMonth);
 
                 let day = startDate;
                 while (day <= endDate) {
                     const cell = document.createElement('div');
                     cell.className = "h-24 border border-border-color p-1 overflow-hidden";
-                    if (!dateFns.isSameMonth(day, this.currentDate)) {
+                    if (!window.dateFns.isSameMonth(day, this.currentDate)) {
                         cell.classList.add('bg-gray-50');
                     }
                     
-                    const dateStr = dateFns.format(day, 'yyyy-MM-dd');
+                    const dateStr = window.dateFns.format(day, 'yyyy-MM-dd');
                     const dayEntries = entriesByDate[dateStr];
                     
-                    cell.innerHTML = `<span class="text-sm ${dateFns.isToday(day) ? 'font-bold text-green-600' : ''}">${dateFns.format(day, 'd')}</span>`;
+                    cell.innerHTML = `<span class="text-sm ${window.dateFns.isToday(day) ? 'font-bold text-green-600' : ''}">${window.dateFns.format(day, 'd')}</span>`;
                     
                     if (dayEntries) {
                         const entriesContainer = document.createElement('div');
@@ -985,7 +989,7 @@
                             entriesContainer.appendChild(entryEl);
                         });
                          cell.appendChild(entriesContainer);
-                    } else if (dateFns.isSameMonth(day, this.currentDate)) {
+                    } else if (window.dateFns.isSameMonth(day, this.currentDate)) {
                          const newEntryLink = document.createElement('a');
                          newEntryLink.href = '#/editor/new';
                          newEntryLink.className = "opacity-0 hover:opacity-100 flex items-center justify-center h-full text-gray-400";
@@ -994,7 +998,7 @@
                     }
 
                     grid.appendChild(cell);
-                    day = dateFns.addDays(day, 1);
+                    day = window.dateFns.addDays(day, 1);
                 }
                 lucide.createIcons();
             }
@@ -1015,17 +1019,17 @@
 
             renderMoodChart(entries) {
                 const ctx = document.getElementById('mood-chart').getContext('2d');
-                const last30DaysEntries = entries.filter(e => dateFns.differenceInDays(new Date(), new Date(e.createdAt)) < 30);
+                const last30DaysEntries = entries.filter(e => window.dateFns.differenceInDays(new Date(), new Date(e.createdAt)) < 30);
                 
                 const labels = [];
                 const data = {};
                 Object.keys(MOODS).forEach(key => data[key] = []);
 
                 for (let i = 29; i >= 0; i--) {
-                    const date = dateFns.subDays(new Date(), i);
-                    labels.push(dateFns.format(date, 'M/d'));
-                    const dateStr = dateFns.format(date, 'yyyy-MM-dd');
-                    const entriesOnDate = last30DaysEntries.filter(e => dateFns.format(new Date(e.createdAt), 'yyyy-MM-dd') === dateStr);
+                    const date = window.dateFns.subDays(new Date(), i);
+                    labels.push(window.dateFns.format(date, 'M/d'));
+                    const dateStr = window.dateFns.format(date, 'yyyy-MM-dd');
+                    const entriesOnDate = last30DaysEntries.filter(e => window.dateFns.format(new Date(e.createdAt), 'yyyy-MM-dd') === dateStr);
                     
                     const moodCounts = entriesOnDate.reduce((acc, e) => {
                         if(e.mood) acc[e.mood] = (acc[e.mood] || 0) + 1;
@@ -1163,11 +1167,11 @@
                 switch(type) {
                     case 'weekly_summary':
                         prompt = '다음은 나의 지난 주 일기 기록입니다. 이 기록들을 바탕으로 나의 한 주를 요약하고, 주요 감정 변화와 핵심 활동에 대해 정리해주세요.\n\n';
-                        relevantEntries = entries.filter(e => dateFns.differenceInDays(new Date(), new Date(e.createdAt)) < 7);
+                        relevantEntries = entries.filter(e => window.dateFns.differenceInDays(new Date(), new Date(e.createdAt)) < 7);
                         break;
                     case 'mood_pattern':
                         prompt = '다음은 나의 한 달간의 일기 기록입니다. 나의 감정 패턴을 분석해주세요. 특히, 어떤 상황이나 활동이 나의 특정 감정(예: 행복, 불안)과 연관되어 나타나는지 알려주세요.\n\n';
-                        relevantEntries = entries.filter(e => dateFns.differenceInDays(new Date(), new Date(e.createdAt)) < 30);
+                        relevantEntries = entries.filter(e => window.dateFns.differenceInDays(new Date(), new Date(e.createdAt)) < 30);
                         break;
                     case 'problem_solution':
                         const userProblem = window.prompt("분석하고 싶은 고민이나 질문을 입력해주세요:");
@@ -1180,7 +1184,7 @@
                 relevantEntries.sort((a,b) => a.createdAt - b.createdAt);
                 
                 const entryText = relevantEntries.map(e => {
-                    return `[${dateFns.format(new Date(e.createdAt), 'yyyy-MM-dd')}] (감정: ${MOODS[e.mood]?.label || '없음'}, 태그: ${e.tags?.join(', ') || '없음'})\n내용: ${e.content}\n---`;
+                    return `[${window.dateFns.format(new Date(e.createdAt), 'yyyy-MM-dd')}] (감정: ${MOODS[e.mood]?.label || '없음'}, 태그: ${e.tags?.join(', ') || '없음'})\n내용: ${e.content}\n---`;
                 }).join('\n');
                 
                 const fullPrompt = prompt + entryText;
@@ -1204,7 +1208,7 @@
                 apiKey: "AIzaSyBuoFZcDgoerCtGll5s-31BzvbjMVKlrKo",
                 authDomain: "mydiary-6258f.firebaseapp.com",
                 projectId: "mydiary-6258f",
-                storageBucket: "mydiary-6258f.firebasestorage.app",
+                storageBucket: "mydiary-6258f.appspot.com",
                 messagingSenderId: "678116939845",
                 appId: "1:678116939845:web:a238b50e0bc95e4356ab2c",
                 measurementId: "G-JV8MQ566ZC"
@@ -1231,3 +1235,4 @@
     </script>
 </body>
 </html>
+
