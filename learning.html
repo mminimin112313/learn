@@ -1177,7 +1177,7 @@ html.dark .highlight-delete-btn:hover {
 // 통합 학습 및 저작 시스템 v3.16 (UX 개선)
 // - v3.16: 빈 프로젝트 생성 기능, 스크롤 위치 기억 기능 추가 및 UX 개선
 // ===================================================================================
-const APP_VERSION = '3.17.1'; // [핵심] 현재 애플리케이션 버전을 명시합니다.
+const APP_VERSION = '3.17.2'; // [핵심] 현재 애플리케이션 버전을 명시합니다.
 
 
 const CONFIG = {
@@ -1614,6 +1614,19 @@ const Utils = {
             clearTimeout(timeout);
             timeout = setTimeout(() => func.apply(this, args), delay);
         };
+    },
+    mergeCustomItems(savedItems = [], defaultItems = []) {
+        const savedItemMap = new Map(savedItems.map(item => [item.id, item]));
+        const mergedItems = [...savedItems];
+
+        // 기본 아이템 목록을 순회하며, 저장된 목록에 없는 아이템만 추가합니다.
+        defaultItems.forEach(defaultItem => {
+            if (!savedItemMap.has(defaultItem.id)) {
+                mergedItems.push(JSON.parse(JSON.stringify(defaultItem))); // 원본 수정을 막기 위해 복사본 추가
+            }
+        });
+
+        return mergedItems;
     },
     naturalSort: (a, b) => {
         const re = /(\d+)/g;
@@ -2793,7 +2806,8 @@ const View = {
             } = state.currentFilter;
             const categoryListHtml = state.categories.map(c => `<li class="nav-item ${type === 'category' && id === c.id ? 'active' : ''}" data-action="filter" data-filter-type="category" data-id="${c.id}"><a>${Heroicons.render('folder', { class: 'icon' })} ${c.name}</a></li>`).join('');
             const tagListHtml = state.tags.map(t => `<li class="nav-item ${type === 'tag' && id === t.name ? 'active' : ''}" data-action="filter" data-filter-type="tag" data-id="${t.name}"><a>${Heroicons.render('tag', { class: 'icon' })} ${t.name} <span class="tag-count">${t.count}</span></a></li>`).join('');
-            return `<div class="sidebar-header"><a href="#" data-action="go-dashboard" class="logo">${Heroicons.render('academic-cap', { style: 'solid' })} 학습 & 저작 v${APP_VERSION}</a></div><div class="sidebar-content"> ... </div>`;
+            // 기존 return 문을 아래 코드로 통째로 교체하세요.
+return `<div class="sidebar-header"><a href="#" data-action="go-dashboard" class="logo">${Heroicons.render('academic-cap', { style: 'solid' })} 학습 & 저작 v${APP_VERSION}</a></div><div class="sidebar-content"><div class="nav-section"><button class="btn" data-action="new-project" style="width: 100%;">${Heroicons.render('plus')} 새 프로젝트</button></div><nav class="sidebar-nav"><div class="nav-section"><h3 class="nav-section-title">라이브러리</h3><ul class="nav-list" id="library-list"><li class="nav-item ${type === 'dashboard' ? 'active' : ''}" data-action="filter" data-filter-type="dashboard"><a>${Heroicons.render('squares-2x2', { class: 'icon' })} 대시보드</a></li><li class="nav-item ${type === 'all' ? 'active' : ''}" data-action="filter" data-filter-type="all"><a>${Heroicons.render('document-duplicate', { class: 'icon' })} 모든 프로젝트</a></li></ul></div><div class="nav-section"><div class="flex justify-between items-center p-2"><h3 class="nav-section-title mb-0">카테고리</h3><button data-action="toggle-sidebar-section" data-section="categories" title="카테고리 접기/펴기" class="text-slate-400 hover:text-slate-600">${Heroicons.render(state.sidebarCollapseState.categories ? 'chevron-right' : 'chevron-down', { class: 'w-4 h-4' })}</button></div>${!state.sidebarCollapseState.categories ? `<ul class="nav-list" id="category-list">${categoryListHtml}</ul>` : ''}</div><div class="nav-section"><div class="flex justify-between items-center p-2"><h3 class="nav-section-title mb-0">태그</h3><button data-action="toggle-sidebar-section" data-section="tags" title="태그 접기/펴기" class="text-slate-400 hover:text-slate-600">${Heroicons.render(state.sidebarCollapseState.tags ? 'chevron-right' : 'chevron-down', { class: 'w-4 h-4' })}</button></div>${!state.sidebarCollapseState.tags ? `<ul class="nav-list" id="tag-list">${tagListHtml}</ul>` : ''}</div></nav></div><div class="sidebar-footer">${this.renderUserProfile()}</div>`;
         },
         renderProjectSidebar() {
             const project = state.activeProject;
@@ -5032,17 +5046,17 @@ handleHighlightClick(event) {
                 // ▼▼▼ [수정 2] 기본 '컨텍스트 메뉴' 항목 목록을 별도로 정의합니다. ▼▼▼
                 CONFIG.DEFAULT_CONTEXT_MENU_ITEMS = [
                     {
-                        id: Utils.generateId('cmi'),
+                        id: 'default-highlight',
                         name: "🎨 하이라이트",
                         action: 'context-highlight' // 프롬프트 대신 직접 실행할 액션 지정
                     },
                     {
-                        id: Utils.generateId('cmi'),
+                        id: 'default-add-footnote',
                         name: "📑 각주 추가",
                         action: 'context-add-footnote' // 프롬프트 대신 직접 실행할 액션 지정
                     },
                     {
-                        id: Utils.generateId('cmi'),
+                        id: 'default-explain-sentence',
                         name: "문장 해설 요청",
                         template: `다음 문장이 잘 이해가 가지 않습니다. 아래 자료 등을 참조하여 해설해 주세요.\n\n# 문장\n{{selected_text}}\n\n# 자료\n{{manuscript}}\n\n{{translation}}`
                     },
@@ -5357,9 +5371,9 @@ Micro-interactions are the small, often unnoticed animations and design elements
         </constraints>
     </promptDesignFramework>
 </metaPrompt>`,
-                customPrompts: CONFIG.DEFAULT_ACTIONS.map(p => ({ ...p, id: Utils.generateId('cp') })),
-                contextMenuItems: CONFIG.DEFAULT_CONTEXT_MENU_ITEMS.map(m => ({ ...m, id: Utils.generateId('cmi') }))
-                 };
+                customPrompts: CONFIG.DEFAULT_ACTIONS.map(p => ({ ...p, id: p.id })),
+                contextMenuItems: CONFIG.DEFAULT_CONTEXT_MENU_ITEMS.map(m => ({ ...m, id: m.id }))
+            };
             },
             updateTags() {
                 const tagCounts = {};
@@ -5607,7 +5621,12 @@ Micro-interactions are the small, often unnoticed animations and design elements
                     const project = await DB.get(CONFIG.STORES.PROJECTS, id);
                     if (!project) throw new Error("프로젝트를 찾을 수 없습니다.");
 
-                    project.settings = { ...CONFIG.DEFAULT_PROJECT_SETTINGS, ...(project.settings || {}) };
+                    // [핵심 수정] 단순 덮어쓰기 대신 지능형 병합 로직을 사용합니다.
+const savedSettings = project.settings || {};
+project.settings = { ...CONFIG.DEFAULT_PROJECT_SETTINGS, ...savedSettings }; // 기본 설정은 덮어씁니다.
+// 커스텀 목록은 지능적으로 병합합니다.
+project.settings.customPrompts = Utils.mergeCustomItems(savedSettings.customPrompts, CONFIG.DEFAULT_PROJECT_SETTINGS.customPrompts);
+project.settings.contextMenuItems = Utils.mergeCustomItems(savedSettings.contextMenuItems, CONFIG.DEFAULT_PROJECT_SETTINGS.contextMenuItems);
 
                     // 1. 마이그레이션 필요 여부 확인
                     let needsMigration = false;
@@ -6088,7 +6107,11 @@ Micro-interactions are the small, often unnoticed animations and design elements
                     createdAt: new Date().toISOString(),
                     updatedAt: new Date().toISOString()
                 };
-                newProject.settings = { ...CONFIG.DEFAULT_PROJECT_SETTINGS, ...(newProject.settings || {}) };
+                const savedSettingsFromJson = newProject.settings || {};
+                newProject.settings = { ...CONFIG.DEFAULT_PROJECT_SETTINGS, ...savedSettingsFromJson };
+                newProject.settings.customPrompts = Utils.mergeCustomItems(savedSettingsFromJson.customPrompts, CONFIG.DEFAULT_PROJECT_SETTINGS.customPrompts);
+                newProject.settings.contextMenuItems = Utils.mergeCustomItems(savedSettingsFromJson.contextMenuItems, CONFIG.DEFAULT_PROJECT_SETTINGS.contextMenuItems);
+
                 
                 // ▼▼▼ [수정] JSON 데이터에 contentId가 없을 경우를 대비한 마이그레이션 로직 추가 ▼▼▼
                 const addContentIdIfNeeded = (node) => {
@@ -7876,13 +7899,8 @@ Path: ${input.dataset.path}
                             if (!project) throw new Error('활성 프로젝트가 없습니다.');
 
                             // 기본 설정을 깊은 복사하여 새 객체로 만듭니다.
-                            const defaultSettings = JSON.parse(JSON.stringify(CONFIG.DEFAULT_PROJECT_SETTINGS));
-                            
-                            // 기본 프롬프트와 컨텍스트 메뉴는 ID를 새로 생성하여 할당합니다.
-                            defaultSettings.customPrompts = CONFIG.DEFAULT_ACTIONS.map(p => ({...p, id: Utils.generateId('cp')}));
-                            defaultSettings.contextMenuItems = CONFIG.DEFAULT_CONTEXT_MENU_ITEMS.map(m => ({...m, id: Utils.generateId('cmi')}));
-                            
-                            project.settings = defaultSettings;
+                            project.settings = JSON.parse(JSON.stringify(CONFIG.DEFAULT_PROJECT_SETTINGS));
+                            project.updatedAt = new Date().toISOString();
                             project.updatedAt = new Date().toISOString();
 
                             const projectInList = state.projects.find(p => p.id === project.id);
