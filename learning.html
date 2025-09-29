@@ -1718,6 +1718,19 @@ const Utils = {
             // 'g' 플래그는 문자열 전체에서 일치하는 모든 부분을 찾아서 바꿉니다.
             return text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
         },
+    parseEmojiAndLabel(name) {
+            if (!name) return { emoji: null, label: '' };
+            // 복잡한 유니코드 이모티콘을 처리하기 위한 정규식
+            const emojiRegex = /^(?:[\u2700-\u27bf]|(?:\ud83c[\udde6-\uddff]){2}|[\ud800-\udbff][\udc00-\udfff]|[\u0023-\u0039]\ufe0f?\u20e3|\u3299|\u3297|\u303d|\u3030|\u24c2|\ud83c[\udd70-\udd71]|\ud83c[\udd7e-\udd7f]|\ud83c\udd8e|\ud83c[\udd91-\udd9a]|\ud83c[\udde6-\uddff]|\ud83c[\ude01-\ude02]|\ud83c\ude1a|\ud83c\ude2f|\ud83c[\ude32-\ude3a]|\ud83c[\ude50-\ude51]|\u203c|\u2049|[\u25aa-\u25ab]|\u25b6|\u25c0|[\u25fb-\u25fe]|\u00a9|\u00ae|\u2122|\u2139|\ud83c\udc04|[\u2600-\u26ff]|\u2b05|\u2b06|\u2b07|\u2b1b|\u2b1c|\u2b50|\u2b55|\u231a|\u231b|\u2328|\u23cf|[\u23e9-\u23f3]|[\u23f8-\u23fa]|\ud83c\udccf|\u2934|\u2935|[\u2190-\u21ff])/;
+            const match = name.match(emojiRegex);
+            if (match) {
+                return {
+                    emoji: match[0],
+                    label: name.substring(match[0].length).trim()
+                };
+            }
+            return { emoji: null, label: name };
+        },
     formatCount(num) {
             if (num < 1000) {
                 return num.toLocaleString();
@@ -2551,17 +2564,32 @@ const View = {
                 const buttonsHtml = group.actions.map(action => {
                     const currentIndex = totalActionIndex++;
                     // ▼▼▼ [수정] 모바일용 <span> 라벨을 다시 추가하고, title 속성을 data-tooltip으로 변경합니다. ▼▼▼
+                    // [핵심 수정] 이름에서 이모티콘과 라벨을 분리합니다.
+                    const { emoji, label } = Utils.parseEmojiAndLabel(action.name);
+
+                    // 아이콘 렌더링 로직: 이모티콘 > action.icon > 기본 아이콘 순서
+                    let iconHtml = '';
+                    if (emoji) {
+                        iconHtml = `<span class="w-5 h-5 flex-shrink-0 flex items-center justify-center text-lg">${emoji}</span>`;
+                    } else if (action.icon) {
+                        iconHtml = Heroicons.render(action.icon, { class: 'w-5 h-5 flex-shrink-0' });
+                    } else {
+                        // 기본 아이콘 (예: 커스텀 버튼용)
+                        iconHtml = Heroicons.render('sparkles', { class: 'w-5 h-5 flex-shrink-0' });
+                    }
+
                     return `
                         <button class="action-rail-button group" 
                                 data-action="copy-custom-prompt" 
                                 data-index="${currentIndex}"
                                 data-tooltip="${DOMPurify.sanitize(action.name)}">
-                            ${Heroicons.render(action.icon, { class: 'w-5 h-5 flex-shrink-0' })}
+                            ${iconHtml}
                             <span class="action-rail-label">
-                                ${DOMPurify.sanitize(action.name)}
+                                ${DOMPurify.sanitize(label)}
                             </span>
                         </button>
                     `;
+
                 }).join('');
                 
                 const divider = groupIndex < actionGroups.length - 1 ? '<hr class="action-rail-divider" />' : '';
