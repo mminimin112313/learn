@@ -1,0 +1,1233 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mind Archive</title>
+
+    <!-- CDNs -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/date-fns@3.6.0/index.min.js"></script>
+
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+        window.initializeApp = initializeApp;
+    </script>
+    <script type="module">
+        import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+        window.getAuth = getAuth;
+        window.GoogleAuthProvider = GoogleAuthProvider;
+        window.signInWithPopup = signInWithPopup;
+        window.signOut = signOut;
+        window.onAuthStateChanged = onAuthStateChanged;
+    </script>
+    <script type="module">
+        import { getFirestore, doc, getDoc, setDoc, deleteDoc, collection, onSnapshot, writeBatch, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+        window.getFirestore = getFirestore;
+        window.doc = doc;
+        window.getDoc = getDoc;
+        window.setDoc = setDoc;
+        window.deleteDoc = deleteDoc;
+        window.collection = collection;
+        window.onSnapshot = onSnapshot;
+        window.writeBatch = writeBatch;
+        window.query = query;
+        window.where = where;
+        window.getDocs = getDocs;
+    </script>
+
+    <style>
+        /* 디자인 시스템 기반 커스텀 스타일 */
+        :root {
+            --bg-main: #F8F9FA;
+            --bg-card: #FFFFFF;
+            --text-primary: #212529;
+            --text-secondary: #6C757D;
+            --accent-green: #28a745;
+            --accent-neutral: #ffc107;
+            --accent-negative: #dc3545;
+            --border-color: #E9ECEF;
+        }
+        body {
+            font-family: 'Inter', sans-serif; /* Google Fonts와 유사한 시스템 폰트 사용 */
+            background-color: var(--bg-main);
+            color: var(--text-primary);
+        }
+        .fade-in {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .card {
+            background-color: var(--bg-card);
+            border-radius: 1rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            padding: 1.5rem;
+        }
+        /* 스크롤바 디자인 */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: var(--bg-main);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #ccc;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #999;
+        }
+    </style>
+</head>
+<body class="antialiased">
+    <div id="app">
+        <!-- 앱 콘텐츠가 여기에 렌더링됩니다. -->
+        <div class="flex items-center justify-center h-screen">
+            <div class="text-center">
+                <p class="text-lg text-gray-600">Mind Archive를 초기화하는 중...</p>
+                <div class="mt-4 w-16 h-16 border-4 border-dashed rounded-full animate-spin border-gray-400 mx-auto"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- === 뷰 템플릿 === -->
+    <template id="login-view">
+        <div class="flex items-center justify-center h-screen bg-gray-50 fade-in">
+            <div class="text-center p-8 max-w-sm mx-auto">
+                <h1 class="text-4xl font-bold text-gray-800">Mind Archive</h1>
+                <p class="mt-4 text-lg text-gray-600">당신의 생각과 감정을 기록하고, 통찰을 발견하세요.</p>
+                <button id="login-button" class="mt-8 w-full bg-white border border-gray-300 text-gray-700 font-semibold py-3 px-4 rounded-lg shadow-sm hover:bg-gray-100 transition-colors duration-300 flex items-center justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5 mr-3"><path d="M20.94 11c-.1-2.23-1.2-4.24-2.84-5.65S14.83 3.1 12.6 3.03h-.01c-2.2.07-4.25 1.15-5.7 2.8-1.45 1.64-2.4 3.8-2.58 6.17-.05.67-.05 1.33 0 2-.18 2.37.87 4.73 2.58 6.37 1.45 1.65 3.5 2.73 5.7 2.8h.01c2.23-.07 4.28-1.18 5.84-2.8s2.43-3.8 2.5-6.14c.05-.67.05-1.33 0-2z"/><path d="M12 12c-2 0-3.5-1.5-3.5-3.5s1.5-3.5 3.5-3.5 3.5 1.5 3.5 3.5-1.5 3.5-3.5 3.5z"/></svg>
+                    Google 계정으로 시작하기
+                </button>
+                <p class="mt-4 text-xs text-gray-500">계속 진행함으로써, 귀하는 데이터가 로컬 장치 및 귀하의 개인 Firebase 계정에 안전하게 저장되는 것에 동의합니다.</p>
+            </div>
+        </div>
+    </template>
+    
+    <template id="shell-view">
+         <div class="flex h-screen bg-main">
+            <!-- Sidebar -->
+            <aside id="sidebar" class="w-64 bg-card border-r border-border-color flex flex-col transition-transform duration-300 -translate-x-full md:translate-x-0">
+                <div class="px-6 py-4 border-b border-border-color">
+                    <h2 class="text-xl font-bold">Mind Archive</h2>
+                </div>
+                <nav class="flex-1 p-4 space-y-2">
+                    <a href="#/dashboard" class="nav-link flex items-center px-4 py-2 text-text-secondary rounded-lg hover:bg-gray-100" data-view="dashboard">
+                        <i data-lucide="layout-dashboard" class="w-5 h-5 mr-3"></i> 대시보드
+                    </a>
+                    <a href="#/editor/new" class="nav-link flex items-center px-4 py-2 text-text-secondary rounded-lg hover:bg-gray-100 bg-green-500 text-white hover:bg-green-600">
+                        <i data-lucide="plus" class="w-5 h-5 mr-3"></i> 새 기록 작성
+                    </a>
+                    <a href="#/calendar" class="nav-link flex items-center px-4 py-2 text-text-secondary rounded-lg hover:bg-gray-100" data-view="calendar">
+                        <i data-lucide="calendar" class="w-5 h-5 mr-3"></i> 캘린더
+                    </a>
+                     <a href="#/graphs" class="nav-link flex items-center px-4 py-2 text-text-secondary rounded-lg hover:bg-gray-100" data-view="graphs">
+                        <i data-lucide="bar-chart-3" class="w-5 h-5 mr-3"></i> 통계
+                    </a>
+                    <a href="#/search" class="nav-link flex items-center px-4 py-2 text-text-secondary rounded-lg hover:bg-gray-100" data-view="search">
+                        <i data-lucide="search" class="w-5 h-5 mr-3"></i> 검색
+                    </a>
+                     <a href="#/ai" class="nav-link flex items-center px-4 py-2 text-text-secondary rounded-lg hover:bg-gray-100" data-view="ai">
+                        <i data-lucide="brain-circuit" class="w-5 h-5 mr-3"></i> AI 인사이트
+                    </a>
+                </nav>
+                <div class="p-4 border-t border-border-color">
+                    <div id="user-profile" class="flex items-center">
+                        <img id="user-photo" src="" class="w-10 h-10 rounded-full">
+                        <div class="ml-3">
+                            <p id="user-name" class="font-semibold text-sm"></p>
+                            <a href="#" id="logout-button" class="text-xs text-gray-500 hover:underline">로그아웃</a>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Main Content -->
+            <main class="flex-1 flex flex-col overflow-hidden">
+                <header class="bg-card border-b border-border-color flex items-center justify-between p-4">
+                    <button id="menu-toggle" class="md:hidden p-2 rounded-md text-gray-500 hover:bg-gray-100">
+                        <i data-lucide="menu" class="w-6 h-6"></i>
+                    </button>
+                    <h1 id="view-title" class="text-xl font-semibold">대시보드</h1>
+                    <div id="sync-status" class="flex items-center text-sm text-gray-500">
+                        <div id="sync-indicator" class="w-3 h-3 rounded-full bg-green-500 mr-2"></div>
+                        <span id="sync-text">동기화 완료</span>
+                    </div>
+                </header>
+                <div id="content-area" class="flex-1 overflow-y-auto p-4 md:p-8">
+                    <!-- 현재 뷰가 여기에 렌더링됩니다 -->
+                </div>
+            </main>
+        </div>
+    </template>
+    
+    <template id="dashboard-view">
+        <div class="fade-in space-y-8">
+            <div class="card">
+                <h2 class="text-2xl font-bold mb-1" id="welcome-message"></h2>
+                <p class="text-text-secondary mb-4">오늘 하루는 어떠셨나요? 감정을 기록하고 하루를 정리해보세요.</p>
+                <a href="#/editor/new" class="inline-block bg-green-500 text-white font-bold py-3 px-6 rounded-lg hover:bg-green-600 transition-colors">
+                    오늘의 기록 작성하기
+                </a>
+            </div>
+             <div class="card">
+                <h3 class="text-xl font-semibold mb-4">최근 기록</h3>
+                <div id="recent-entries-list" class="space-y-4">
+                    <!-- 최근 기록이 여기에 동적으로 추가됩니다 -->
+                </div>
+            </div>
+             <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                 <div class="card">
+                    <h3 class="text-xl font-semibold mb-4">최근 7일 감정 요약</h3>
+                    <div id="mood-summary" class="flex justify-around items-center h-24">
+                        <!-- 감정 요약이 여기에 동적으로 추가됩니다 -->
+                    </div>
+                </div>
+                 <div class="card">
+                    <h3 class="text-xl font-semibold mb-4">기록 현황</h3>
+                    <div id="stats-summary" class="flex justify-around text-center">
+                        <div>
+                            <p class="text-3xl font-bold" id="total-entries-stat">0</p>
+                            <p class="text-text-secondary">총 기록 수</p>
+                        </div>
+                        <div>
+                            <p class="text-3xl font-bold" id="streak-stat">0</p>
+                            <p class="text-text-secondary">연속 기록일</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <template id="editor-view">
+        <div class="fade-in max-w-4xl mx-auto">
+            <div class="card">
+                <div class="flex justify-between items-center mb-4">
+                    <a href="#/dashboard" class="text-text-secondary hover:text-text-primary"><i data-lucide="arrow-left" class="inline-block"></i> 돌아가기</a>
+                    <div>
+                        <span id="editor-save-status" class="text-sm text-text-secondary mr-4"></span>
+                        <button id="delete-entry-button" class="text-red-500 hover:text-red-700 font-semibold hidden">삭제</button>
+                    </div>
+                </div>
+                <div class="mb-4">
+                    <input type="date" id="entry-date" class="p-2 border rounded-md">
+                </div>
+                <div id="editor-container" class="prose max-w-none">
+                    <textarea id="entry-content" class="w-full h-96 p-4 border border-border-color rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none" placeholder="오늘의 이야기를 들려주세요..."></textarea>
+                </div>
+                <div class="mt-6">
+                    <h4 class="font-semibold mb-2">오늘의 감정</h4>
+                    <div id="mood-selector" class="flex space-x-2">
+                        <!-- 감정 아이콘이 여기에 동적으로 추가됩니다 -->
+                    </div>
+                </div>
+                <div class="mt-6">
+                    <h4 class="font-semibold mb-2">태그</h4>
+                    <input type="text" id="entry-tags" class="w-full p-2 border border-border-color rounded-lg" placeholder="쉼표로 태그를 구분해주세요 (예: 일, 프로젝트, 생각)">
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <!-- 나머지 뷰 템플릿 (Calendar, Graphs, Search, AI) -->
+    <template id="calendar-view">
+        <div class="fade-in card">
+             <div id="calendar-header" class="flex items-center justify-between mb-4">
+                <button id="prev-month" class="p-2 rounded-md hover:bg-gray-100"><i data-lucide="chevron-left"></i></button>
+                <h2 id="current-month-year" class="text-xl font-bold"></h2>
+                <button id="next-month" class="p-2 rounded-md hover:bg-gray-100"><i data-lucide="chevron-right"></i></button>
+            </div>
+            <div id="calendar-grid" class="grid grid-cols-7 gap-1">
+                <!-- 캘린더가 여기에 동적으로 생성됩니다. -->
+            </div>
+        </div>
+    </template>
+    
+    <template id="graphs-view">
+         <div class="fade-in space-y-8">
+             <div class="card">
+                <h3 class="text-xl font-semibold mb-4">감정 변화 추이</h3>
+                <canvas id="mood-chart"></canvas>
+            </div>
+             <div class="card">
+                <h3 class="text-xl font-semibold mb-4">태그 클라우드</h3>
+                <div id="tag-cloud" class="flex flex-wrap gap-2 items-center">
+                    <!-- 태그 클라우드가 여기에 동적으로 생성됩니다. -->
+                </div>
+            </div>
+         </div>
+    </template>
+    
+    <template id="search-view">
+        <div class="fade-in card">
+            <div class="mb-4">
+                <input type="search" id="search-input" class="w-full p-3 border border-border-color rounded-lg" placeholder="검색어를 입력하세요...">
+            </div>
+            <div id="search-results" class="space-y-4 mt-6">
+                <!-- 검색 결과가 여기에 표시됩니다. -->
+            </div>
+        </div>
+    </template>
+    
+    <template id="ai-view">
+        <div class="fade-in card space-y-6">
+            <h2 class="text-2xl font-bold">AI 인사이트</h2>
+            <p class="text-text-secondary">AI를 활용해 기록을 분석하고 새로운 통찰을 얻어보세요. 아래 프롬프트를 복사하여 즐겨 사용하는 AI 챗봇(ChatGPT, Gemini 등)에 붙여넣어 사용하세요.</p>
+            
+            <div>
+                <label for="ai-analysis-type" class="block font-semibold mb-2">분석 유형 선택</label>
+                <select id="ai-analysis-type" class="w-full p-2 border border-border-color rounded-lg">
+                    <option value="weekly_summary">지난 주 요약하기</option>
+                    <option value="mood_pattern">감정 패턴 분석하기</option>
+                    <option value="problem_solution">고민에 대한 조언 구하기</option>
+                </select>
+            </div>
+
+            <div>
+                <button id="generate-prompt-button" class="bg-green-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-600">프롬프트 생성</button>
+            </div>
+
+            <div id="prompt-container" class="hidden">
+                <label class="block font-semibold mb-2">생성된 프롬프트</label>
+                <textarea id="ai-prompt-output" readonly class="w-full h-64 p-3 font-mono text-sm bg-gray-50 border rounded-lg"></textarea>
+                <button id="copy-prompt-button" class="mt-2 bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-lg hover:bg-gray-300">복사</button>
+            </div>
+        </div>
+    </template>
+
+
+    <!-- === 스크립트 === -->
+    <script type="module">
+        // === 0. 유틸리티 ===
+        const debounce = (func, delay) => {
+            let timeoutId;
+            return (...args) => {
+                clearTimeout(timeoutId);
+                timeoutId = setTimeout(() => {
+                    func.apply(this, args);
+                }, delay);
+            };
+        };
+        const MOODS = {
+            happy: { icon: '😊', label: '행복' },
+            calm: { icon: '😐', label: '평온' },
+            sad: { icon: '😢', label: '슬픔' },
+            angry: { icon: '😠', label: '화남' },
+            anxious: { icon: '😟', label: '불안' },
+            excited: { icon: '🤩', label: '신남' },
+        };
+
+        // === 1. 총칙 (App Core) ===
+        class App {
+            constructor() {
+                this.dbService = new DBService();
+                this.authService = new AuthService(this.onAuthStateChange.bind(this));
+                this.router = new Router(this);
+                this.views = {};
+                this.currentView = null;
+                this.userId = null;
+                this.broadcastChannel = new BroadcastChannel('mind_archive_channel');
+                this.broadcastChannel.onmessage = this.handleBroadcastMessage.bind(this);
+            }
+
+            async init() {
+                await this.dbService.init();
+                this.authService.init();
+            }
+
+            onAuthStateChange(user) {
+                const appContainer = document.getElementById('app');
+                if (user) {
+                    this.userId = user.uid;
+                    if (!this.views.shell) { // 셸 뷰는 한 번만 초기화
+                        this.views.shell = new ShellView(this);
+                        this.views.shell.render(user); // 셸 뷰 렌더링
+                        this.initViews();
+                    } else {
+                        // 이미 로그인 된 상태에서 새로고침 시
+                        this.views.shell.updateUser(user);
+                    }
+                    this.dbService.listenForRemoteChanges(this.userId);
+                    this.router.handleRouteChange(); // 인증 후 라우팅 처리
+                } else {
+                    this.userId = null;
+                    this.dbService.stopListeningForRemoteChanges();
+                    appContainer.innerHTML = '';
+                    if (!this.views.login) {
+                        this.views.login = new LoginView(this);
+                    }
+                    this.views.login.render();
+                }
+            }
+
+            initViews() {
+                 // 각칙(Specific Views) 초기화
+                this.views.dashboard = new DashboardView(this);
+                this.views.editor = new EditorView(this);
+                this.views.calendar = new CalendarView(this);
+                this.views.graphs = new GraphsView(this);
+                this.views.search = new SearchView(this);
+                this.views.ai = new AiView(this);
+            }
+
+            handleBroadcastMessage(event) {
+                if (event.data.type === 'db_updated' && this.currentView) {
+                    // 현재 뷰를 다시 렌더링하여 데이터 변경사항을 반영
+                    this.router.handleRouteChange(true); // force rerender
+                }
+                 if (event.data.type === 'auth_change' && event.data.action === 'logout') {
+                    window.location.reload();
+                }
+            }
+        }
+
+        // === 2. 상속 (Base Classes) ===
+        class View {
+            constructor(app, templateId, viewName, viewTitle) {
+                this.app = app;
+                this.template = document.getElementById(templateId).content.cloneNode(true);
+                this.container = null; // 셸 뷰의 #content-area
+                this.viewName = viewName;
+                this.viewTitle = viewTitle;
+            }
+
+            show() {
+                if(this.app.currentView) this.app.currentView.hide();
+                
+                this.container = document.getElementById('content-area');
+                if(!this.container) {
+                    console.error("#content-area not found!");
+                    return;
+                }
+                this.container.innerHTML = '';
+                this.container.appendChild(this.template);
+                this.app.views.shell.setActiveView(this.viewName, this.viewTitle);
+                this.app.currentView = this;
+            }
+            
+            hide() { /* 자식 클래스에서 필요시 구현 */ }
+        }
+
+        class AuthService {
+            constructor(onAuthStateChangeCallback) {
+                this.auth = window.getAuth();
+                this.provider = new window.GoogleAuthProvider();
+                this.onAuthStateChangeCallback = onAuthStateChangeCallback;
+            }
+
+            init() {
+                window.onAuthStateChanged(this.auth, this.onAuthStateChangeCallback);
+            }
+
+            signIn() {
+                return window.signInWithPopup(this.auth, this.provider);
+            }
+
+            signOut() {
+                return window.signOut(this.auth);
+            }
+        }
+        
+        class DBService {
+            constructor() {
+                this.db = null;
+                this.unsubscribe = null;
+                this.firestore = window.getFirestore();
+                this.broadcastChannel = new BroadcastChannel('mind_archive_channel');
+            }
+
+            async init() {
+                return new Promise((resolve, reject) => {
+                    const request = indexedDB.open('MindArchiveDB', 2);
+                    request.onerror = (event) => reject("IndexedDB error: " + event.target.errorCode);
+                    request.onsuccess = (event) => {
+                        this.db = event.target.result;
+                        this.startSyncLoop();
+                        resolve();
+                    };
+                    request.onupgradeneeded = (event) => {
+                        const db = event.target.result;
+                        if (!db.objectStoreNames.contains('entries')) {
+                            const store = db.createObjectStore('entries', { keyPath: 'id' });
+                            store.createIndex('createdAt', 'createdAt', { unique: false });
+                            store.createIndex('isSynced', 'isSynced', { unique: false });
+                        }
+                    };
+                });
+            }
+
+            // ... (CRUD 메서드는 각칙 View 내부에서 직접 호출)
+            async getEntry(id) {
+                return new Promise((resolve, reject) => {
+                    const transaction = this.db.transaction('entries', 'readonly');
+                    const store = transaction.objectStore('entries');
+                    const request = store.get(id);
+                    request.onsuccess = () => resolve(request.result);
+                    request.onerror = () => reject(request.error);
+                });
+            }
+
+             async getAllEntries() {
+                return new Promise((resolve, reject) => {
+                    const transaction = this.db.transaction('entries', 'readonly');
+                    const store = transaction.objectStore('entries');
+                    const request = store.getAll();
+                    request.onsuccess = () => resolve(request.result);
+                    request.onerror = () => reject(request.error);
+                });
+            }
+
+            async saveEntry(entry) {
+                entry.isSynced = false;
+                entry.updatedAt = Date.now();
+
+                return new Promise((resolve, reject) => {
+                    const transaction = this.db.transaction('entries', 'readwrite');
+                    const store = transaction.objectStore('entries');
+                    const request = store.put(entry);
+                    transaction.oncomplete = () => {
+                         this.broadcastChannel.postMessage({ type: 'db_updated' });
+                        this.syncWithFirestore();
+                        resolve();
+                    };
+                    transaction.onerror = (event) => reject("Transaction error: " + event.target.error);
+                });
+            }
+
+            async deleteEntry(id, userId) {
+                 return new Promise(async (resolve, reject) => {
+                    // 1. IndexedDB에서 삭제
+                    const transaction = this.db.transaction('entries', 'readwrite');
+                    const store = transaction.objectStore('entries');
+                    store.delete(id);
+                    
+                    transaction.oncomplete = async () => {
+                        try {
+                            // 2. Firestore에서 삭제
+                            await window.deleteDoc(window.doc(this.firestore, `users/${userId}/entries`, id));
+                            this.broadcastChannel.postMessage({ type: 'db_updated' });
+                            resolve();
+                        } catch (error) {
+                            console.error("Firestore delete failed:", error);
+                            // Firestore 삭제 실패 시 복구 로직 (예: 삭제 큐에 추가)을 고려할 수 있음
+                            reject(error);
+                        }
+                    };
+                    transaction.onerror = (event) => reject(event.target.error);
+                });
+            }
+
+            startSyncLoop() {
+                setInterval(() => this.syncWithFirestore(), 30 * 1000); // 30초마다 동기화 시도
+            }
+            
+            async syncWithFirestore() {
+                if (!navigator.onLine || !this.app || !this.app.userId) return;
+
+                const transaction = this.db.transaction('entries', 'readwrite');
+                const store = transaction.objectStore('entries');
+                const syncIndex = store.index('isSynced');
+                const request = syncIndex.getAll(false); // isSynced가 false인 모든 항목 가져오기
+
+                request.onsuccess = async () => {
+                    const entriesToSync = request.result;
+                    if (entriesToSync.length === 0) {
+                        if(this.app.views.shell) this.app.views.shell.updateSyncStatus('synced');
+                        return;
+                    }
+                    if(this.app.views.shell) this.app.views.shell.updateSyncStatus('syncing', entriesToSync.length);
+                    
+                    const batch = window.writeBatch(this.firestore);
+                    entriesToSync.forEach(entry => {
+                        const docRef = window.doc(this.firestore, `users/${this.app.userId}/entries`, entry.id);
+                        const { isSynced, ...firestoreEntry } = entry;
+                        batch.set(docRef, firestoreEntry);
+                    });
+
+                    try {
+                        await batch.commit();
+                        const updateTransaction = this.db.transaction('entries', 'readwrite');
+                        const updateStore = updateTransaction.objectStore('entries');
+                        entriesToSync.forEach(entry => {
+                            entry.isSynced = true;
+                            updateStore.put(entry);
+                        });
+                        if(this.app.views.shell) this.app.views.shell.updateSyncStatus('synced');
+                    } catch (error) {
+                        console.error("Firestore sync failed:", error);
+                        if(this.app.views.shell) this.app.views.shell.updateSyncStatus('error');
+                    }
+                };
+            }
+            
+            listenForRemoteChanges(userId) {
+                this.stopListeningForRemoteChanges(); // 기존 리스너 중지
+                const q = window.collection(this.firestore, `users/${userId}/entries`);
+                this.unsubscribe = window.onSnapshot(q, async (querySnapshot) => {
+                    if (querySnapshot.metadata.hasPendingWrites) return; // 로컬 변경은 무시
+
+                    const transaction = this.db.transaction('entries', 'readwrite');
+                    const store = transaction.objectStore('entries');
+                    
+                    for (const docChange of querySnapshot.docChanges()) {
+                        const remoteEntry = { ...docChange.doc.data(), id: docChange.doc.id, isSynced: true };
+                        if (docChange.type === "added" || docChange.type === "modified") {
+                             const localEntry = await this.getEntry(remoteEntry.id);
+                             // 로컬 변경사항이 더 최신이면 덮어쓰지 않음
+                             if (!localEntry || localEntry.updatedAt < remoteEntry.updatedAt) {
+                                store.put(remoteEntry);
+                             }
+                        } else if (docChange.type === "removed") {
+                            store.delete(docChange.doc.id);
+                        }
+                    }
+
+                    transaction.oncomplete = () => {
+                        this.broadcastChannel.postMessage({ type: 'db_updated' });
+                    };
+                }, (error) => {
+                    console.error("Firestore listener error: ", error);
+                });
+            }
+
+            stopListeningForRemoteChanges() {
+                if (this.unsubscribe) {
+                    this.unsubscribe();
+                    this.unsubscribe = null;
+                }
+            }
+        }
+        
+        class Router {
+            constructor(app) {
+                this.app = app;
+                window.addEventListener('hashchange', () => this.handleRouteChange());
+            }
+
+            handleRouteChange(forceRerender = false) {
+                if (!this.app.userId) return; // 로그인되지 않았으면 라우팅 안 함
+
+                const hash = window.location.hash || '#/dashboard';
+                const [path, id] = hash.slice(2).split('/');
+                const viewName = path || 'dashboard';
+                const view = this.app.views[viewName];
+
+                if (view && (view !== this.app.currentView || forceRerender || id)) {
+                    view.render(id);
+                } else if (!view) {
+                    window.location.hash = '#/dashboard';
+                }
+            }
+        }
+        
+
+        // === 3. 각칙 (Specific Views) ===
+        class LoginView {
+            constructor(app) {
+                this.app = app;
+                this.templateId = 'login-view';
+            }
+            render() {
+                const appContainer = document.getElementById('app');
+                const template = document.getElementById(this.templateId).content.cloneNode(true);
+                appContainer.innerHTML = '';
+                appContainer.appendChild(template);
+                document.getElementById('login-button').addEventListener('click', () => {
+                    this.app.authService.signIn().catch(error => {
+                        console.error("Login failed:", error);
+                        alert("로그인에 실패했습니다. 다시 시도해주세요.");
+                    });
+                });
+            }
+        }
+        
+        class ShellView {
+            constructor(app) {
+                this.app = app;
+                this.templateId = 'shell-view';
+                this.container = document.getElementById('app');
+            }
+
+            render(user) {
+                const template = document.getElementById(this.templateId).content.cloneNode(true);
+                this.container.innerHTML = '';
+                this.container.appendChild(template);
+                lucide.createIcons();
+                this.updateUser(user);
+                this.addEventListeners();
+            }
+
+            updateUser(user) {
+                document.getElementById('user-name').textContent = user.displayName;
+                document.getElementById('user-photo').src = user.photoURL;
+            }
+
+            addEventListeners() {
+                document.getElementById('logout-button').addEventListener('click', (e) => {
+                    e.preventDefault();
+                    this.app.broadcastChannel.postMessage({ type: 'auth_change', action: 'logout' });
+                    this.app.authService.signOut();
+                });
+
+                const sidebar = document.getElementById('sidebar');
+                const menuToggle = document.getElementById('menu-toggle');
+                menuToggle.addEventListener('click', () => {
+                    sidebar.classList.toggle('-translate-x-full');
+                });
+                
+                // 네비게이션 링크 클릭 시 사이드바 닫기 (모바일 뷰)
+                document.querySelectorAll('.nav-link').forEach(link => {
+                    link.addEventListener('click', () => {
+                        if (window.innerWidth < 768) {
+                           sidebar.classList.add('-translate-x-full');
+                        }
+                    });
+                });
+            }
+
+            setActiveView(viewName, viewTitle) {
+                document.querySelectorAll('.nav-link').forEach(link => {
+                    link.classList.remove('bg-gray-100', 'text-text-primary', 'font-semibold');
+                    if (link.dataset.view === viewName) {
+                        link.classList.add('bg-gray-100', 'text-text-primary', 'font-semibold');
+                    }
+                });
+                document.getElementById('view-title').textContent = viewTitle;
+            }
+
+            updateSyncStatus(status, count = 0) {
+                 const indicator = document.getElementById('sync-indicator');
+                 const text = document.getElementById('sync-text');
+                 switch(status) {
+                    case 'syncing':
+                        indicator.className = 'w-3 h-3 rounded-full bg-yellow-500 animate-pulse';
+                        text.textContent = `동기화 중... (${count}개)`;
+                        break;
+                    case 'synced':
+                        indicator.className = 'w-3 h-3 rounded-full bg-green-500';
+                        text.textContent = '동기화 완료';
+                        break;
+                    case 'error':
+                        indicator.className = 'w-3 h-3 rounded-full bg-red-500';
+                        text.textContent = '동기화 오류';
+                        break;
+                }
+            }
+        }
+
+        class DashboardView extends View {
+            constructor(app) {
+                super(app, 'dashboard-view', 'dashboard', '대시보드');
+            }
+            async render() {
+                this.show();
+                document.getElementById('welcome-message').textContent = `안녕하세요, ${this.app.authService.auth.currentUser.displayName}님!`;
+                
+                const entries = await this.app.dbService.getAllEntries();
+                entries.sort((a, b) => b.createdAt - a.createdAt);
+
+                // 최근 기록 렌더링
+                const recentList = document.getElementById('recent-entries-list');
+                recentList.innerHTML = entries.length > 0 ? '' : '<p class="text-text-secondary">아직 작성된 기록이 없습니다.</p>';
+                entries.slice(0, 3).forEach(entry => {
+                    const entryEl = document.createElement('a');
+                    entryEl.href = `#/editor/${entry.id}`;
+                    entryEl.className = 'block p-4 border rounded-lg hover:bg-gray-50';
+                    const date = new Date(entry.createdAt).toLocaleDateString('ko-KR');
+                    const moodIcon = MOODS[entry.mood]?.icon || '';
+                    const contentPreview = entry.content.substring(0, 50) + '...';
+                    entryEl.innerHTML = `
+                        <div class="flex justify-between items-center">
+                            <p class="font-semibold">${moodIcon} ${date}</p>
+                            <p class="text-sm text-text-secondary">${new Date(entry.createdAt).toLocaleTimeString('ko-KR', {hour: '2-digit', minute:'2-digit'})}</p>
+                        </div>
+                        <p class="text-text-secondary mt-1">${contentPreview}</p>
+                    `;
+                    recentList.appendChild(entryEl);
+                });
+
+                // 감정 요약
+                 const moodSummary = document.getElementById('mood-summary');
+                moodSummary.innerHTML = '';
+                 const recent7DaysEntries = entries.filter(e => dateFns.differenceInDays(new Date(), new Date(e.createdAt)) < 7);
+                const moodCounts = recent7DaysEntries.reduce((acc, entry) => {
+                    if(entry.mood) acc[entry.mood] = (acc[entry.mood] || 0) + 1;
+                    return acc;
+                }, {});
+                Object.keys(MOODS).forEach(key => {
+                    const count = moodCounts[key] || 0;
+                    const el = document.createElement('div');
+                    el.className = 'text-center';
+                    el.innerHTML = `<span class="text-3xl">${MOODS[key].icon}</span><p class="text-sm font-bold">${count}</p>`;
+                    moodSummary.appendChild(el);
+                });
+                
+                // 통계 요약
+                document.getElementById('total-entries-stat').textContent = entries.length;
+                // 연속 기록일 계산
+                const dates = [...new Set(entries.map(e => dateFns.format(new Date(e.createdAt), 'yyyy-MM-dd')))].sort().reverse();
+                let streak = 0;
+                if (dates.length > 0) {
+                    const today = dateFns.format(new Date(), 'yyyy-MM-dd');
+                    const yesterday = dateFns.format(dateFns.subDays(new Date(), 1), 'yyyy-MM-dd');
+                    if (dates[0] === today || dates[0] === yesterday) {
+                        streak = 1;
+                        for (let i = 0; i < dates.length - 1; i++) {
+                            const diff = dateFns.differenceInDays(new Date(dates[i]), new Date(dates[i+1]));
+                            if (diff === 1) streak++;
+                            else break;
+                        }
+                    }
+                }
+                document.getElementById('streak-stat').textContent = streak;
+
+            }
+        }
+        
+        class EditorView extends View {
+            constructor(app) {
+                super(app, 'editor-view', 'editor', '기록 작성');
+                this.currentEntryId = null;
+                this.debouncedSave = debounce(this.save.bind(this), 1000);
+            }
+
+            async render(id) {
+                this.currentEntryId = id;
+                this.show();
+                this.setTitle(id);
+                this.setupMoodSelector();
+                this.addEventListeners();
+                
+                if (id === 'new') {
+                    this.resetForm();
+                } else {
+                    const entry = await this.app.dbService.getEntry(id);
+                    if (entry) this.loadForm(entry);
+                }
+            }
+
+            setTitle(id) {
+                this.app.views.shell.setActiveView(this.viewName, id === 'new' ? '새 기록 작성' : '기록 수정');
+            }
+
+            setupMoodSelector() {
+                const selector = document.getElementById('mood-selector');
+                selector.innerHTML = '';
+                Object.keys(MOODS).forEach(key => {
+                    const button = document.createElement('button');
+                    button.dataset.mood = key;
+                    button.className = 'p-2 text-2xl rounded-full transition-transform transform hover:scale-125';
+                    button.textContent = MOODS[key].icon;
+                    selector.appendChild(button);
+                });
+            }
+
+            addEventListeners() {
+                const contentEl = document.getElementById('entry-content');
+                contentEl.addEventListener('input', this.debouncedSave);
+                
+                document.getElementById('entry-date').addEventListener('change', this.debouncedSave);
+                document.getElementById('entry-tags').addEventListener('input', this.debouncedSave);
+
+                document.getElementById('mood-selector').addEventListener('click', (e) => {
+                    const button = e.target.closest('button');
+                    if (button) {
+                        this.updateSelectedMood(button.dataset.mood);
+                        this.debouncedSave();
+                    }
+                });
+
+                document.getElementById('delete-entry-button').addEventListener('click', async () => {
+                     if (confirm("정말로 이 기록을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.")) {
+                        await this.app.dbService.deleteEntry(this.currentEntryId, this.app.userId);
+                        window.location.hash = '#/dashboard';
+                    }
+                });
+            }
+
+            updateSelectedMood(selectedMood) {
+                 document.querySelectorAll('#mood-selector button').forEach(btn => {
+                    if (btn.dataset.mood === selectedMood) {
+                        btn.classList.add('bg-gray-200', 'scale-125');
+                    } else {
+                        btn.classList.remove('bg-gray-200', 'scale-125');
+                    }
+                });
+            }
+
+            resetForm() {
+                document.getElementById('entry-date').valueAsDate = new Date();
+                document.getElementById('entry-content').value = '';
+                document.getElementById('entry-tags').value = '';
+                this.updateSelectedMood(null);
+                document.getElementById('delete-entry-button').classList.add('hidden');
+            }
+
+            loadForm(entry) {
+                document.getElementById('entry-date').value = dateFns.format(new Date(entry.createdAt), 'yyyy-MM-dd');
+                document.getElementById('entry-content').value = entry.content;
+                document.getElementById('entry-tags').value = entry.tags ? entry.tags.join(', ') : '';
+                this.updateSelectedMood(entry.mood);
+                document.getElementById('delete-entry-button').classList.remove('hidden');
+            }
+
+            async save() {
+                const statusEl = document.getElementById('editor-save-status');
+                statusEl.textContent = '저장 중...';
+
+                const content = document.getElementById('entry-content').value;
+                if (!content.trim() && this.currentEntryId === 'new') return; // 새 글인데 내용 없으면 저장 안함
+
+                const selectedMood = document.querySelector('#mood-selector button.scale-125')?.dataset.mood;
+                const entryDate = document.getElementById('entry-date').value;
+                
+                let entry;
+                if (this.currentEntryId === 'new') {
+                    entry = {
+                        id: crypto.randomUUID(),
+                        createdAt: new Date(entryDate).getTime() || Date.now(),
+                    };
+                } else {
+                    entry = await this.app.dbService.getEntry(this.currentEntryId);
+                    entry.createdAt = new Date(entryDate).getTime() || entry.createdAt;
+                }
+                
+                entry.content = content;
+                entry.mood = selectedMood || null;
+                entry.tags = document.getElementById('entry-tags').value.split(',').map(t => t.trim()).filter(Boolean);
+                
+                await this.app.dbService.saveEntry(entry);
+                statusEl.textContent = `마지막 저장: ${new Date().toLocaleTimeString()}`;
+                
+                if(this.currentEntryId === 'new') {
+                    // 새 글 저장 후에는 편집 URL로 이동하여 중복 생성을 방지
+                    window.location.hash = `#/editor/${entry.id}`;
+                }
+            }
+        }
+        
+        class CalendarView extends View {
+             constructor(app) {
+                super(app, 'calendar-view', 'calendar', '캘린더');
+                this.currentDate = new Date();
+            }
+
+            async render() {
+                this.show();
+                this.addEventListeners();
+                this.renderCalendar();
+            }
+            
+            addEventListeners() {
+                document.getElementById('prev-month').addEventListener('click', () => {
+                    this.currentDate = dateFns.subMonths(this.currentDate, 1);
+                    this.renderCalendar();
+                });
+                document.getElementById('next-month').addEventListener('click', () => {
+                    this.currentDate = dateFns.addMonths(this.currentDate, 1);
+                    this.renderCalendar();
+                });
+            }
+
+            async renderCalendar() {
+                const entries = await this.app.dbService.getAllEntries();
+                const entriesByDate = entries.reduce((acc, entry) => {
+                    const dateStr = dateFns.format(new Date(entry.createdAt), 'yyyy-MM-dd');
+                    if (!acc[dateStr]) acc[dateStr] = [];
+                    acc[dateStr].push(entry);
+                    return acc;
+                }, {});
+
+                document.getElementById('current-month-year').textContent = dateFns.format(this.currentDate, 'yyyy년 M월');
+                const grid = document.getElementById('calendar-grid');
+                grid.innerHTML = '';
+
+                // 요일 헤더
+                ['일', '월', '화', '수', '목', '금', '토'].forEach(day => {
+                    grid.innerHTML += `<div class="text-center font-semibold text-text-secondary text-sm">${day}</div>`;
+                });
+
+                const startOfMonth = dateFns.startOfMonth(this.currentDate);
+                const endOfMonth = dateFns.endOfMonth(this.currentDate);
+                const startDate = dateFns.startOfWeek(startOfMonth);
+                const endDate = dateFns.endOfWeek(endOfMonth);
+
+                let day = startDate;
+                while (day <= endDate) {
+                    const cell = document.createElement('div');
+                    cell.className = "h-24 border border-border-color p-1 overflow-hidden";
+                    if (!dateFns.isSameMonth(day, this.currentDate)) {
+                        cell.classList.add('bg-gray-50');
+                    }
+                    
+                    const dateStr = dateFns.format(day, 'yyyy-MM-dd');
+                    const dayEntries = entriesByDate[dateStr];
+                    
+                    cell.innerHTML = `<span class="text-sm ${dateFns.isToday(day) ? 'font-bold text-green-600' : ''}">${dateFns.format(day, 'd')}</span>`;
+                    
+                    if (dayEntries) {
+                        const entriesContainer = document.createElement('div');
+                        entriesContainer.className = "mt-1 space-y-1";
+                        dayEntries.forEach(entry => {
+                            const entryEl = document.createElement('a');
+                            entryEl.href = `#/editor/${entry.id}`;
+                            entryEl.className = 'block text-xs truncate text-text-secondary hover:text-text-primary';
+                            entryEl.textContent = `${MOODS[entry.mood]?.icon || ''} ${entry.content}`;
+                            entriesContainer.appendChild(entryEl);
+                        });
+                         cell.appendChild(entriesContainer);
+                    } else if (dateFns.isSameMonth(day, this.currentDate)) {
+                         const newEntryLink = document.createElement('a');
+                         newEntryLink.href = '#/editor/new';
+                         newEntryLink.className = "opacity-0 hover:opacity-100 flex items-center justify-center h-full text-gray-400";
+                         newEntryLink.innerHTML = `<i data-lucide="plus" class="w-6 h-6"></i>`;
+                         cell.appendChild(newEntryLink);
+                    }
+
+                    grid.appendChild(cell);
+                    day = dateFns.addDays(day, 1);
+                }
+                lucide.createIcons();
+            }
+        }
+        
+        class GraphsView extends View {
+            constructor(app) {
+                super(app, 'graphs-view', 'graphs', '통계');
+                this.chart = null;
+            }
+
+            async render() {
+                this.show();
+                const entries = await this.app.dbService.getAllEntries();
+                this.renderMoodChart(entries);
+                this.renderTagCloud(entries);
+            }
+
+            renderMoodChart(entries) {
+                const ctx = document.getElementById('mood-chart').getContext('2d');
+                const last30DaysEntries = entries.filter(e => dateFns.differenceInDays(new Date(), new Date(e.createdAt)) < 30);
+                
+                const labels = [];
+                const data = {};
+                Object.keys(MOODS).forEach(key => data[key] = []);
+
+                for (let i = 29; i >= 0; i--) {
+                    const date = dateFns.subDays(new Date(), i);
+                    labels.push(dateFns.format(date, 'M/d'));
+                    const dateStr = dateFns.format(date, 'yyyy-MM-dd');
+                    const entriesOnDate = last30DaysEntries.filter(e => dateFns.format(new Date(e.createdAt), 'yyyy-MM-dd') === dateStr);
+                    
+                    const moodCounts = entriesOnDate.reduce((acc, e) => {
+                        if(e.mood) acc[e.mood] = (acc[e.mood] || 0) + 1;
+                        return acc;
+                    }, {});
+
+                    Object.keys(MOODS).forEach(key => {
+                        data[key].push(moodCounts[key] || 0);
+                    });
+                }
+                
+                if (this.chart) this.chart.destroy();
+
+                this.chart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: Object.keys(MOODS).map(key => ({
+                            label: MOODS[key].label,
+                            data: data[key],
+                            // borderColor: 'your_color_logic_here',
+                            tension: 0.1
+                        }))
+                    }
+                });
+            }
+
+             renderTagCloud(entries) {
+                const tagCloud = document.getElementById('tag-cloud');
+                tagCloud.innerHTML = '';
+                const tagCounts = entries.reduce((acc, entry) => {
+                    if (entry.tags) {
+                        entry.tags.forEach(tag => {
+                            acc[tag] = (acc[tag] || 0) + 1;
+                        });
+                    }
+                    return acc;
+                }, {});
+
+                const sortedTags = Object.entries(tagCounts).sort((a, b) => b[1] - a[1]).slice(0, 20);
+                const maxCount = sortedTags[0]?.[1] || 1;
+
+                sortedTags.forEach(([tag, count]) => {
+                    const tagEl = document.createElement('a');
+                    tagEl.href = `#/search?query=${encodeURIComponent(tag)}`;
+                    tagEl.className = 'bg-gray-100 text-text-secondary rounded-full px-3 py-1 hover:bg-gray-200';
+                    const fontSize = 0.8 + (count / maxCount) * 1.2;
+                    tagEl.style.fontSize = `${fontSize}rem`;
+                    tagEl.textContent = `${tag} (${count})`;
+                    tagCloud.appendChild(tagEl);
+                });
+            }
+        }
+        
+        class SearchView extends View {
+             constructor(app) {
+                super(app, 'search-view', 'search', '검색');
+            }
+
+            async render(queryFromUrl) {
+                this.show();
+                this.input = document.getElementById('search-input');
+                this.resultsContainer = document.getElementById('search-results');
+                
+                this.input.addEventListener('input', debounce(() => this.performSearch(), 300));
+                
+                if(queryFromUrl) {
+                    const query = new URLSearchParams(queryFromUrl).get('query');
+                    this.input.value = query;
+                }
+                this.performSearch();
+            }
+
+            async performSearch() {
+                const query = this.input.value.toLowerCase().trim();
+                this.resultsContainer.innerHTML = '';
+                
+                if (!query) {
+                    this.resultsContainer.innerHTML = '<p class="text-text-secondary">검색어를 입력하여 기록을 찾아보세요.</p>';
+                    return;
+                }
+
+                const entries = await this.app.dbService.getAllEntries();
+                const results = entries.filter(entry => {
+                    const contentMatch = entry.content.toLowerCase().includes(query);
+                    const tagMatch = entry.tags && entry.tags.some(tag => tag.toLowerCase().includes(query));
+                    return contentMatch || tagMatch;
+                }).sort((a,b) => b.createdAt - a.createdAt);
+                
+                if (results.length === 0) {
+                    this.resultsContainer.innerHTML = '<p class="text-text-secondary">검색 결과가 없습니다.</p>';
+                } else {
+                    results.forEach(entry => {
+                        const entryEl = document.createElement('a');
+                        entryEl.href = `#/editor/${entry.id}`;
+                        entryEl.className = 'block p-4 border rounded-lg hover:bg-gray-50';
+                        const date = new Date(entry.createdAt).toLocaleDateString('ko-KR');
+                        entryEl.innerHTML = `
+                            <p class="font-semibold">${date}</p>
+                            <p class="text-text-secondary mt-1">${this.highlight(entry.content, query)}</p>
+                        `;
+                        this.resultsContainer.appendChild(entryEl);
+                    });
+                }
+            }
+            
+            highlight(text, query) {
+                const preview = text.substring(0, 150) + (text.length > 150 ? '...' : '');
+                const regex = new RegExp(`(${query})`, 'gi');
+                return preview.replace(regex, '<mark class="bg-yellow-200">$1</mark>');
+            }
+        }
+        
+        class AiView extends View {
+            constructor(app) {
+                super(app, 'ai-view', 'ai', 'AI 인사이트');
+            }
+
+            render() {
+                this.show();
+                this.addEventListeners();
+            }
+
+            addEventListeners() {
+                document.getElementById('generate-prompt-button').addEventListener('click', () => this.generatePrompt());
+                document.getElementById('copy-prompt-button').addEventListener('click', () => this.copyPrompt());
+            }
+            
+            async generatePrompt() {
+                const type = document.getElementById('ai-analysis-type').value;
+                const entries = await this.app.dbService.getAllEntries();
+                let prompt = '';
+                let relevantEntries = [];
+                
+                switch(type) {
+                    case 'weekly_summary':
+                        prompt = '다음은 나의 지난 주 일기 기록입니다. 이 기록들을 바탕으로 나의 한 주를 요약하고, 주요 감정 변화와 핵심 활동에 대해 정리해주세요.\n\n';
+                        relevantEntries = entries.filter(e => dateFns.differenceInDays(new Date(), new Date(e.createdAt)) < 7);
+                        break;
+                    case 'mood_pattern':
+                        prompt = '다음은 나의 한 달간의 일기 기록입니다. 나의 감정 패턴을 분석해주세요. 특히, 어떤 상황이나 활동이 나의 특정 감정(예: 행복, 불안)과 연관되어 나타나는지 알려주세요.\n\n';
+                        relevantEntries = entries.filter(e => dateFns.differenceInDays(new Date(), new Date(e.createdAt)) < 30);
+                        break;
+                    case 'problem_solution':
+                        const userProblem = window.prompt("분석하고 싶은 고민이나 질문을 입력해주세요:");
+                        if (!userProblem) return;
+                        prompt = `나는 현재 "${userProblem}"이라는 고민을 하고 있습니다. 다음은 나의 과거 일기 기록들입니다. 이 기록들 속에서 나의 과거 경험, 생각, 감정들을 바탕으로 현재 나의 고민에 대한 조언이나 해결의 실마리를 찾아주세요.\n\n`;
+                        relevantEntries = entries; // 모든 기록을 대상으로 함
+                        break;
+                }
+                
+                relevantEntries.sort((a,b) => a.createdAt - b.createdAt);
+                
+                const entryText = relevantEntries.map(e => {
+                    return `[${dateFns.format(new Date(e.createdAt), 'yyyy-MM-dd')}] (감정: ${MOODS[e.mood]?.label || '없음'}, 태그: ${e.tags?.join(', ') || '없음'})\n내용: ${e.content}\n---`;
+                }).join('\n');
+                
+                const fullPrompt = prompt + entryText;
+                
+                document.getElementById('prompt-container').classList.remove('hidden');
+                document.getElementById('ai-prompt-output').value = fullPrompt;
+            }
+            
+            copyPrompt() {
+                const textarea = document.getElementById('ai-prompt-output');
+                textarea.select();
+                document.execCommand('copy');
+                alert("프롬프트가 복사되었습니다!");
+            }
+        }
+
+        // === 4. 앱 시작 ===
+        document.addEventListener('DOMContentLoaded', () => {
+            // 여기에 Firebase 구성 객체를 붙여넣으세요.
+              const firebaseConfig = {
+                apiKey: "AIzaSyBuoFZcDgoerCtGll5s-31BzvbjMVKlrKo",
+                authDomain: "mydiary-6258f.firebaseapp.com",
+                projectId: "mydiary-6258f",
+                storageBucket: "mydiary-6258f.firebasestorage.app",
+                messagingSenderId: "678116939845",
+                appId: "1:678116939845:web:a238b50e0bc95e4356ab2c",
+                measurementId: "G-JV8MQ566ZC"
+            };
+
+            if (firebaseConfig.apiKey === "YOUR_API_KEY") {
+                document.getElementById('app').innerHTML = `
+                    <div class="p-8 text-center bg-red-100 text-red-800 rounded-lg">
+                        <h2 class="text-2xl font-bold">Firebase 설정 필요</h2>
+                        <p class="mt-2">mind-archive.html 파일을 열고 <code>firebaseConfig</code> 변수를 당신의 Firebase 프로젝트 정보로 채워주세요.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const firebaseApp = window.initializeApp(firebaseConfig);
+            
+            // 전역 앱 인스턴스 생성 및 초기화
+            const app = new App();
+            window.app = app;
+            app.init();
+        });
+
+    </script>
+</body>
+</html>
