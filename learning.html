@@ -6922,7 +6922,7 @@ project.settings.contextMenuItems = Utils.mergeCustomItems(savedSettings.context
                                 nodeId: nodeId,
                                 manuscript: '',
                                 translation: '',
-                                notes: '',
+                                notes: nodeInfo.node.description || '', // This line has been changed
                                 imageDataUrl: null,
                                 questions: [],
                                 historyMetadata: { snapshotCount: 0, lastSnapshotAt: null },
