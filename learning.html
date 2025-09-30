@@ -6582,7 +6582,7 @@ Path: ${input.dataset.path}
                     this.showToast(`분할할 ${sourceLabel}이 없습니다.`, 'error');
                     return null;
                 }
-                const paragraphs = sourceText.split(/\n{2,}/).map(p => p.trim()).filter(Boolean);
+                const paragraphs = sourceText.split(/\n\s*\n/).map(p => p.trim()).filter(Boolean);
                 if (paragraphs.length < 2) {
                     this.showToast(`${sourceLabel}의 내용이 분할하기에 충분하지 않습니다.`, 'error');
                     return null;
