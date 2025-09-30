@@ -5072,7 +5072,814 @@ handleHighlightClick(event) {
                         name: "🏷️ 키워드 추출",
                         icon: 'tag',
                         template: `당신은 데이터 분석가입니다. 다음 텍스트('{{manuscript}}')의 핵심 주제를 가장 잘 나타내는 키워드를 5~10개 추출해주세요. 결과는 쉼표로 구분된 목록 형식으로만 제공해야 합니다. (예: 키워드1, 키워드2, 키워드3)`
-                    }
+                    },
+                    {
+                        id: 'default-diagram',
+                        name: "📊 도표",
+                        icon: 'star', // 아이콘은 Heroicons 이름 사용
+                        template: `
+                        <?xml version="1.0" encoding="UTF-8"?>
+<metaPrompt>
+<purpose>
+주어진 자료의 모든 정보를 **단 하나의 누락도 없이 원문 그대로 보존**하면서, 그 표현 방식만을 서술형에서 구조적 형태로 재구성한다. 최종 목표는 정보의 양을 줄이지 않고도, 인지 심리학적 원칙에 기반한 시각적 설계를 통해 사용자의 인지적 부담을 최소화하고 직관적 이해를 돕는 인포그래픽을 생성하는 것이다.
+</purpose>
+<promptDesignFramework>
+<objectiveDefinition id="1" title="목표 정의: 과업의 제1원칙">
+<finalDeliverable id="1.1" description="프롬프트를 통해 얻고자 하는 최종 결과물">
+하나의 독립적이고 재사용 가능하고, 쉽게 이해할 수 있는 인포그래픽. 각 분석 단계는 펼치거나 접을 수 있는 섹션으로 구성하여, 사용자가 정보의 깊이를 조절할 수 있게 해야 한다. 다만, 결과물은 전체적으로 구조적이고 체계적이면서 디자인 원칙에 맞아야 한다.  특히, 학술 포스터나 오래된 서적의 삽화와 같은 차분하고 클래식한 미학을 담아내야 한다.
+</finalDeliverable>
+<coreTask id="1.2" description="LLM이 수행해야 할 핵심적인 동사">
+구조적으로 분석(Analyze Structurally), 인지적으로 설계(Design Cognitively), 시각적 논증 구현(Implement Visual Argument)
+</coreTask>
+<successCriteria id="1.3" description="결과물이 '성공'이라고 판단할 객관적인 기준">
+​단일 컴포넌트 및 독립성: 모든 로직, 스타일, 구조가 하나의 .jsx 파일 안에 완벽하게 캡슐화되어야 한다.
+​자체 발견 논리 구조: 인포그래픽의 구조가 주어진 데이터의 고유한 이야기 흐름을 설득력 있게 반영해야 한다.
+​다층적 시각 위계 (Multi-level Visual Hierarchy): 정보의 종류(예: 법률 조항, 핵심 판례, 정의, 예시)에 따라 아이콘, 배경색, 테두리 스타일 등을 활용하여 명확히 다른 시각적 처리를 해야 한다. 사용자는 한눈에 정보의 중요도와 유형을 구분할 수 있어야 한다.
+​정보 블록의 원자성 (Atomicity of Information Blocks): 긴 글머리 기호 목록을 지양하고, 하나의 개념이나 판례는 그에 맞는 아이콘과 최소한의 텍스트로 구성된 독립된 '원자 블록'으로 시각화해야 한다. 이는 사용자의 인지 부하를 극적으로 감소시킨다.
+​논리적 흐름을 시각화하는 커넥터 (Connectors Visualizing Logical Flow): 카드와 카드를 단순히 나열하는 것을 넘어, 인과관계, 상하위 관계, 대립 관계 등을 나타내는 명시적인 시각적 연결선(화살표, 점선 등)을 SVG로 구현하여 전체가 하나의 유기적인 순서도(Flowchart)로 기능하게 해야 한다.
+​논리-시각 변환의 충실성 (Logic-to-Visual Fidelity): 원문의 핵심 논증, 인과관계, 개념 계층이 텍스트가 아닌 다이어그램, 순서도, 시각적 은유를 통해 완벽하게 표현되어야 한다.
+​원천적인 겹침 방지 구조 (Collision-Free Architecture): 모든 요소의 배치는 CSS Grid와 같은 구조화된 시스템의 규칙을 따라야 하며, position: absolute의 남용으로 인한 겹침이 발생해서는 안 된다.
+<b><criterion id="1.4" name="무손실 정보 변환 (Lossless Information Transformation)">
+    최종 결과물은 원문 &lt;DataSource&gt;에 포함된 모든 세부 내용, 예를 들 법률 조항, 판례 번호, 핵심 논거, 세부적인 예시, 그리고 각주까지도 단 하나의 누락 없이 포함해야 한다. 정보의 양을 줄이는 것이 아니라, 표현 방식을 전환하는 것이 목표임을 명확히 한다.
+    </criterion></b>
+</successCriteria>
+</objectiveDefinition>
+<personaAssignment id="2" title="역할 부여: 최적의 인지 모델 설계">
+<expertPersona id="2.1" description="과업을 가장 잘 수행할 전문가의 상세한 묘사">
+당신은 **'정보 시각화 아키텍트(Information Visualization Architect)'**이자 **'인지 심리학자'**이며, 동시에 **'법률 기록 아키비스트(Legal Records Archivist)'**이다. 당신의 **제1임무는 텍스트의 모든 세부 사항을 단 하나도 놓치지 않고 정확하게 보존하는 것**이다. 시각화와 인지적 설계는 이 **'무손실 보존'**이라는 최상위 목표를 달성하기 위한 수단일 뿐이며, 어떤 경우에도 정보의 완전성을 훼손해서는 안 된다.
+</expertPersona>
+</personaAssignment>
+<contextAndFormat id="3" title="맥락 제공 및 형식 지정">
+<essentialContext id="3.1" description="과업 수행에 필요한 모든 배경 정보, 데이터, 이전 대화 내용">
+<![CDATA[
+<Role>
+당신은 '정보 시각화 아키텍트'로서, <DataSource>의 정보를 스스로 발견하고 정의한 분석 체계에 따라 체계적으로 분석하고, 그 결과를 바탕으로 하나의 완성된 '순서도형 인포그래픽'을 창조하는 임무를 받았다.
+</Role>
+<Goal>
+<DataSource>의 텍스트를 <DataStructureFramework>에 따라 구조화하고, 이를 기반으로 원본 글을 읽지 않아도 모든 정보를 흡수할 수 있는 발표 자료의 핵심 슬라이드로 즉시 사용 가능한, 예술성과 가독성을 겸비한 인포그래픽을 생성한다.
+</Goal>
+<GuidingPrinciplesHierarchy title="과업 수행의 핵심 원칙 위계">
+<CorePrinciples description="이하 원칙들은 AI가 결과물을 생성할 때 반드시 따라야 하는 핵심 규범이다.">
+
+    <Principle name="AbsoluteFidelity (원천 데이터 절대 충실성)" priority="1">
+        <Description>
+            모든 정보 처리의 최상위 원칙. 원본 데이터의 모든 주장, 근거, 예시, 뉘앙스를 단 하나도 누락해서는 안 된다. 
+            다른 원칙(예: 시각적 명료성)과 충돌할 경우, 이 원칙이 예외 없이 우선한다.
+        </Description>
+    </Principle>
+
+    <Principle name="PreservationViaStructuring (구조화를 통한 정보 보존)">
+        <Description>
+            정보를 요약하여 손실을 유발하는 대신, 모든 구성요소를 계층적 목록, 표, Key-Value 쌍 등 구조화된 데이터로 재구성하여 완전성을 보장한다. 
+            이는 '절대 충실성' 원칙을 구현하는 핵심 방법론이다.
+        </Description>
+    </Principle>
+
+    <Principle name="OptimalDiagramSelection (최적 다이어그램 선택)">
+        <Description>
+            데이터가 가진 내재적 논리 구조(예: 순차, 계층, 상호작용, 비교)를 가장 명확하게 표현할 수 있는 다이어그램 유형을 선택해야 한다. 
+            단순히 'graph' 다이어그램에 의존하는 것을 지양하고, sequenceDiagram, flowchart 등 다양한 시각화 모델의 활용을 적극적으로 고려한다.
+        </Description>
+    </Principle>
+
+    <Principle name="StructuredDiagramLayout (구조화된 다이어그램 설계)">
+        <Description>
+            Mermaid.js 다이어그램 생성 시, 단순히 노드를 나열하는 것을 넘어 명확한 시각적 계층과 그룹을 형성해야 한다.
+        </Description>
+        <Implementation>
+            <Rule id="1. Subgraph">논리적으로 연관된 노드들은 반드시 'subgraph'로 묶어 시각적 클러스터를 형성한다.</Rule>
+            <Rule id="2. Balance">다이어그램의 전체적인 형태가 좌우 또는 상하로 균형을 이루도록 노드와 서브그래프의 순서를 신중하게 설계한다.</Rule>
+            <Rule id="3. Connections">노드 간 연결선은 가장 직관적인 경로를 따르도록 하며, 불필요하게 길거나 교차하지 않도록 배치한다.</Rule>
+            <Rule id="4. Hierarchy">핵심 상위 개념 노드와 하위 노드의 스타일(색상, 모양 등)을 다르게 적용하여 위계를 시각적으로 강조한다.</Rule>
+            <Rule id="5. MandatoryLinks">순서도의 모든 노드는 최소 하나 이상의 다른 노드와 연결되어야 한다. 고립된 노드는 허용되지 않으며, 관계를 시각화하는 목적에 부합해야 한다.</Rule>
+        </Implementation>
+    </Principle>
+
+    <Principle name="UseStrongTagForEmphasis (HTML 강조 태그 사용)">
+        <Description>
+            React 컴포넌트 데이터 내 텍스트 강조 시, 마크다운 문법인 '**' 대신 시맨틱 HTML '<strong>' 태그를 사용한다.
+        </Description>
+        <Example>
+            - Bad: { value: '제2매수인으로부터 **중도금**을 수령한 때' }
+            - Good: { value: '제2매수인으로부터 <strong>중도금</strong>을 수령한 때' }
+        </Example>
+    </Principle>
+
+    <Principle name="MermaidSpecialCharEncoding (Mermaid 특수문자 처리)">
+        <Description>
+            Mermaid.js 다이어그램 텍스트 생성 시, 렌더링 오류를 유발하는 괄호 '()'를 직접 사용하지 않는다.
+            대신, 반드시 HTML 엔티티 코드 '&#40;'와 '&#41;'로 대체한다.
+        </Description>
+        <Example>
+            - Bad: subgraph "최신 판례 변경 (배임죄 부정)"
+            - Good: subgraph "최신 판례 변경 &#40;배임죄 부정&#41;"
+        </Example>
+    </Principle>
+
+</CorePrinciples>
+</GuidingPrinciplesHierarchy>
+<DataStructureFramework name="Analysis and Layout Blueprint Process">
+<Phase id="1" name="Identify Core Logic" description="전체 텍스트를 분석하여 그 안에 내재된 이야기나 논증의 흐름을 발견합니다. (예: 문제-해결, 원인-결과, 연대기적 여정, 주제별 탐구 등)"/>
+<Phase id="2" name="Define Thematic Sections (PARTs)" description="1단계에서 식별된 논리적 흐름을 바탕으로, 서로 관련된 핵심 노드들을 더 큰 주제별 '파트(PART)'로 그룹화합니다. <b>파트의 개수는 데이터의 내재적 구조에 따라 1개가 될 수도, 4개가 될 수도 있으며, 템플릿에 구속되지 않습니다.</b> 각 파트는 'PART 1: 사건의 배경'과 같이 명확하고 설명적인 제목을 가져야 합니다."/>
+<Phase id="3" name="Deconstruct Content into Semantic Units" description="각 '노드'에 할당될 원문 내용을 단순 텍스트 덩어리로 보지 않고, 그 안의 정보 단위를 의미론적으로 분해합니다. 예를 들어, '정의', '법 조항', '판례', '예시', '두문자 암기법' 등 각 정보의 성격을 명확히 분류합니다. 이 분류 체계는 최종 데이터 구조에 그대로 반영되어야 합니다."/>
+<Phase id="4" name="Design Layout Blueprint (중요)" description="모든 노드를 배치할 시각적 청사진을 설계합니다. 이때, '견고하고 유연한 반응형 그리드 구현 원칙(5.1.15)'에 따라 아래 기준을 참고하여 작성합니다. 이 단계는 다음 결과물을 포함해야 합니다. 
+1. <b>Layout Configuration:</b> 인포그래픽의 기본 열(Column) 개수(예: 4)를 명시적으로 정의합니다. 이 설정은 CSS Grid의 grid-template-columns 속성의 기반이 됩니다.
+2. <b>Node-Span Table:</b> 각 노드(카드)가 그리드 내에서 차지할 **열의 너비(span)**를 정의한 표를 작성합니다. grid-column 속성값과 정확히 일치해야 합니다. 이 방식을 통해 절대 좌표가 아닌 상대적 너비로 레이아웃을 제어하여 반응형 디자인에서 레이아웃이 깨지는 것을 원천적으로 방지합니다.
+### Node-Span Table (예시: 4열 그리드 기반)
+| Node ID | grid-column | 설명 |
+| :--- | :--- | :--- |
+| overview_diagram | span 4 | 4열 전체 너비 차지 |
+| hitrun_definition | span 2 | 2열 너비 차지 |
+| hitrun_subject | span 2 | 2열 너비 차지 |
+| hitrun_act_1 | span 1 | 1열 너비 차지 |
+| hitrun_act_2 | span 1 | 1열 너비 차지 |
+| hitrun_act_3 | span 1 | 1열 너비 차지 |
+| hitrun_act_4 | span 1 | 1열 너비 차지 |
+3. <b>Diagram Selection Rationale:</b> 시각적 다이어그램이 필요한 경우, ... 데이터의 논리 구조에 **가장 적합한 다이어그램 유형**을 의무적으로 식별하고 그 선택 이유를 명시해야 합니다.   - **순차적 흐름, 원인-결과, 의사결정 구조:** **Mermaid.js**의 graph TD 또는 flowchart를 사용합니다. (예: 법적 절차의 단계별 흐름)   - **시간에 따른 상호작용, 메시지 전달:** **Mermaid.js**의 sequenceDiagram을 사용합니다. (예: 사건 당사자 간의 시간 순서에 따른 행위)   (예: 특정 범죄의 구성요건을 세부 요소로 분해)   - **연대기적 사건 나열:** **Mermaid.js**의 timeline을 사용합니다. (예: 판례의 역사적 변천)   - **개념 간의 관계 및 속성 정의:** **Mermaid.js**의 classDiagram을 사용합니다. (예: 여러 법률 용어 간의 포함 및 상속 관계)   - **독창적인 시각적 은유, 복잡한 비정형 관계:** 위의 다이어그램으로 표현하기 어려운 고유한 논증은 **사용자 정의 SVG**를 사용합니다. >
+
+</Phase>
+</DataStructureFramework>
+<DataSource>
+{{manuscript}}
+
+# 번역
+{{translation}}
+</DataSource>
+<DesignSystem name="Academic_Vintage_Theme">
+<ColorPalette description="학술 자료의 깊이와 신뢰성을 표현하는 차분하고 클래식한 색상 시스템입니다.">
+<ColorSystem>
+  <Role Name="Primary">
+    <ColorValue>#0D47A1</ColorValue>
+    <Description>핵심 브랜드 색상(blue-600). 신뢰성과 전문성을 상징하며, 앱 바, 주요 버튼, 활성 UI 요소에 사용됩니다. CIELAB 기준 팔레트의 기준점입니다.</Description>
+  </Role>
+  <Role Name="PrimaryVariant">
+    <ColorValue>#002171</ColorValue>
+    <Description>Primary 색상의 어두운 버전(blue-900)으로, 호버(hover) 상태나 깊이감을 표현할 때 사용됩니다.</Description>
+  </Role>
+  <Role Name="Secondary">
+    <ColorValue>#00796B</ColorValue>
+    <Description>보조 브랜드 색상(teal-500). Primary와 유사색 관계를 형성하여 조화로우면서도 기능적 구분이 가능하게 합니다. 부가 정보, 태그, 차트 등에 사용됩니다.</Description>
+  </Role>
+  <Role Name="Accent">
+    <ColorValue>#FFB300</ColorValue>
+    <Description>강조 색상(amber-600). Primary와 삼각 보색 관계로, 사용자의 시선을 집중시켜야 하는 핵심 CTA(Call To Action) 버튼 등에 제한적으로 사용됩니다.</Description>
+  </Role>
+  <Role Name="Background">
+    <ColorValue>#F8F9FA</ColorValue>
+    <Description>앱의 기본 배경색(gray-50). 미세한 푸른빛이 도는 고명도 색상으로, 콘텐츠 영역에 시각적 편안함과 집중도를 제공합니다.</Description>
+  </Role>
+  <Role Name="Surface">
+    <ColorValue>#FFFFFF</ColorValue>
+    <Description>카드, 다이얼로그 등 콘텐츠를 담는 표면의 색상(gray-100/white). Background와 미세한 깊이 차이를 만들어 입체감을 부여합니다.</Description>
+  </Role>
+  <Role Name="Error">
+    <ColorValue>#DC3545</ColorValue>
+    <Description>오류 상태를 나타내는 의미론적 색상(red-600). 명확한 시인성을 통해 사용자에게 오류 상황을 즉각적으로 인지시킵니다.</Description>
+  </Role>
+  <Role Name="OnPrimary">
+    <ColorValue>#FFFFFF</ColorValue>
+    <Description>Primary 색상 위에 위치하는 텍스트 및 아이콘 색상. WCAG AAA 등급의 명도 대비(7:1 이상)를 보장합니다.</Description>
+  </Role>
+  <Role Name="OnSecondary">
+    <ColorValue>#FFFFFF</ColorValue>
+    <Description>Secondary 색상 위에 위치하는 텍스트 및 아이콘 색상.</Description>
+  </Role>
+  <Role Name="OnBackground">
+    <ColorValue>#212529</ColorValue>
+    <Description>Background 및 Surface 색상 위에 위치하는 주 텍스트 색상(gray-900). 순수한 검정(#000000)보다 눈의 피로가 적고 세련된 인상을 줍니다.</Description>
+  </Role>
+  <Role Name="OnSurface">
+    <ColorValue>#212529</ColorValue>
+    <Description>Background 및 Surface 색상 위에 위치하는 주 텍스트 색상(gray-900).</Description>
+  </Role>
+  <Role Name="OnError">
+    <ColorValue>#FFFFFF</ColorValue>
+    <Description>Error 색상 위에 위치하는 텍스트 및 아이콘 색상.</Description>
+  </Role>
+</ColorSystem>
+</ColorPalette>
+<TypographyHierarchy description="학술적 포스터의 가독성과 명료성에 초점을 맞춘 타이포그래피 규칙입니다.">
+<Rule priority="1" target="인포그래픽 전체 제목" style="Font-size: 2.5rem, Font-weight: 800, Color: Text-Primary"/>
+<Rule priority="2" target="각 카드의 제목" style="Font-size: 1.3rem, Font-weight: 700, Color: Text-Primary"/>
+<Rule priority="3" target="본문 텍스트" style="Font-size: 0.95rem, Line-height: 1.6, Color: Text-Secondary"/>
+<Rule priority="4" target="본문 내 강조 텍스트(strong 태그)" style="Font-weight: 700, Color: Accent-Rust"/>
+<Rule priority="5" target="인용문(Quote) 텍스트" style="Font-size: 0.8rem, Font-style: italic, Color: Text-Primary"/>
+</TypographyHierarchy>
+<ComponentStyles description="UI 컴포넌트의 시각적 스타일을 정의하여 통일성을 부여합니다.">
+<Style target="Card" description="모든 정보 카드의 기본 스타일입니다.">
+<Property name="border" value="1.5px solid, var(--Border-Subtle)"/>
+<Property name="border-radius" value="8px" />
+<Property name="box-shadow" value="none" description="평면적이고 인쇄물 같은 느낌을 위해 그림자를 제거합니다."/>
+<Property name="padding" value="1rem" />
+<Property name="background-color" value="var(--Background-Secondary)"/>
+</Style>
+<Style target="SectionTitleCard" description="계층 구조를 나타내는 제목 카드 스타일입니다.">
+ <Property name="background" value="var(--Primary)"/>
+<Property name="color" value="var(--Background-Primary)"/>
+<Property name="font-weight" value="700"/>
+<Property name="border-radius" value="4px"/>
+</Style>
+<Style target="QuoteBlock" description="카드 내 인용문 블록 스타일입니다.">
+<Property name="background-color" value="transparent"/>
+<Property name="border-left" value="3px solid, var(--Accent-Rust)"/>
+</Style>
+<Style target="Icon" description="아이콘 스타일입니다.">
+<Property name="size" value="20px"/>
+<Property name="color" value="var(--Text-Secondary)"/>
+</Style>
+<Style target="Table" description="데이터 표 스타일입니다.">
+<Property name="border-collapse" value="collapse"/>
+<Property name="width" value="100%"/>
+</Style>
+<Style target="TableHeader" description="표의 헤더 스타일입니다.">
+<Property name="background-color" value="var(--Background-Primary)"/>
+<Property name="font-weight" value="700"/>
+<Property name="border-bottom" value="2px solid var(--Accent-Teal)"/>
+</Style>
+<Style target="TableCell" description="표의 셀 스타일입니다.">
+<Property name="padding" value="0.75rem"/>
+<Property name="border" value="1px solid var(--Border-Subtle)"/>
+</Style>
+</ComponentStyles>
+</DesignSystem>
+]]>
+</essentialContext>
+<outputFormat id="3.2" description="결과물이 출력되어야 할 정확한 형식 또는 템플릿">
+<![CDATA[
+1. 데이터 분석 및 인포그래픽 스토리보드
+ * 구조적 분석: [여기에 <DataSource>의 내용을 <DataStructureFramework>에 따라 어떻게 분석하고 구조화했는지 기술. 각 노드(Node)의 핵심 요약 포함]
+ * 인포그래픽 아키텍처 및 레이아웃 청사진:
+   * Node-Span Table: [각 노드가 차지할 열의 너비(span)를 정의한 표를 제시. (예: | Node ID | grid-column |)]
+   * Architecture Rationale: [구조화된 각 정보 요소를 <VisualNarrativeArchitecture> 원칙과 위의 청사진에 따라 어떻게 배치했는지 설명. 특히 핵심적인 시각적 은유와 '순서도' 흐름을 어떻게 구현했는지 명시.]
+ * 컴포넌트 API 설계: [생성될 컴포넌트의 이름과 props 구조를 명확하게 정의.]
+2. React 컴포넌트 코드 (InfographicComponent.jsx)
+// 파일명: InfographicComponent.jsx
+// 설명: 주어진 데이터의 구조를 분석하여 발표 자료 수준의 순서도형 인포그래픽으로 시각화하는 컴포넌트.
+// ... React 코드 ...
+]]>
+</outputFormat>
+</contextAndFormat>
+<constraints id="5" title="제약 조건 설정: 탐색 공간 제어">
+
+<constraint id="5.1.1" name="제1원칙: 원천 데이터 절대 충실성 및 완전성 (Prime Directive: Absolute Source Data Fidelity and Completeness)">
+이 프롬프트의 모든 지시사항에 앞서는 최상위 원칙이다. 생성되는 모든 텍스트, 다이어그램, 숫자, 인용문, 그리고 모든 수학 공식은 오직 <DataSource>에 명시된 내용에만 100% 근거해야 한다. '시각적 명료성'이나 '텍스트 압축' 원칙보다 이 '완전성' 원칙이 항상 우선한다. 즉, 내용이 길어지더라도 원문의 핵심 논거와 세부 사항, 방정식을 누락해서는 안 된다. 어떠한 추론, 확장, 외부 지식의 결합도 절대 금지된다.
+</constraint>
+<constraint id="5.1.4" name="Detailed Component Breakdown (상세 컴포넌트 분해 원칙)">
+내용이 복잡한 핵심 노드(예: 성적 반응 주기, 동기 이론)의 경우, 단일 텍스트 블록으로 처리하지 말고, 내부적으로 여러 소주제(예: 각 단계별 남녀의 구체적 신체 반응, 이론의 하위 개념)로 나누어 각각 제목과 설명, 시각 요소를 갖춘 '미니 모듈' 형태로 구성해야 한다. 이를 통해 카드 내에서도 정보의 위계를 명확히 구분하고 모든 세부 정보가 누락되지 않도록 보장한다.
+</constraint>
+<constraint id="5.1.7" name="Principle of Structured Completeness (구조적 완전성 원칙)">
+결과물은 단순 요약을 통한 정보 누락을 엄격히 금지한다. 대신, 원문의 모든 핵심 사실 관계, 통계, 연도, 인용구를 포함해야 한다. 이를 위해 다음의 표현 방식을 적극적으로 사용한다:
+1.  <b>계층적 목록(Hierarchical Lists):</b> 주요 사건 아래에 관련된 세부 사항을 들여쓰기된 하위 목록으로 표현하여 정보의 깊이를 더한다.
+2.  <b>핵심-가치 표(Key-Value Pairs):</b> "결과:", "의의:", "참전 병력:" 등 명확한 레이블을 사용하여 데이터를 구조화한다.
+3.  <b>간단한 표(Simple Tables):</b> 비교나 연대기적 데이터를 표현할 때 간단한 2-3열의 표를 활용한다.
+이 원칙의 목표는 정보의 양을 보존하면서도 시각적 가독성을 극대화하는 것이다.
+</constraint>
+<constraint id="5.1.12" name="Principle of Mermaid Syntax Purity" priority="critical">
+- Mermaid.js 다이어그램 정의 문자열(예: graph TD ...) 내부에 포함되는 모든 텍스트(노드 레이블, 엣지 텍스트 등)에는 어떠한 HTML 태그(<b>, <br>, <i> 등)도 **절대 사용해서는 안 됩니다.**
+- **줄바꿈:** 반드시 백슬래시와 n (\n)을 사용하고, 해당 텍스트를 큰따옴표(")로 감싸야 합니다.
+- **강조:** Mermaid의 마크다운 문법(**bold**)을 사용하거나, 지원하지 않는 경우 일반 텍스트를 사용합니다.
+- **규칙의 절대성:** 이 규칙은 다른 모든 텍스트 서식 규칙보다 우선하며, 시각적 표현 향상(예: 아이콘 삽입)을 위한 **어떠한 예외도 허용되지 않습니다.** 이 규칙을 위반하면 렌더링이 실패하는 심각한 오류로 간주합니다.
+</constraint>
+<constraint id="5.1.14" name="Principle of Flexible Component Styling">
+- SVG 아이콘과 같이 재사용되는 유틸리티 컴포넌트를 생성할 때, width, height, fill 등과 같은 스타일 속성을 컴포넌트 내부에 하드코딩하는 것을 금지합니다. 모든 스타일링은 props나 className을 통해 외부에서 주입받아 제어되어야 합니다.
+</constraint>
+
+<constraint id="5.1.15" name="견고한 반응형 Flexbox 12컬럼 그리드 원칙" priority="critical">
+- **데이터 구조 정의:** 데이터 구조(infographicData) 내 각 노드 객체는 spans 프로퍼티를 반드시 포함해야 한다. 이 값은 { lg: N, md: N, sm: N } 형식의 객체여야 하며, 각 키는 화면 크기(large, medium, small)를, 값 N은 해당 화면에서 카드가 차지할 12컬럼 기준의 너비(1~12)를 의미한다.
+- **CSS 및 React 구현:**
+    1.  **Flexbox 컨테이너:** 그리드 컨테이너(.infographic-grid)는 반드시 display: flex;와 flex-wrap: wrap; 속성을 사용해야 한다.
+    2.  **클래스 기반 너비 제어:** React 컴포넌트는 spans 객체를 col-lg-N col-md-N col-sm-N 형태의 CSS 클래스 문자열로 변환하는 헬퍼 함수를 포함해야 한다. 이 클래스 문자열이 각 카드 래퍼의 className에 적용되어야 한다.
+    3.  **컬럼 CSS 정의:** <style> 블록 내에 각 .col-*-N 클래스에 대한 flex-basis와 max-width 스타일을 반드시 정의해야 한다. (예: .col-lg-6 { flex: 0 0 50%; max-width: 50%; })
+- **금지 사항:** CSS Grid (display: grid) 및 인라인 스타일 gridColumn 속성의 사용을 엄격히 금지한다. 모든 레이아웃은 Flexbox와 CSS 클래스로 제어되어야 한다.
+</constraint>
+<constraint id="5.1.16" name="External Icon Library Principle" priority="critical">
+- **인라인 SVG 금지:** React 컴포넌트 내부에 SVG 코드를 직접 포함하는 ICONS 객체를 생성해서는 안 됩니다. Icon 유틸리티 컴포넌트는 인라인 <svg> 요소를 반환해서는 안 됩니다.
+- **Font Awesome 6 사용:** 모든 아이콘은 **Font Awesome 6** 라이브러리를 사용해야 합니다.
+- **CDN 로딩:** 최종 결과물인 React 컴포넌트는 최상단에 <style> 태그를 포함해야 하며, 이 태그는 CSS @import 규칙을 사용하여 Font Awesome CDN을 로드해야 합니다. URL: https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css.
+- **컴포넌트 구현:**
+    1.  데이터 구조(infographicData)의 각 노드는 icon 프로퍼티에 Font Awesome 아이콘의 이름(예: 'gavel', 'book-open')을 소문자 문자열로 가져야 합니다.
+    2.  Icon 컴포넌트는 name과 className props를 받아야 합니다.
+    3.  이 컴포넌트는 <i> 태그를 렌더링해야 하며, 이 태그의 className은 fa-solid fa-\${name} 형식과 외부에서 전달된 className을 결합한 형태여야 합니다. 예시: <i className={fa-solid fa-\${name} \${className || ''}}></i>.
+</constraint>
+
+
+<mustInclude id="5.1" description="결과물에 반드시 포함되어야 할 키워드, 개념, 데이터 포인트">
+<!-- ... (기존 mustInclude 항목들은 변경 없음) ... -->
+- 사용자 정의 분석 체계(<DataStructureFramework>)에 명시된 구조에 따른 내용 분류
+- 순서도(Flowchart) 형태의 레이아웃
+- 정보의 관계를 표현하는 적절한 시각적 은유
+- 가독성 높은 큰 글씨 크기
+- 인포그래픽 전체를 이미지 파일(.png)로 저장하는 '다운로드 버튼' 기능
+- 복잡 데이터 시각화 서브 컴포넌트: 통계나 연대기 같은 핵심 정보 노드는 단순 텍스트 대신 해당 정보에 최적화된 시각화 컴포넌트(예: BarChart, TimelineDiagram)를 렌더링해야 한다. 이들 컴포넌트는 재사용 가능한 인라인 SVG로 구현되어야 한다.
+</mustInclude>
+<!-- ... (나머지 제약 조건들은 변경 없음) ... -->
+<constraint id="5.1.6" name="Principle of Textual Condensation (텍스트 압축 원칙)">
+결과물 카드 내의 텍스트 내용은 긴 서술형 문장을 최대한 지양해야 한다. 대신, 핵심 정보를 <b>글머리 기호(bullet points), 간단한 표(table), 또는 논리적 관계를 나타내는 기호(예: →, •, ➔)를 적극적으로 사용한 목록 형태</b>로 재구성하여 시각적으로 압축하고 명료하게 표현해야 한다.
+</constraint>
+<constraint id="5.1.5" name="Principle of Semantic Content Structure (의미론적 콘텐츠 구조 원칙)">
+- 데이터 구조 내의 모든 노드 객체는 'type'을 통해 자신의 유형을 명확히 밝혀야 합니다.
+- 특히, type: 'text'를 가진 노드의 content 필드는 <b>절대 단순 문자열 배열이 되어서는 안 됩니다.</b>
+- 대신, content 필드는 각 정보의 의미론적 역할을 정의하는 <b>객체들의 배열이어야 합니다.</b> 각 객체는 다음 유형 중 하나를 가져야 합니다.
+- { type: 'kv', key: '레이블', value: '값' }: 명확한 키와 값이 쌍을 이루는 정보 (예: 정의, 요건)
+- { type: 'case', status: 'positive' | 'negative', title: '판례 제목', items: [...] }: 긍정/부정 판례를 시각적으로 구분하기 위한 구조
+- { type: 'note', text: '주요 참고사항' }: 강조하고 싶은 노트나 주의사항
+- { type: 'default', text: '일반 텍스트' }: 위 유형에 속하지 않는 일반 서술형 텍스트
+- React 렌더링 로직은 이 content 내부의 type에 따라 각기 다른 컴포넌트를 렌더링해야 합니다.
+</constraint>
+<constraint id="5.1.9" name="Principle of Data/Presentation Separation (데이터/표현 분리 원칙)">
+- 데이터 구조(infographicData) 내의 모든 content 필드는 순수한 문자열 또는 문자열의 배열이어야 한다.
+- "주제:", "•", "1." 등과 같이 반복되는 접두사나 UI 스타일링과 관련된 정보는 데이터에 포함시키지 않는다.
+- 이러한 접두사 및 스타일링은 React 컴포넌트의 렌더링 로직 내에서 처리되어야 한다. 이를 통해 데이터의 재사용성을 높이고, JSX 내에서 문자열과 변수를 혼합하다 발생하는 오류를 원천적으로 방지한다.
+</constraint>
+<constraint id="5.1.10" name="Principle of SVG Typography Fidelity (SVG 타이포그래피 충실도 원칙)">
+- **SVG 내 HTML 태그 사용 절대 금지:** <b>, <i>, <sub>, <sup> 와 같은 모든 HTML 태그를 <svg>...</svg> 블록 내에서 사용하는 것을 엄격히 금지합니다. 이는 JSX 컴파일 오류의 직접적인 원인이 됩니다.
+- **SVG 네이티브 요소 사용 의무화:** 텍스트 스타일링(굵게, 기울임, 첨자 등)이 필요할 경우, 반드시 <tspan>, <textPath> 와 같은 SVG 고유의 요소를 사용해야 합니다.
+</constraint>
+<mustAvoid id="5.2" description="반드시 피해야 할 주제, 표현, 단어, 편향, 가정">
+- 평면적 정보 나열: 아이콘이나 시각적 위계 구분 없이, 모든 정보를 동일한 글머리 기호 목록으로 평면적으로 나열하는 것.
+- 맥락 없는 카드 배열: 시각적 연결선 없이 정보 카드를 격자 형태로만 배치하는 것.
+- 추상적 개념을 텍스트로만 설명하는 디자인
+- 핵심 논리를 다이어그램이나 시각적 은유로 변환하지 않고, 단순히 텍스트로만 길게 나열하는 카드.
+- 구조 없는 절대 위치 지정 남용: CSS Grid와 같은 상위 레이아웃 시스템의 제어 없이, 단순히 top, left 퍼센트 값만으로 위치를 지정하여 요소 간의 겹침을 유발하는 position: absolute의 무분별한 사용.
+- **분석용 레이블 노출:** 최종 결과물인 React 컴포넌트의 content 문자열 내에 '핵심 주장:', '구체적 근거:', '시각화 모델:'과 같이 분석 과정에서 사용하는 레이블을 텍스트로 직접 출력하는 것.
+</mustAvoid>
+<constraint id="5.1.3" name="Principle of Diagram Implementation (다이어그램 구현 원칙)">
+- **Mermaid.js 활용:** **순서도, 타임라인, 간단한 관계도** 등 표준적인 다이어그램은 **Mermaid.js**를 사용하여 텍스트 기반으로 정의하고 렌더링해야 합니다. CDN은 https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js를 사용합니다.
+- **사용자 정의 SVG 활용:** Mermaid.js로 표현하기 어려운 **복잡한 계층 구조, 인물 관계도, 또는 독창적인 시각적 은유**는 **직접 인라인 SVG(Inline SVG)를 사용하여 구현**해야 합니다.
+- **동적 로딩:** Mermaid.js 스크립트는 **React useEffect 훅 내부에서 동적으로 로드**하고, 스크립트 로드가 완료된 후에만 렌더링을 시작하여 오류를 방지해야 합니다.
+</constraint>
+<constraint id="5.1.5" name="Principle of Explicit Node Typing (명시적 노드 유형 원칙)">
+- 데이터 구조(infographicData) 내의 모든 노드 객체는 'type'과 'diagramType' 프로퍼티를 통해 자신의 유형을 명확히 밝혀야 합니다.
+- **텍스트 노드:** { id: '...', type: 'text', ... }
+- **다이어그램 노드:** { id: '...', type: 'diagram', diagramType: 'mermaid' | 'svg', data: {...}, ... }
+- **섹션 제목 노드:** { id: '...', type: 'sectionTitle', ... }
+- React 렌더링 로직은 이 diagramType 프로퍼티를 기반으로 각 노드에 맞는 라이브러리 래퍼 컴포넌트를 조건부로 렌더링해야 합니다.
+</constraint>
+<selfCorrectionCommand id="5.3" description="생성될 프롬프트 마지막에 포함될 최종 검증 명령">
+<![CDATA[
+모든 지시사항을 완수한 후, 최종 답변을 제출하기 전에 잠시 멈추고 '최고 디자인 책임자(CDO)'의 관점에서 스스로를 검토하라.
+- **견고한 반응형 그리드 검증:** 최종 CSS 코드가 '견고하고 유연한 반응형 그리드 구현 원칙(5.1.15)'을 완벽하게 준수하는가? 미디어 쿼리 내부에 개별 요소의 grid-area나 grid-column을 재정의하는 코드는 없는가?
+- **다이어그램 레이아웃 검증:** 생성된 Mermaid 코드가 'StructuredDiagramLayout' 원칙을 준수하는가? 논리적 그룹이 subgraph로 명확하게 묶여 있으며, 전체적인 배치가 균형 있고 이해하기 쉬운가?
+]]>
+</selfCorrectionCommand>
+
+
+</constraints>
+<sample code desc="아래는 수정된 '견고하고 유연한 반응형 그리드 원칙'을 적용한 샘플 코드입니다. 데이터 구조와 CSS가 어떻게 변경되었는지 확인하십시오.">
+
+import React, { useEffect, useRef, useState } from 'react';
+
+// 데이터 구조: Flexbox 기반의 새로운 12컬럼 그리드 시스템에 맞춰 spans 객체를 사용합니다.
+// connector: 'down' 속성을 추가하여 카드 간의 시각적 흐름을 표시합니다.
+const infographicData = [
+    { 
+        id: 'overview_diagram', type: 'diagram', diagramType: 'mermaid', 
+        spans: { lg: 12, md: 12, sm: 12 },
+        title: '「특정범죄 가중처벌 등에 관한 법률」 주요 교통 범죄 조항 분석', 
+        icon: 'sitemap', 
+        connector: 'down',
+        content: graph TD;
+            subgraph "특가법 주요 교통 범죄"
+                A["**제5조의3**\\n도주치사상 (뺑소니)"];
+                B["**제5조의10**\\n운전자폭행등"];
+                C["**제5조의11**\\n위험운전치사상"];
+            end;
+            subgraph "관련 법률"
+                D["도로교통법\\n(사고후미조치, 음주운전 등)"];
+                E["교통사고처리 특례법\\n(업무상과실치사상)"];
+                F["형법\\n(업무상과실치사상, 폭행 등)"];
+            end;
+            A -- "과실범 전제" --> F; A -- "사고후 조치 의무" --> D; A -- "도주 부정 시 검토" --> E;
+            B -- "기본 폭행죄" --> F; C -- "음주운전 등" --> D; C -- "기본 과실범" --> E;
+            style A fill:#E07A5F,stroke:#3D405B,stroke-width:2px,color:#fff;
+            style B fill:#81B29A,stroke:#3D405B,stroke-width:2px,color:#fff;
+            style C fill:#81B29A,stroke:#3D405B,stroke-width:2px,color:#fff;
+            style D fill:#FFFFFF,stroke:#81B29A,stroke-width:2px,color:#3D405B;
+            style E fill:#FFFFFF,stroke:#81B29A,stroke-width:2px,color:#3D405B;
+            style F fill:#FFFFFF,stroke:#81B29A,stroke-width:2px,color:#3D405B; 
+    },
+    { id: 'part1_title', type: 'sectionTitle', spans: { lg: 12, md: 12, sm: 12 }, content: 'PART 1: 「특정범죄 가중처벌 등에 관한 법률」 위반 (도주치사상)' },
+    { 
+        id: 'hitrun_definition', type: 'text', spans: { lg: 6, md: 6, sm: 12 },
+        icon: 'scale-balanced', title: '제5조의3 (도주차량 운전자의 가중처벌)', 
+        content: [
+            { type: 'default', text: '「도로교통법」상 자동차등의 교통으로 「형법」 제268조(업무상과실치사상)의 죄를 범한 운전자가 피해자를 구호하는 등 「도로교통법」 제54조제1항에 따른 조치를 하지 않고 도주한 경우 가중처벌한다.' },
+            { type: 'kv', key: '피해자 사망 시', value: '무기 또는 5년 이상의 징역' },
+            { type: 'kv', key: '피해자 상해 시', value: '1년 이상의 유기징역 또는 500만원 이상 3천만원 이하의 벌금' }
+        ] 
+    },
+    { 
+        id: 'hitrun_protected_interest', type: 'text', spans: { lg: 6, md: 6, sm: 12 },
+        icon: 'shield-halved', title: '보호법익', 
+        content: [
+            { type: 'kv', key: '사회적 법익', value: '교통안전' },
+            { type: 'kv', key: '개인적 법익', value: '피해자의 생명·신체 안전' },
+            { type: 'note', text: '두 가지 법익을 함께 보호하는 것을 목적으로 합니다.' }
+        ] 
+    },
+    { 
+        id: 'hitrun_subject', type: 'text', spans: { lg: 12, md: 12, sm: 12 }, 
+        icon: 'user-check', title: '주체: 과실로 교통사고를 낸 운전자', 
+        connector: 'down',
+        content: [
+            { type: 'kv', key: '기본 전제', value: '「형법」 제268조(업무상과실치사상)의 죄를 범한 자 (신분범)' },
+            { type: 'default', text: '운전자의 과실이 인정되지 않으면 본 죄는 성립하지 않습니다. (cf. 도로교통법상 사고후미조치 의무는 고의·과실 불문)' },
+            { type: 'kv', key: '적용 대상', value: '자동차, 원동기장치자전거(개인형 이동장치 포함) 운전자. (자전거, 경운기 제외)' },
+            { type: 'kv', key: '장소 불문', value: '도로가 아닌 장소(예: 주차장)에서 발생한 사고에도 적용됩니다.' },
+            { type: 'case', status: 'negative', title: '배제되는 경우', items: ['‘고의’로 사상 사고를 낸 경우 (살인죄, 상해죄 등 성립)', '단순 동승자 (원칙적으로 공동정범 불가. 단, 사고후미조치의 공동정범은 가능)'] }
+        ] 
+    },
+    { id: 'hitrun_act_title', type: 'sectionTitle', spans: { lg: 12, md: 12, sm: 12 }, content: '구성요건: 행위' },
+    { 
+        id: 'hitrun_act_duty_of_care', type: 'text', spans: { lg: 6, md: 6, sm: 12 },
+        icon: 'kit-medical', title: '행위 (1-1): 구호 의무 불이행', 
+        content: [
+            { type: 'default', text: '「도로교통법」 제54조 제1항의 ①즉시 정차, ②사상자 구호, ③신원 확인 조치 의무를 모두 이행해야 합니다.' },
+            { type: 'kv', key: '구호의 주체', value: '반드시 운전자 본인일 필요는 없으며, 자신의 지배하에 있는 사람(예: 동승한 아내)을 통하거나, 이탈 전 다른 사람(예: 경찰)이 이미 조치한 경우도 인정됩니다.' },
+            { type: 'case', status: 'negative', title: '의무 불이행으로 보는 경우', items: ['자신의 지배하에 있지 않은 사람(예: 택시 기사, 피해자 친구)에게 부탁만 하고 떠난 경우', '혼자 구호가 불가능하다고 판단하여 아무 조치 없이 떠난 경우 (최소한의 조치 및 신고 의무 있음)', '소극적 조치 (예: 경찰이 오는 것을 보고 자수할 생각 없이 그냥 파출소로 걸어간 경우)'] }
+        ] 
+    },
+    { 
+        id: 'hitrun_act_id_check', type: 'text', spans: { lg: 6, md: 6, sm: 12 },
+        icon: 'address-card', title: '행위 (1-2): 신원 확인 조치 의무', 
+        content: [
+            { type: 'default', text: '사고 유발자로서의 신원을 명확히 밝혀야 합니다.' },
+            { type: 'case', status: 'negative', title: '의무 불이행으로 보는 경우', items: ['피해자를 병원에 후송했으나, 자신을 ‘목격자’라고 허위 진술한 경우', '병원에서 누구에게도 신원을 밝히지 않고 이탈한 경우', '사고 차량을 현장에 두고 신원 확인 없이 이탈한 경우'] },
+            { type: 'note', text: '인적 사항을 명확히 알렸다면, 설령 다른 허위 진술이 있었더라도 도주의 범의가 부정될 수 있습니다.' }
+        ] 
+    },
+    { 
+        id: 'hitrun_act_necessity', type: 'text', spans: { lg: 12, md: 12, sm: 12 }, 
+        icon: 'clipboard-question', title: '행위 (1-3): 구호 조치의 필요성', 
+        content: [
+            { type: 'default', text: '구호 조치가 필요 없었던 경우(예: 상해가 매우 경미)에는 조치 없이 이탈해도 본 죄가 성립하지 않습니다.' },
+            { type: 'kv', key: '판단 기준 (두문자: 경내상정)', value: '사고의 **경**위, **내**용, 피해자 **상**해의 부위·정도, 사고 후의 **정**황을 종합적으로 고려.' },
+            { type: 'note', text: '단, 이는 최소한 즉시 정차하여 상해 유무를 확인한 것을 전제로 합니다. 즉시 정차조차 안 했다면 상해가 경미해도 처벌될 수 있습니다.' }
+        ] 
+    },
+    { 
+        id: 'hitrun_act_escape', type: 'text', spans: { lg: 12, md: 12, sm: 12 }, 
+        icon: 'person-running', title: '행위 (2): 도주', 
+        connector: 'down',
+        content: [{ type: 'default', text: '사고 운전자가 사상 사실을 **[인식]**하고도, 구호 조치 의무를 이행하기 전에 사고 현장을 **[이탈]**하여, 사고 야기자를 **[확정할 수 없는 상태]**를 초래하는 것을 의미합니다.' }] 
+    },
+    { 
+        id: 'mens_rea_title', type: 'sectionTitle', spans: { lg: 12, md: 12, sm: 12 }, 
+        content: '구성요건: 주관적 요소' 
+    },
+    { 
+        id: 'hitrun_mens_rea', type: 'text', spans: { lg: 12, md: 12, sm: 12 },
+        icon: 'brain', title: '주관적 구성요건: 인식과 고의', 
+        content: [
+            { type: 'kv', key: '인식', value: '사고 발생, 사상, 자신의 업무상 과실에 대한 미필적 인식으로 충분. "딱딱한 물체 충돌 느낌" 진술만으로도 인정 가능.' },
+            { type: 'kv', key: '도주의 고의', value: '미필적 고의로 충분. 구호 조치 없이 현장을 벗어났다면 부득이한 사정이 없는 한 고의가 인정됨.' },
+            { type: 'note', text: '일단 도주의 고의가 인정되면, 그 이후 현장으로 복귀하거나 자수하더라도 성립된 범죄는 부정되지 않습니다.' }
+        ] 
+    },
+    { 
+        id: 'hitrun_relation_to_other_crimes', type: 'text', spans: { lg: 12, md: 12, sm: 12 },
+        icon: 'code-compare', title: '죄수 및 다른 범죄와의 관계', 
+        content: [
+            { type: 'kv', key: 'vs 사고후미조치(인명피해)', value: '본 죄가 성립하면 사고후미조치죄는 흡수됨 (법조경합)' },
+            { type: 'kv', key: 'vs 사고후미조치(물적피해)', value: '별개의 죄로 함께 처벌 가능 (실체적 경합)' },
+            { type: 'note', text: '운전자 과실이 없으면 본 죄는 무죄, 도로교통법 위반(사고후미조치)죄는 유죄가 될 수 있습니다.' },
+            { type: 'note', text: '도주가 인정되지 않으면 축소사실인 교통사고처리 특례법 위반죄 성립 여부를 판단해야 합니다.' }
+        ] 
+    },
+    { id: 'part2_title', type: 'sectionTitle', spans: { lg: 12, md: 12, sm: 12 }, content: 'PART 2: 「특정범죄 가중처벌 등에 관한 법률」 위반 (운전자폭행등)' },
+    { 
+        id: 'assault_definition', type: 'text', spans: { lg: 6, md: 6, sm: 12 },
+        icon: 'hand-fist', title: '제5조의10 (운행 중인 자동차 운전자에 대한 폭행 등)', 
+        content: [
+            { type: 'kv', key: '기본형', value: '5년 이하 징역 또는 2천만원 이하 벌금' },
+            { type: 'kv', key: '상해 발생 시', value: '3년 이상의 유기징역' },
+            { type: 'kv', key: '사망 발생 시', value: '무기 또는 5년 이상의 징역' }
+        ] 
+    },
+    { 
+        id: 'assault_conditions', type: 'text', spans: { lg: 6, md: 6, sm: 12 },
+        icon: 'car-on', title: '핵심 요건: "운행 중"', 
+        content: [
+            { type: 'default', text: '운전자에 대한 폭행으로 운전자, 승객, 보행자 등의 안전을 위협할 수 있는 상황을 의미합니다.' },
+            { type: 'kv', key: '포함되는 경우', value: '실제 주행 중, 승객 승하차를 위한 일시 정차' },
+            { type: 'kv', key: '포함되지 않는 경우', value: '계속 운행할 의사 없이 주·정차한 경우' },
+            { type: 'note', text: '‘운행 중’이 아니면 형법상 폭행죄(반의사불벌죄)가 적용되나, 본 죄는 반의사불벌죄가 아닙니다.' }
+        ] 
+    },
+    { id: 'part3_title', type: 'sectionTitle', spans: { lg: 12, md: 12, sm: 12 }, content: 'PART 3: 「특정범죄 가중처벌 등에 관한 법률」 위반 (위험운전치사상)' },
+    { 
+        id: 'danger_definition', type: 'text', spans: { lg: 6, md: 6, sm: 12 },
+        icon: 'martini-glass-empty', title: '제5조의11 (위험운전 등 치사상)', 
+        content: [
+            { type: 'default', text: '음주 또는 약물의 영향으로 정상적인 운전이 곤란한 상태에서 자동차등을 운전하여 사람을 사상에 이르게 한 경우 성립합니다.' },
+            { type: 'kv', key: '상해 발생 시', value: '1년 이상 15년 이하 징역 또는 1천만원~3천만원 벌금' },
+            { type: 'kv', key: '사망 발생 시', value: '무기 또는 3년 이상의 징역' }
+        ] 
+    },
+    { 
+        id: 'danger_conditions', type: 'text', spans: { lg: 6, md: 6, sm: 12 },
+        icon: 'face-dizzy', title: '핵심 요건: "정상적인 운전이 곤란한 상태"', 
+        content: [
+            { type: 'default', text: '음주 등으로 인해 조향·제동 장치 조작을 제대로 수행하지 못하는 상태를 의미합니다.' },
+            { type: 'note', text: '혈중알코올농도 수치와는 별개로, 실제 운전 곤란 상태였는지를 실질적으로 판단해야 합니다.' }
+        ] 
+    },
+];
+
+
+const MermaidDiagram = ({ chart }) => {
+    const ref = useRef(null);
+    const [isMermaidLoaded, setIsMermaidLoaded] = useState(false);
+    const [diagramId] = useState('mermaid-diagram-' + Math.random().toString(36).substring(2, 9));
+
+    useEffect(() => {
+        if (window.mermaid && window.mermaid.initialize) {
+            setIsMermaidLoaded(true);
+            return;
+        }
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js';
+        script.onload = () => {
+            window.mermaid.initialize({ startOnLoad: false, theme: 'base', themeVariables: { 'primaryColor': '#F3F0E9', 'primaryTextColor': '#3D405B', 'primaryBorderColor': '#D1D5DB', 'lineColor': '#A9A9A9', 'secondaryColor': '#FFFFFF', 'tertiaryColor': '#F3F0E9' } });
+            setIsMermaidLoaded(true);
+        };
+        document.body.appendChild(script);
+        return () => { if (document.body.contains(script)) document.body.removeChild(script); }
+    }, []);
+
+    useEffect(() => {
+        const renderDiagram = async () => {
+            if (isMermaidLoaded && ref.current && chart) {
+                try {
+                    const { svg } = await window.mermaid.render(diagramId, chart);
+                    if (ref.current) ref.current.innerHTML = svg;
+                } catch (e) {
+                    console.error("Mermaid 렌더링 오류:", e);
+                    if (ref.current) ref.current.innerHTML = <div class="mermaid-error">다이어그램 렌더링 오류</div>;
+                }
+            }
+        };
+        renderDiagram();
+    }, [chart, isMermaidLoaded, diagramId]);
+
+    return <div ref={ref} className="mermaid-diagram-container" />;
+};
+
+const Icon = ({ name, className }) => <i className={fa-solid fa-\${name} \${className || ''}}></i>;
+
+const Card = ({ node }) => {
+    const getColumnClasses = (spans) => {
+        if (!spans) return 'col-sm-12 col-md-12 col-lg-12';
+        // Corrected logic: Directly use the span values for the 12-column grid.
+        const sm = col-sm-\${spans.sm};
+        const md = col-md-\${spans.md};
+        const lg = col-lg-\${spans.lg};
+        return \${sm} \${md} \${lg};
+    };
+
+    const renderContent = (content) => content.map((item, index) => {
+        switch(item.type) {
+            case 'kv': return (<p key={index} className="kv-item"><span className="key">{item.key}:</span><span className="value" dangerouslySetInnerHTML={{ __html: item.value }}></span></p>);
+            case 'case': return (<div key={index} className={case-block \${item.status}}>{item.title && <h4 className="case-title">{item.title}</h4>}<ul className="case-list">{item.items.map((text, i) => <li key={i} dangerouslySetInnerHTML={{ __html: text }}></li>)}</ul></div>);
+            case 'note': return <p key={index} className="note-item">💡 {item.text}</p>;
+            default: return <p key={index} dangerouslySetInnerHTML={{ __html: item.text }}></p>;
+        }
+    });
+
+    if (node.type === 'sectionTitle') {
+        return <div className={getColumnClasses({lg:12, md:12, sm:12})}><h2 id={node.id} className="section-title">{node.content}</h2></div>;
+    }
+
+    const wrapperClasses = card-wrapper \${getColumnClasses(node.spans)} \${node.connector ? 'has-connector-' + node.connector : ''};
+
+    return (
+        <div id={node.id} className={wrapperClasses}>
+            <div className="card">
+                <div className="card-header">
+                    <Icon name={node.icon} className="card-icon" />
+                    <h3 className="card-title">{node.title}</h3>
+                </div>
+                <div className="card-body">
+                    {node.type === 'diagram' ? <MermaidDiagram chart={node.content} /> : renderContent(node.content)}
+                </div>
+            </div>
+        </div>
+    );
+};
+
+export default function InfographicComponent() {
+  const infographicRef = useRef(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    if(!document.querySelector('script[src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"]')) {
+        const script = document.createElement('script');
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+        script.async = true;
+        document.body.appendChild(script);
+    }
+  }, []);
+
+  const handleDownload = () => {
+    if (infographicRef.current && window.html2canvas) {
+        setIsLoading(true);
+        window.html2canvas(infographicRef.current, { 
+            useCORS: true, 
+            backgroundColor: getComputedStyle(document.documentElement).getPropertyValue('--background-primary').trim() || '#F3F0E9', 
+            scale: 2,
+        }).then(canvas => {
+            const link = document.createElement('a');
+            link.download = 'infographic_specific_crimes.png';
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+            setIsLoading(false);
+        }).catch(err => { 
+            console.error("이미지 생성 오류:", err); setIsLoading(false); 
+        });
+    }
+  };
+
+  return (
+    <>
+      <style>{
+        @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css');
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;700;900&family=Noto+Sans+KR:wght@400;500;700&display=swap');
+        
+        /* --- [레이아웃 재설계: Robust Flexbox Grid] --- */
+        *, *::before, *::after { box-sizing: border-box; }
+        :root { 
+            --background-primary: #F3F0E9; --background-secondary: #FFFFFF; --text-primary: #3D405B; 
+            --text-secondary: #5A5E7D; --border-subtle: #D1D5DB; --accent-teal: #81B29A; 
+            --accent-rust: #E07A5F; --connector-line: #A9A9A9; --gutter: 24px;
+        }
+
+        .infographic-container { 
+            font-family: 'Noto Sans KR', sans-serif; background-color: var(--background-primary); 
+            color: var(--text-secondary); padding: 2.5rem; 
+        }
+        .infographic-header { text-align: center; margin-bottom: 2.5rem; }
+        .infographic-title { 
+            font-family: 'Noto Serif KR', serif; font-size: 2.5rem; font-weight: 900; 
+            color: var(--text-primary); margin-bottom: 0.5rem; 
+        }
+        .infographic-subtitle { font-size: 1.1rem; max-width: 800px; margin: 0 auto; }
+        
+        /* 1. Flexbox 그리드 컨테이너 */
+        .infographic-grid {
+            display: flex;
+            flex-wrap: wrap;
+            width: calc(100% + var(--gutter));
+            margin: calc(-1 * var(--gutter) / 2);
+        }
+
+        /* 2. 그리드 아이템 (컬럼) */
+        .card-wrapper {
+            padding: calc(var(--gutter) / 2);
+            min-width: 0; /* 콘텐츠 오버플로우로 인한 너비 확장 방지 */
+            display: flex; 
+            flex-direction: column;
+            position: relative; /* 연결선(Connector)을 위한 기준점 */
+        }
+        
+        /* 3. 반응형 컬럼 너비 정의 (모바일 우선) */
+        .col-sm-3  { flex: 0 0 25%; max-width: 25%; }
+        .col-sm-6  { flex: 0 0 50%; max-width: 50%; }
+        .col-sm-9  { flex: 0 0 75%; max-width: 75%; }
+        .col-sm-12 { flex: 0 0 100%; max-width: 100%; }
+
+        @media (min-width: 768px) {
+            .col-md-3  { flex: 0 0 25%; max-width: 25%; }
+            .col-md-6  { flex: 0 0 50%; max-width: 50%; }
+            .col-md-9  { flex: 0 0 75%; max-width: 75%; }
+            .col-md-12 { flex: 0 0 100%; max-width: 100%; }
+        }
+
+        @media (min-width: 1025px) {
+            .col-lg-3  { flex: 0 0 25%; max-width: 25%; }
+            .col-lg-6  { flex: 0 0 50%; max-width: 50%; }
+            .col-lg-9  { flex: 0 0 75%; max-width: 75%; }
+            .col-lg-12 { flex: 0 0 100%; max-width: 100%; }
+        }
+
+        /* --- 카드 스타일 --- */
+        .card { 
+            display: flex; flex-direction: column; background-color: var(--background-secondary); 
+            border: 1.5px solid var(--border-subtle); border-radius: 8px; width: 100%;
+            height: 100%; box-shadow: none; overflow: hidden; /* 콘텐츠 오버플로우 차단 */
+            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.07), 0 4px 6px -2px rgba(0,0,0,0.05);
+        }
+        .card-header { 
+            display: flex; align-items: center; gap: 0.75rem; border-bottom: 1.5px solid var(--border-subtle); 
+            padding: 1rem; flex-shrink: 0;
+        }
+        .card-icon { font-size: 1.25rem; color: var(--text-secondary); width: 24px; text-align: center; }
+        .card-title { 
+            font-family: 'Noto Serif KR', serif; font-size: 1.3rem; font-weight: 700; 
+            color: var(--text-primary); margin: 0; word-break: keep-all;
+        }
+        .card-body { 
+            padding: 1.25rem; font-size: 0.95rem; line-height: 1.7; 
+            display: flex; flex-direction: column; gap: 0.75rem; flex-grow: 1;
+        }
+        .card-body p, .case-list li { overflow-wrap: break-word; }
+        .card-body strong { font-weight: 700; color: var(--accent-rust); }
+
+        /* --- [신규] 연결선(Connector) 스타일 --- */
+        .has-connector-down::after {
+            content: '';
+            position: absolute;
+            bottom: -5px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 2px;
+            height: calc(var(--gutter) / 2 + 5px);
+            background-color: var(--connector-line);
+            z-index: 0;
+        }
+        .has-connector-down::before {
+            content: '';
+            position: absolute;
+            bottom: -5px;
+            left: 50%;
+            transform: translateX(-50%) rotate(45deg);
+            width: 8px;
+            height: 8px;
+            border-bottom: 2px solid var(--connector-line);
+            border-right: 2px solid var(--connector-line);
+        }
+
+        /* --- 기타 컴포넌트 스타일 --- */
+        .section-title { 
+            background: var(--accent-teal); color: var(--background-primary); font-family: 'Noto Serif KR', serif; 
+            font-weight: 700; font-size: 1.5rem; padding: 1rem 1.5rem; border-radius: 4px; text-align: center;
+            width: 100%;
+        }
+        .kv-item .key { font-weight: 700; color: var(--text-primary); margin-right: 0.5em; }
+        .note-item { 
+            background-color: #f3f0e9; border-left: 3px solid var(--accent-rust); 
+            padding: 0.75rem 1rem; border-radius: 4px; font-size: 0.9rem; margin: 0.5rem 0;
+        }
+        .case-block { margin-top: 0.5rem; }
+        .case-title { font-weight: 700; color: var(--text-primary); margin-bottom: 0.5rem; }
+        .case-list { list-style-type: none; padding-left: 1.5rem; margin: 0; display: flex; flex-direction: column; gap: 0.5rem; }
+        .case-list li { position: relative; }
+        .case-list li::before { 
+            position: absolute; left: -1.5rem; top: 0.2em;
+            font-family: 'Font Awesome 6 Free'; font-weight: 900; 
+        }
+        .case-block.positive .case-list li::before { content: '\\f058'; color: var(--accent-teal); }
+        .case-block.negative .case-list li::before { content: '\\f057'; color: var(--accent-rust); }
+
+        .mermaid-diagram-container { width: 100%; text-align: center; }
+        .mermaid-diagram-container svg { max-width: 100%; height: auto; }
+        .loading-placeholder, .mermaid-error { text-align: center; padding: 2rem; color: var(--text-secondary); }
+        .mermaid-error { color: var(--accent-rust); border: 1px solid var(--border-subtle); border-radius: 4px; }
+        
+        .infographic-footer { margin-top: 2.5rem; text-align: center; }
+        .download-btn { 
+            background-color: var(--text-primary); color: var(--background-primary); font-family: 'Noto Sans KR', sans-serif; 
+            font-weight: 700; font-size: 1rem; padding: 0.8rem 2rem; border: none; 
+            border-radius: 5px; cursor: pointer; transition: background-color 0.2s; 
+        }
+        .download-btn:hover { background-color: var(--accent-rust); }
+        .download-btn:disabled { background-color: #ccc; cursor: not-allowed; }
+      }</style>
+      <div className="infographic-container">
+        <header className="infographic-header">
+          <h1 className="infographic-title">특정범죄 가중처벌법: 주요 교통 범죄 조항 해부</h1>
+          <p className="infographic-subtitle">「도주치사상」, 「운전자폭행」, 「위험운전치사상」의 핵심 구성요건과 주요 판례를 시각적으로 분석합니다.</p>
+        </header>
+        <main ref={infographicRef}>
+            <div className="infographic-grid">
+                {infographicData.map(node => (
+                    <Card key={node.id} node={node} />
+                ))}
+            </div>
+        </main>
+        <footer className="infographic-footer">
+          <button onClick={handleDownload} className="download-btn" disabled={isLoading}>
+            {isLoading ? '생성 중...' : '인포그래픽 PNG로 다운로드'}
+          </button>
+        </footer>
+      </div>
+    </>
+  );
+}
+
+
+
+
+</sample>
+</promptDesignFramework>
+</metaPrompt>
+
+
+                        `
+                    },
                 ];
 
                 // ▼▼▼ [수정 2] 기본 '컨텍스트 메뉴' 항목 목록을 별도로 정의합니다. ▼▼▼
