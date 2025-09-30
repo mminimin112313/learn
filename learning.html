@@ -1209,7 +1209,7 @@ html.dark .highlight-delete-btn:hover {
 // 통합 학습 및 저작 시스템 v3.16 (UX 개선)
 // - v3.16: 빈 프로젝트 생성 기능, 스크롤 위치 기억 기능 추가 및 UX 개선
 // ===================================================================================
-const APP_VERSION = '3.17.3'; // [핵심] 현재 애플리케이션 버전을 명시합니다.
+const APP_VERSION = '3.17.2'; // [핵심] 현재 애플리케이션 버전을 명시합니다.
 
 
 const CONFIG = {
@@ -5721,10 +5721,10 @@ const Card = ({ node }) => {
 
     const renderContent = (content) => content.map((item, index) => {
         switch(item.type) {
-            case 'kv': return (<p key={index} className="kv-item"><span className="key">{item.key}:</span><span className="value" dangerouslySetInnerHTML={{ __html: item.value }}></span></p>);
-            case 'case': return (<div key={index} className={case-block \${item.status}}>{item.title && <h4 className="case-title">{item.title}</h4>}<ul className="case-list">{item.items.map((text, i) => <li key={i} dangerouslySetInnerHTML={{ __html: text }}></li>)}</ul></div>);
+            case 'kv': return (<p key={index} className="kv-item"><span className="key">{item.key}:</span><span className="value" dangerouslySetInnerHTML=\{\{ __html: item.value \}\}></span></p>);
+            case 'case': return (<div key={index} className={case-block \${item.status}}>{item.title && <h4 className="case-title">{item.title}</h4>}<ul className="case-list">{item.items.map((text, i) => <li key={i} dangerouslySetInnerHTML=\{\{ __html: text \}\}></li>)}</ul></div>);
             case 'note': return <p key={index} className="note-item">💡 {item.text}</p>;
-            default: return <p key={index} dangerouslySetInnerHTML={{ __html: item.text }}></p>;
+            default: return <p key={index} dangerouslySetInnerHTML=\{\{ __html: item.text \}\}></p>;
         }
     });
 
