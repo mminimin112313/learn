@@ -6050,7 +6050,10 @@ Notion: 교육용 템플릿 제작자 커뮤니티를 위한 '효과적인 질�
     <contextAndFormat id="3" title="맥락 제공 및 형식 지정">
       <essentialContext id="3.1" description="과업 수행에 필요한 모든 배경 정보, 데이터, 이전 대화 내용">
         <![CDATA[
-        {{데이터}}
+        {{manuscript}}
+        <번역>
+        {{translation}}
+        </번역>
         ]]>
       </essentialContext>
      <outputFormat id="3.2" description="결과물이 출력되어야 할 정확한 형식 또는 템플릿">
@@ -6069,7 +6072,7 @@ Notion: 교육용 템플릿 제작자 커뮤니티를 위한 '효과적인 질�
             아래의 최종 목표를 달성하기 위해, 다음의 하위 작업들을 명시된 순서대로 마음속으로 엄격히 수행하라. 각 단계의 결과는 다음 단계의 입력으로 사용된다.
           </instruction>
           <subTasks>
-            <task id="1">**[1단계: 핵심 개념 추출]** 입력된 {{데이터}} 텍스트를 정밀하게 분석하여, 글의 전체를 관통하는 핵심 개념, 주요 주장, 전문 용어, 그리고 개념 간의 명시적/암묵적 인과관계를 모두 식별하여 구조화한다.</task>
+            <task id="1">**[1단계: 핵심 개념 추출]** 입력된 <데이터> 텍스트를 정밀하게 분석하여, 글의 전체를 관통하는 핵심 개념, 주요 주장, 전문 용어, 그리고 개념 간의 명시적/암묵적 인과관계를 모두 식별하여 구조화한다.</task>
             <task id="2">**[2단계: 질문 변환]** 1단계에서 식별된 각 핵심 요소에 대해, 해당 내용의 기억을 효과적으로 촉발할 수 있는 본질적인 질문을 생성한다. '무엇인가?'와 같은 단순 정보 확인 질문은 지양하고, '왜 그것이 중요한가?', '핵심 메커니즘은 어떻게 작동하는가?', 'A와 B의 근본적인 차이점은 무엇인가?', '만약 이 조건이 바뀐다면 어떤 결과가 예측되는가?'와 같이 깊이 있는 사고를 유도하는 질문을 중심으로 설계한다. Have a Break, and then.. To solve this problem, first design the optimal strategy to approach it, then explore all possible solution paths in a tree structure, and finally generate at least three different answers, compare them, and present the most consistent final result.</task>
             <task id="3">**[3단계: 최종 목록화]** 생성된 모든 질문을 원본 데이터의 논리적 흐름에 맞게 재배열하고, 중복되거나 효과가 적은 질문은 제거하여 최종 목록을 완성한다. 최종 결과는 지정된 'outputFormat'에 따라 군더더기 없이 출력한다.</task>
           </subTasks>
