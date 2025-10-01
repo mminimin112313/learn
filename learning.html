@@ -1837,6 +1837,7 @@ const ModalManager = {
     renderFunctions: {},
 
     init() {
+        // ModalManager.init() 함수 내부
         this.renderFunctions = {
             'newProject': this.renderNewProjectModal,
             'confirm': this.renderConfirmModal,
@@ -1847,9 +1848,9 @@ const ModalManager = {
             'splitChapter': this.renderSplitChapterModal,
             'promptVariables': this.renderPromptVariablesModal,
             'manageHistory': this.renderManageHistoryModal,
-            // Generic input prompt modal registration. This key maps to a modal used for collecting user input.
             'inputPrompt': this.renderInputPromptModal,
             'addFootnote': this.renderAddFootnoteModal,
+            'exportProject': this.renderExportProjectModal, // 이 줄을 추가하세요.
         };
     },
     // ModalManager 객체 내부에 아래 5개 함수를 추가/교체하세요.
@@ -1884,7 +1885,79 @@ const ModalManager = {
             </form>
         `;
     },
-    // [신규] 목차 리스트와 하단 컨트롤 영역의 HTML만 생성하는 헬퍼 함수
+    // ModalManager 객체 내부의 renderExportProjectModal 함수를 아래 코드로 교체하세요.
+renderExportProjectModal() {
+    const project = this.data.project || {};
+    return `
+        <form data-action="submit-export-project">
+            <div class="p-6">
+                <div class="flex justify-between items-start">
+                    <h3 class="text-xl font-semibold text-slate-900 mb-4">'${DOMPurify.sanitize(project.name)}' 내보내기</h3>
+                    <button type="button" data-action="close-modal" class="p-1 rounded-full hover:bg-slate-100">${Heroicons.render('x-mark', { class: 'w-5 h-5 text-slate-500' })}</button>
+                </div>
+                
+                <div class="space-y-6">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700">내보내기 형식</label>
+                        <div class="mt-2 space-y-2">
+                            <div class="flex items-center">
+                                <input id="export-json" name="export-type" type="radio" value="json" class="h-4 w-4 text-indigo-600 border-gray-300" data-action="update-export-options" checked>
+                                <label for="export-json" class="ml-3 block text-sm text-slate-800">
+                                    JSON 파일 (.json)
+                                    <p class="text-xs text-slate-500">프로젝트의 모든 데이터를 백업하거나 다른 시스템에서 가져오기 위한 형식입니다.</p>
+                                </label>
+                            </div>
+                            <div class="flex items-center">
+                                <input id="export-file" name="export-type" type="radio" value="file" class="h-4 w-4 text-indigo-600 border-gray-300" data-action="update-export-options">
+                                <label for="export-file" class="ml-3 block text-sm text-slate-800">
+                                    콘텐츠 파일
+                                    <p class="text-xs text-slate-500">프로젝트의 원고를 Markdown 또는 HTML 파일로 내보냅니다.</p>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="file-export-options" class="hidden pl-7 border-l-2 border-slate-200 space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700">콘텐츠 소스</label>
+                            <div class="mt-1 flex gap-4">
+                                <label class="inline-flex items-center"><input type="radio" name="content-source" value="manuscript" class="h-4 w-4" data-action="update-export-options" checked> <span class="ml-2">원고</span></label>
+                                <label class="inline-flex items-center"><input type="radio" name="content-source" value="translation" class="h-4 w-4" data-action="update-export-options"> <span class="ml-2">번역본</span></label>
+                            </div>
+                        </div>
+                        <div>
+                            <label for="file-format-select" class="block text-sm font-medium text-slate-700">파일 포맷</label>
+                            <select id="file-format-select" name="file-format" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm" data-action="update-export-options">
+                                <option value="md">마크다운 (.md)</option>
+                                <option value="html">HTML (.html)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="packaging-type-select" class="block text-sm font-medium text-slate-700">패키징</label>
+                            <select id="packaging-type-select" name="packaging-type" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm" data-action="update-export-options">
+                                <option value="zip">Zip 압축 파일 (폴더 구조 유지)</option>
+                                <option value="single">단일 파일로 병합 (마크다운 전용)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <div class="relative flex items-start">
+                                <input id="include-images" name="include-images" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-indigo-600 self-center">
+                                <div class="ml-3 text-sm">
+                                    <label for="include-images" class="font-medium text-slate-700">이미지 포함</label>
+                                    <p class="text-slate-500 text-xs">업로드된 이미지를 'images' 폴더에 포함하여 내보냅니다. (Zip 패키징 전용)</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-slate-50 px-6 py-4 flex justify-end space-x-3 rounded-b-lg border-t">
+                <button type="button" data-action="close-modal" class="btn btn-secondary">취소</button>
+                <button type="submit" class="btn">내보내기 시작</button>
+            </div>
+        </form>
+    `;
+},
     renderTocModalContent() {
         // 헬퍼 함수: 재귀적으로 각 목차 노드를 HTML로 렌더링
         const renderNode = (node, path) => {
@@ -4610,6 +4683,9 @@ handleHighlightClick(event) {
                 const handleAction = e => {
                     this.handleHighlightClick(e);
                     const trigger = e.target.closest('[data-action]');
+                    if (trigger && (trigger.tagName === 'SELECT' || (trigger.tagName === 'INPUT' && /^(radio|checkbox)$/i.test(trigger.type)))) {
+                        return;
+                        }
                     if (!trigger || trigger.matches('form[data-action]')) return;
                     const action = trigger.dataset.action;
                     const handler = this.ACTION_HANDLERS[action];
@@ -8225,6 +8301,28 @@ Path: ${input.dataset.path}
                     state.globalSearchResults = null;
                     state.globalSearchVisibleCount = 30;
                 },
+                'export-project': (el) => {
+                    // 1. 버튼의 data-id 속성 또는 현재 활성화된 프로젝트 ID를 가져옵니다.
+                    const projectId = el.dataset.id || state.activeProjectId;
+
+                    if (!projectId) {
+                        Controller.showToast('내보낼 프로젝트를 식별할 수 없습니다.', 'error');
+                        return;
+                    }
+                    
+                    // 2. [핵심 개선] 현재 작업 공간에 있다면 state.activeProject를 우선 사용하고, 
+                    //    그렇지 않으면(프로젝트 목록 등) state.projects 배열에서 찾습니다.
+                    const project = (state.activeProject && state.activeProject.id === projectId) 
+                        ? state.activeProject 
+                        : state.projects.find(p => p.id === projectId);
+
+                    // 3. 유효한 프로젝트 객체를 찾은 경우에만 모달을 엽니다.
+                    if (project) {
+                        ModalManager.open('exportProject', { project });
+                    } else {
+                        Controller.showToast('프로젝트 정보를 찾을 수 없습니다.', 'error');
+                    }
+                },
 
                 // 전역 검색 결과를 추가로 더 보여주는 버튼의 핸들러입니다.
                 'global-search-show-more': () => {
@@ -8645,14 +8743,67 @@ Path: ${input.dataset.path}
                     // 파일 읽기 시작
                     reader.readAsDataURL(file);
                 },
-                'export-project': (el) => {
-                    // 버튼의 data-id 속성 또는 현재 활성화된 프로젝트의 ID를 가져옵니다.
-                    const projectId = el.dataset.id || state.activeProjectId;
-                    if (projectId) {
-                        // 기존에 존재하던 내보내기 함수를 호출합니다.
-                        Controller.exportProject(projectId);
+                // Controller.ACTION_HANDLERS 객체 내부에 추가
+                'update-export-options': () => {
+                    const exportType = document.querySelector('input[name="export-type"]:checked').value;
+                    const fileOptions = document.getElementById('file-export-options');
+                    const packagingSelect = document.getElementById('packaging-type-select');
+                    const fileFormatSelect = document.getElementById('file-format-select');
+                    const includeImagesCheckbox = document.getElementById('include-images');
+                    const singleFileOption = packagingSelect.querySelector('option[value="single"]');
+                    
+                    if (!fileOptions || !packagingSelect || !fileFormatSelect || !includeImagesCheckbox || !singleFileOption) return;
+
+                    // 파일 내보내기 옵션 표시/숨김
+                    fileOptions.classList.toggle('hidden', exportType !== 'file');
+
+                    // HTML 형식일 경우 '단일 파일' 옵션 비활성화
+                    if (fileFormatSelect.value === 'html') {
+                        singleFileOption.disabled = true;
+                        if (packagingSelect.value === 'single') {
+                            packagingSelect.value = 'zip'; // 자동으로 Zip으로 변경
+                        }
                     } else {
-                        Controller.showToast('내보낼 프로젝트를 식별할 수 없습니다.', 'error');
+                        singleFileOption.disabled = false;
+                    }
+                    
+                    // '단일 파일' 패키징일 경우 '이미지 포함' 옵션 비활성화
+                    if (packagingSelect.value === 'single' || exportType !== 'file') {
+                        includeImagesCheckbox.disabled = true;
+                        includeImagesCheckbox.checked = false;
+                    } else {
+                        includeImagesCheckbox.disabled = false;
+                    }
+                },
+
+                'submit-export-project': async (form) => {
+                    const formData = new FormData(form);
+                    const exportType = formData.get('export-type');
+                    const projectId = ModalManager.data.project.id;
+                    
+                    ModalManager.close();
+                    Controller.showToast('내보내기를 시작합니다...', 'info');
+
+                    try {
+                        if (exportType === 'json') {
+                            await Controller.exportProjectAsJson(projectId);
+                        } else if (exportType === 'file') {
+                            const options = {
+                                format: formData.get('file-format'),
+                                packaging: formData.get('packaging-type'),
+                                includeImages: formData.has('include-images'),
+                                source: formData.get('content-source') || 'manuscript' // [핵심] 콘텐츠 소스 추가
+                            };
+
+                            if (options.packaging === 'single') {
+                                await Controller.exportProjectAsSingleMd(projectId, options);
+                            } else if (options.packaging === 'zip') {
+                                await Controller.exportProjectAsZip(projectId, options);
+                            }
+                        }
+                        Controller.showToast('내보내기가 완료되었습니다.', 'success');
+                    } catch (error) {
+                        Controller.handleError(error, `내보내기 실패: ${error.message}`);
                     }
                 },
                 'remove-custom-prompt': (el) => {
@@ -9216,7 +9367,7 @@ Path: ${input.dataset.path}
                 });
             },
             },
-            async exportProject(projectId) {
+            async exportProjectAsJson(projectId) {
                 try {
                     this.showToast('프로젝트 데이터 준비 중...', 'info');
 
@@ -9266,7 +9417,122 @@ Path: ${input.dataset.path}
                     this.showToast(`프로젝트 내보내기 실패: ${error.message}`, 'error');
                 }
             },
-        };
+            async exportProjectAsSingleMd(projectId, options) {
+                const project = await DB.get(CONFIG.STORES.PROJECTS, projectId);
+                if (!project) throw new Error("프로젝트를 찾을 수 없습니다.");
+                
+                const contents = await DB.getProjectContents(projectId);
+                const contentsMap = new Map(contents.map(c => [c.nodeId, c]));
+
+                let mdString = `# ${project.name}\n\n`;
+
+                const traverseToc = (node, level) => {
+                    if (!node) return;
+                    const heading = '#'.repeat(level + 2);
+                    mdString += `${heading} ${node.title}\n\n`;
+
+                    const content = contentsMap.get(node.contentId);
+                    // ▼▼▼ [핵심 수정] manuscript 대신 options.source를 사용합니다. ▼▼▼
+                    if (content && content[options.source]) {
+                        mdString += `${content[options.source]}\n\n`;
+                    }
+
+                    if (node.children && node.children.length > 0) {
+                        node.children.forEach(child => traverseToc(child, level + 1));
+                    }
+                };
+
+                if (project.toc && project.toc.children) {
+                    project.toc.children.forEach(child => traverseToc(child, 0));
+                }
+
+                const blob = new Blob([mdString], { type: 'text/markdown;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                const safeFileName = project.name.replace(/[\/\\?%*:|"<>]/g, '-') || 'project';
+                a.download = `${safeFileName}.md`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            },
+
+            async exportProjectAsZip(projectId, options) {
+    const project = await DB.get(CONFIG.STORES.PROJECTS, projectId);
+    if (!project) throw new Error("프로젝트를 찾을 수 없습니다.");
+
+    const contents = await DB.getProjectContents(projectId);
+    const contentsMap = new Map(contents.map(c => [c.nodeId, c]));
+    
+    const zip = new JSZip();
+    const imageMap = new Map();
+    let imageCounter = 1;
+
+    if (options.includeImages) {
+        let imageFolder = zip.folder('images');
+        for (const content of contents) {
+            if (content.imageDataUrl) {
+                try {
+                    const response = await fetch(content.imageDataUrl);
+                    const blob = await response.blob();
+                    const extension = blob.type.split('/')[1] || 'png';
+                    const imageName = `image-${imageCounter++}.${extension}`;
+                    
+                    await imageFolder.file(imageName, blob);
+                    imageMap.set(content.nodeId, `images/${imageName}`);
+                } catch (e) {
+                    console.warn(`이미지 처리 실패 (Content ID: ${content.id}):`, e);
+                }
+            }
+        }
+    }
+
+    const buildZip = (nodes, zipFolder, depth) => {
+        if (!nodes) return;
+        nodes.forEach(node => {
+            const safeTitle = (node.title || 'Untitled').replace(/[\/\\?%*:|"<>]/g, '-');
+            const content = contentsMap.get(node.contentId);
+
+            if (node.children && node.children.length > 0) {
+                const subFolder = zipFolder.folder(safeTitle);
+                buildZip(node.children, subFolder, depth + 1);
+            }
+            
+            // ▼▼▼ [핵심 수정] manuscript 대신 options.source를 사용합니다. ▼▼▼
+            let fileContent = content?.[options.source] || '';
+            
+            if (options.includeImages && imageMap.has(node.contentId)) {
+                const pathPrefix = '../'.repeat(depth);
+                const relativeImagePath = pathPrefix + imageMap.get(node.contentId);
+                fileContent += `\n\n![Image](${relativeImagePath})\n`;
+            }
+            
+            let fileName = `${safeTitle}.${options.format}`;
+
+            if (options.format === 'html') {
+                const htmlBody = marked.parse(fileContent);
+                fileContent = `<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><title>${DOMPurify.sanitize(node.title)}</title><style>body{font-family:sans-serif;max-width:800px;margin:auto;padding:2rem;line-height:1.6;}img{max-width:100%;height:auto;}</style></head><body><h1>${DOMPurify.sanitize(node.title)}</h1>${htmlBody}</body></html>`;
+            }
+            
+            zipFolder.file(fileName, fileContent);
+        });
+    };
+    
+    buildZip(project.toc.children, zip, 0);
+
+    const zipBlob = await zip.generateAsync({ type: 'blob' });
+    const url = URL.createObjectURL(zipBlob);
+    const a = document.createElement('a');
+    a.href = url;
+    const safeFileName = project.name.replace(/[\/\\?%*:|"<>]/g, '-') || 'project';
+    a.download = `${safeFileName}_${options.format.toUpperCase()}.zip`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+},
+ };
 
         // Register the view to react to state changes. Whenever setState is called,
         // View.render() will be invoked automatically.
