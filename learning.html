@@ -6909,12 +6909,21 @@ Micro-interactions are the small, often unnoticed animations and design elements
                     const project = await DB.get(CONFIG.STORES.PROJECTS, id);
                     if (!project) throw new Error("프로젝트를 찾을 수 없습니다.");
 
-                    // [핵심 수정] 단순 덮어쓰기 대신 지능형 병합 로직을 사용합니다.
-const savedSettings = project.settings || {};
-project.settings = { ...CONFIG.DEFAULT_PROJECT_SETTINGS, ...savedSettings }; // 기본 설정은 덮어씁니다.
-// 커스텀 목록은 지능적으로 병합합니다.
-project.settings.customPrompts = Utils.mergeCustomItems(savedSettings.customPrompts, CONFIG.DEFAULT_PROJECT_SETTINGS.customPrompts);
-project.settings.contextMenuItems = Utils.mergeCustomItems(savedSettings.contextMenuItems, CONFIG.DEFAULT_PROJECT_SETTINGS.contextMenuItems);
+                    // ▼▼▼ [핵심 수정] 설정 로딩 로직 통합 및 단순화 ▼▼▼
+                    const savedSettings = project.settings || {};
+                    const defaultSettings = JSON.parse(JSON.stringify(CONFIG.DEFAULT_PROJECT_SETTINGS));
+                    
+                    // 기본 설정 위에 저장된 설정을 덮어씌웁니다.
+                    // 이렇게 하면 사용자가 직접 삭제한 기본 항목이 다시 살아나지 않으며,
+                    // 앱 업데이트로 추가된 새로운 기본 설정은 자연스럽게 포함됩니다.
+                    project.settings = {
+                        ...defaultSettings,
+                        ...savedSettings,
+                        // 배열 형태인 커스텀 항목들은 개별적으로 덮어씌워 보장합니다.
+                        customPrompts: savedSettings.customPrompts || defaultSettings.customPrompts,
+                        contextMenuItems: savedSettings.contextMenuItems || defaultSettings.contextMenuItems
+                    };
+                    // ▲▲▲ [수정 완료] ▲▲▲
 
                     // 1. 마이그레이션 필요 여부 확인
                     let needsMigration = false;
@@ -8475,43 +8484,7 @@ Path: ${input.dataset.path}
                     }
                 },
 
-                // ▼▼▼ [신규 핸들러 2] 초기화 실행 (이중 확인) ▼▼▼
-                'confirm-reset-settings': () => {
-                    ModalManager.open('confirm', {
-                        title: '최종 확인',
-                        message: '정말로 현재 프로젝트의 모든 설정을 기본값으로 되돌리시겠습니까? 저장된 프롬프트와 메뉴 등이 모두 사라집니다.',
-                        confirmText: '네, 초기화합니다',
-                        onConfirm: async () => {
-                            try {
-                                const project = state.activeProject;
-                                if (!project) throw new Error('활성 프로젝트가 없습니다.');
-
-                                // ================== ▼▼▼ [로직 수정 시작] ▼▼▼ ==================
-                                // 중앙 설정 객체를 깊은 복사하여 프로젝트 설정을 덮어씁니다.
-                                project.settings = JSON.parse(JSON.stringify(CONFIG.DEFAULT_PROJECT_SETTINGS));
-                                project.updatedAt = new Date().toISOString();
-                                // ================== ▲▲▲ [로직 수정 완료] ▲▲▲ ==================
-
-                                const projectInList = state.projects.find(p => p.id === project.id);
-                                if (projectInList) {
-                                    projectInList.settings = project.settings;
-                                    projectInList.updatedAt = project.updatedAt;
-                                }
-
-                                await DB.put(CONFIG.STORES.PROJECTS, project);
-                                
-                                ModalManager.close();
-                                Controller.showToast('프로젝트 설정이 기본값으로 초기화되었습니다.', 'success');
-
-                                Controller.ACTION_HANDLERS['open-settings']();
-
-                            } catch (error) {
-                                console.error("설정 초기화 실패:", error);
-                                Controller.showToast(`오류 발생: ${error.message}`, 'error');
-                            }
-                        }
-                    });
-                },
+                
                 'select-chapter': (el) => {
                     const projectId = state.activeProjectId;
                     const chapterPath = el.dataset.path;
@@ -8532,17 +8505,20 @@ Path: ${input.dataset.path}
                         Controller.showToast('활성화된 프로젝트가 없어 설정을 열 수 없습니다.', 'error');
                         return;
                     }
-                    const s = JSON.parse(JSON.stringify(state.activeProject.settings || {}));
+
+                    // ▼▼▼ [핵심 수정] 설정 모달 데이터 로딩 로직 단순화 ▼▼▼
+                    // 1단계에서 통합된 로직 덕분에, state.activeProject.settings는 항상 완전한 상태입니다.
+                    const project = state.activeProject;
+                    const settings = JSON.parse(JSON.stringify(project.settings || {}));
+
                     ModalManager.open('settings', {
                         activeTab: 'general',
-                        name: state.activeProject.name,
-                        categoryId: state.activeProject.categoryId,
-                        projectTags: [...(state.activeProject.tags || [])],
-                        ...CONFIG.DEFAULT_PROJECT_SETTINGS,
-                        ...s,
-                        customPrompts: s.customPrompts || CONFIG.DEFAULT_PROJECT_SETTINGS.customPrompts,
-                        contextMenuItems: s.contextMenuItems || CONFIG.DEFAULT_PROJECT_SETTINGS.contextMenuItems,
+                        name: project.name,
+                        categoryId: project.categoryId,
+                        projectTags: [...(project.tags || [])],
+                        ...settings // 병합 로직 없이, 현재 상태를 그대로 전달
                     });
+                    // ▲▲▲ [수정 완료] ▲▲▲
                 },
                 'switch-settings-tab': (el) => {
                     ModalManager.data.activeTab = el.dataset.tab;
@@ -9339,25 +9315,33 @@ Path: ${input.dataset.path}
                             const project = state.activeProject;
                             if (!project) throw new Error('활성 프로젝트가 없습니다.');
 
-                            // 기본 설정을 깊은 복사하여 새 객체로 만듭니다.
-                            project.settings = JSON.parse(JSON.stringify(CONFIG.DEFAULT_PROJECT_SETTINGS));
-                            project.updatedAt = new Date().toISOString();
-                            project.updatedAt = new Date().toISOString();
+                            // ▼▼▼ [핵심 수정] 초기화 로직 및 모달 데이터 직접 갱신 ▼▼▼
+                            // 1. 기본 설정을 깊은 복사하여 새 객체로 만듭니다.
+                            const defaultSettings = JSON.parse(JSON.stringify(CONFIG.DEFAULT_PROJECT_SETTINGS));
 
+                            // 2. 프로젝트의 인메모리 상태를 새 설정으로 완전히 교체합니다.
+                            project.settings = defaultSettings;
+                            project.updatedAt = new Date().toISOString();
+                            
+                            // 3. 전체 프로젝트 목록에 있는 데이터도 동기화합니다.
                             const projectInList = state.projects.find(p => p.id === project.id);
                             if (projectInList) {
                                 projectInList.settings = project.settings;
                                 projectInList.updatedAt = project.updatedAt;
                             }
 
+                            // 4. 변경 사항을 데이터베이스에 저장합니다.
                             await DB.put(CONFIG.STORES.PROJECTS, project);
                             
-                            ModalManager.close(); // 확인 모달 닫기
                             Controller.showToast('프로젝트 설정이 기본값으로 초기화되었습니다.', 'success');
 
-                            // 설정 모달을 다시 열어 초기화된 상태를 보여줍니다.
-                            // 이렇게 하면 사용자가 변경사항을 즉시 확인할 수 있습니다.
-                            Controller.ACTION_HANDLERS['open-settings']();
+                            // 5. (가장 중요) 모달을 다시 여는 대신, 현재 열려있는 모달의 데이터(ModalManager.data)를
+                            //    초기화된 설정으로 직접 덮어쓴 후, 모달 UI만 다시 렌더링합니다.
+                            Object.assign(ModalManager.data, project.settings);
+                            ModalManager.data.customPrompts = project.settings.customPrompts;
+                            ModalManager.data.contextMenuItems = project.settings.contextMenuItems;
+                            ModalManager.render(); // 모달 내부만 새로고침
+                            // ▲▲▲ [수정 완료] ▲▲▲
 
                         } catch (error) {
                             console.error("설정 초기화 실패:", error);
