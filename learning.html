@@ -5040,7 +5040,7 @@ handleHighlightClick(event) {
                         template: `<prompt id="default-info-add">
     <metaPrompt>
         <purpose>
-            문서의 맥락을 해치지 않으면서 독자의 이해를 돕는 관련 배경 지식이나 심층 정보를 추가한다.
+            문서의 맥락을 해치지 않으면서 독자의 이해를 돕는 관련 배경 지식이나 심층 정보를 추가한다. 이때 아래의 추가 정보가 더 높은 우선순위를 가지므로 서로 모순되는 경우 추가정보를 우선시 한다.
         </purpose>
         <promptDesignFramework>
             <objectiveDefinition id="1">
@@ -5064,14 +5064,19 @@ handleHighlightClick(event) {
                     특정 주제에 대해 더 깊이 알고 싶은 독자
                 </audience>
                 <toneAndStyle id="2.3">
-                    어조: 전문적, 정보 제공적 / 스타일: 기존 텍스트의 문체에 맞게 통합
+                    어조 및 스타일: 기존 텍스트의 문체에 맞게 통합
                 </toneAndStyle>
             </personaAssignment>
             <contextAndFormat id="3">
                 <essentialContext id="3.1">
                     <![CDATA[
-                    - 수정 대상 문서: {{manuscript}}
-                    - 추가할 정보: {{추가할_내용}}
+                    - 수정 대상 문서: 
+                    {{manuscript}}
+
+
+                    
+                    - 추가할 정보: 
+                    {{추가할_내용}}
                     ]]>
                 </essentialContext>
                 <outputFormat id="3.2">
@@ -5327,11 +5332,11 @@ Monotype: 가독성 알고리즘을 기반으로 콘텐츠에 따라 실시간�
     <Principle name="MermaidSpecialCharEncoding (Mermaid 특수문자 처리)">
         <Description>
             Mermaid.js 다이어그램 텍스트 생성 시, 렌더링 오류를 유발하는 괄호 '()'를 직접 사용하지 않는다.
-            대신, 반드시 HTML 엔티티 코드 '&#40;'와 '&#41;'로 대체한다.
+            대신, 반드시 HTML 엔티티 코드 '#40;'와 '#41;'로 대체한다. 머메이드는 &을 고려하지 않으므로 주의한다.
         </Description>
         <Example>
             - Bad: subgraph "최신 판례 변경 (배임죄 부정)"
-            - Good: subgraph "최신 판례 변경 &#40;배임죄 부정&#41;"
+            - Good: subgraph "최신 판례 변경 #40;배임죄 부정 #41;"
         </Example>
     </Principle>
 
