@@ -6365,10 +6365,22 @@ OpenAI: GPT 시리즈의 장문 생성 일관성 및 논리적 강화를 위한 
 - 프롬프트의 내용을 요약하거나 되풀이하지 마라.
             ]]></outputFormat>
         </contextAndFormat>
-        <reasoningDesign id="4" title="추론 과정 설계: 생각의 경로 구축">
+        <reasoningDesign id="4" title="추론 과정 설계: 단계적 사고 경로 구축">
             <reasoningFramework id="4.1" description="과업 복잡성에 따른 추론 방식 선택">
-                <option type="DirectResponse" description="단순 정보 요청 시 사용">
-                    <task>위의 모든 정보를 바탕으로, '{{chapterTitle}}' 장의 원고를 즉시 집필하라.</task>
+                <option type="ProblemDecomposition" description="복잡한 프로젝트 수행 시 사용">
+                    <instruction>
+                        최상의 결과물을 위해, 아래 두 단계를 순서대로 엄격히 수행하라. 각 단계의 결과는 다음 단계의 입력이 된다.
+                    </instruction>
+                    <subTasks>
+                        <task id="1">
+                            **[1단계: 상세 목차 설계]**
+                            먼저, 집필할 '{{chapterTitle}}' 장의 내용을 어떻게 구성할지에 대한 매우 상세하고 구체적인 목차를 설계한다. 이 목차는 단순히 큰 제목만 나열하는 것이 아니라, 글의 논리적 흐름, 소주제, 세부 항목까지 포함해야 한다. 결과물은 마크다운 형식의 계층적 목록으로 제시하라.
+                        </task>
+                        <task id="2">
+                            **[2단계: 목차 기반 원고 집필]**
+                            오직 위 1단계에서 당신이 직접 설계한 상세 목차에 따라서만 원고 본문을 집필한다. 각 목차 항목에 해당하는 내용을 충실하고 상세하게 작성하며, 전체적인 일관성과 흐름을 유지하라. 최종 결과물은 서문이나 요약 없이, 즉시 본문에 삽입 가능한 원고 본문만으로 구성되어야 한다.
+                        </task>
+                    </subTasks>
                 </option>
             </reasoningFramework>
         </reasoningDesign>
