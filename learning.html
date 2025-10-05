@@ -17,8 +17,11 @@
 
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
     <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js" defer></script>
-    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js" onload="document.dispatchEvent(new Event('katex-loaded'))" defer></script>
-
+    
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/basiccontext@3.5.1/dist/basicContext.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/basiccontext@3.5.1/dist/basicContext.min.js"></script>
+    
     <style>
 /* ▼▼▼ [1단계] 나눔고딕, 나눔명조 및 기본 글꼴 웹 폰트 불러오기 ▼▼▼ */
         @import url('https://fonts.googleapis.com/css2?family=Nanum+Gothic:wght@400;700;800&family=Nanum+Myeongjo:wght@400;700;800&display=swap');
@@ -435,6 +438,26 @@ html.dark .quiz-result-score {
     min-width: 180px;
     padding: 0.5rem 0;
 }
+.basicContext {
+            background-color: var(--bg-primary) !important;
+            border: 1px solid var(--border-color) !important;
+            box-shadow: var(--shadow-md) !important;
+            padding: 0.5rem 0 !important;
+            border-radius: var(--radius-md) !important;
+        }
+        .basicContext > table > tbody > tr > td {
+            color: var(--text-secondary) !important;
+            padding: 0.5rem 1rem !important;
+            font-size: 0.875rem !important;
+        }
+        .basicContext > table > tbody > tr:hover > td {
+            background-color: var(--bg-hover) !important;
+            color: var(--text-primary) !important;
+        }
+        .basicContext > table > tbody > tr.separator > td {
+            padding: 0 !important;
+            border-top: 1px solid var(--border-color) !important;
+        }
 #toc-context-menu button {
     display: flex;
     align-items: center;
@@ -1204,6 +1227,7 @@ html.dark .highlight-delete-btn:hover {
     <div id="toast-root"></div>
     <div id="app-tooltip" class="app-tooltip"></div>
     <div id="highlight-menu-root"></div>
+    <div id="context-menu-root"></div> 
     <div id="toc-context-menu-root"></div>
     <script type="module">
         // ===================================================================================
@@ -1441,7 +1465,6 @@ const state = {
     isSidebarOpen: true,
     isMobileSidebarOpen: false,
     toasts: [],
-    isKaTeXLoaded: false,
     searchResults: null,
     searchQuery: '',
     // 전역 검색용 상태 필드
@@ -1462,13 +1485,7 @@ const state = {
     quizResultFilter: 'all',
     scrollPositions: {},
     isActionRailOpen: false,
-    contextMenu: {
-        isOpen: false,
-        x: 0,
-        y: 0,
-        selectedText: '',
-        openedAt: 0
-    },
+    
      tocContextMenu: {
         isOpen: false,
         x: 0, 
@@ -1806,14 +1823,14 @@ const SyncManager = {
                     return;
                 }
                 
-                console.log(`[SyncManager] 다른 탭(${event.data.sourceTabId})으로부터 상태 변경 알림 수신`, event.data);
+                //(`[SyncManager] 다른 탭(${event.data.sourceTabId})으로부터 상태 변경 알림 수신`, event.data);
                 
                 // 등록된 핸들러(데이터 새로고침 및 UI 렌더링)를 실행
                 if (typeof this.reloadHandler === 'function') {
                     this.reloadHandler(event.data.payload);
                 }
             };
-            console.log(`[SyncManager] 채널에 참여했습니다. (탭 ID: ${this.tabId})`);
+            //console.log(`[SyncManager] 채널에 참여했습니다. (탭 ID: ${this.tabId})`);
         } else {
             console.warn('이 브라우저는 BroadcastChannel API를 지원하지 않아 탭 간 실시간 동기화가 비활성화됩니다.');
         }
@@ -2658,19 +2675,16 @@ const View = {
             safeMorphdom(this.appContainerEl, `<div>${appHtml}</div>`, {
                 childrenOnly: true,
                 onNodeAdded: (node) => {
-                    if (node.nodeType === 1) {
-                        if (state.isKaTeXLoaded) Controller.applyPostRenderEffects();
-                    }
                     return node;
                 }
             });
             this.toastEl.innerHTML = this.renderToasts();
-
-            // 🟩 수정된 호출 방식
-            this.renderContextMenu();      // 메인 컨텍스트 메뉴 렌더링
-            this.renderTocContextMenu();   // 목차 컨텍스트 메뉴 렌더링 (이제 독립적으로 동작)
+            
+            this.renderTocContextMenu();
 
             Controller.applyPostRenderEffects();
+            Controller.initializeMainContextMenu();
+
             Controller.bindDynamicEventListeners();
         },
         
@@ -2682,8 +2696,7 @@ const View = {
             const groupsHtml = actionGroups.map((group, groupIndex) => {
                 const buttonsHtml = group.actions.map(action => {
                     const currentIndex = totalActionIndex++;
-                    // ▼▼▼ [수정] 모바일용 <span> 라벨을 다시 추가하고, title 속성을 data-tooltip으로 변경합니다. ▼▼▼
-                    // [핵심 수정] 이름에서 이모티콘과 라벨을 분리합니다.
+
                     const { emoji, label } = Utils.parseEmojiAndLabel(action.name);
 
                     // 아이콘 렌더링 로직: 이모티콘 > action.icon > 기본 아이콘 순서
@@ -3475,22 +3488,22 @@ return `<div class="sidebar-header"><a href="#" data-action="go-dashboard" class
                 ALLOWED_ATTR: [
                     'align','id', 'href', 'role', 'class', 'data-tooltip',
                     'data-action', 'data-footnote-key',
-                    'data-source' // [핵심 수정] 이 속성을 허용 목록에 추가합니다.
+                    'data-source',
+                    'style'
                 ]
             };
             
-            // [핵심 수정] 렌더링 시작 시점에서 FootnoteManager를 '단 한 번만' 초기화합니다.
             FootnoteManager.clear();
-
-            // 원문과 번역문에서 각주 정의를 '통합 추출'합니다. 이제 데이터가 덮어씌워지지 않습니다.
             let manuscriptForParsing = hasManuscript ? FootnoteManager.extractAndClean(content.manuscript) : '';
             let translationForParsing = hasTranslation ? FootnoteManager.extractAndClean(content.translation) : '';
-
-            // 정제된 본문을 각각 파싱합니다. (이 과정에서 각주 참조 순서가 기록됩니다)
+            if (hasManuscript) {
+                //console.log('[디버그 2] Markdown 파서 입력값 (manuscriptForParsing):', manuscriptForParsing);
+            }
+            // [핵심 변경] Controller.postProcessMarkedHTML 호출을 완전히 제거합니다.
+            // marked 파서가 생성한 HTML 문자열을 직접 사용하며, **와 $$는 일반 텍스트로 취급됩니다.
             const manuscriptHtml = hasManuscript ? Controller.parseMarkdownWithExtensions(manuscriptForParsing) : '';
-            const translationHtml = hasTranslation ? Controller.parseMarkdownWithExtensions(translationForParsing) : '';
-                
-            // 통합된 FootnoteManager 데이터를 기반으로 최종 각주 목록 HTML을 '한 번만' 생성합니다.
+            const translationHtml = hasTranslation ? Controller.parseMarkdownWithExtensions(translationForParsing) : '';
+
             const footnotes = FootnoteManager.footnotes;
             const footnoteOrder = FootnoteManager.getOrder();
             let footnotesHtml = '';
@@ -3506,9 +3519,8 @@ return `<div class="sidebar-header"><a href="#" data-action="go-dashboard" class
                 footnotesHtml += '</ol></section>';
             }
 
-            // 최종 HTML을 조합하고 정화합니다.
             let finalBodyHtml = '';
-           if ((effectiveMode === 'manuscript' || effectiveMode === 'both') && hasManuscript) {
+            if ((effectiveMode === 'manuscript' || effectiveMode === 'both') && hasManuscript) {
                 finalBodyHtml += `<h3 class="text-xl font-semibold mb-4 text-slate-800 border-b pb-2">원문 보기</h3><div class="prose prose-custom prose-readable" data-source="manuscript">${manuscriptHtml}</div>`;
             }
             if ((effectiveMode === 'translation' || effectiveMode === 'both') && hasTranslation) {
@@ -3521,7 +3533,7 @@ return `<div class="sidebar-header"><a href="#" data-action="go-dashboard" class
 
             const fullHtml = finalBodyHtml + footnotesHtml;
             const sanitizedHtml = DOMPurify.sanitize(fullHtml, allowedTagsConfig);
-
+            //console.log('[디버그 4] DOM 삽입 직전, 정화된 HTML (sanitizedHtml):', sanitizedHtml);
             return `<div>${controls}${sanitizedHtml}</div>`;
         },
         renderWritePanel() {
@@ -3617,61 +3629,7 @@ return `<div class="sidebar-header"><a href="#" data-action="go-dashboard" class
                 </div>`;
         },
         renderSpinner: (message) => `<div class="flex items-center justify-center h-full"><div class="text-center"><svg class="mx-auto h-12 w-12 text-slate-400 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg><h2 class="mt-4 text-lg font-medium text-slate-900">${message}</h2></div></div>`,
-        renderContextMenu() {
-            // 1. 메뉴를 담을 최상위 컨테이너를 찾습니다.
-            const contextMenuContainer = document.getElementById('context-menu-root');
-            if (!contextMenuContainer) return; // 컨테이너가 없으면 아무 작업도 하지 않습니다.
-
-            const {
-                isOpen,
-                x,
-                y
-            } = state.contextMenu;
-
-            // 2. 메뉴가 닫혀야 하는 상태라면, 컨테이너 내용을 완전히 비우고 함수를 종료합니다.
-            if (!isOpen) {
-                contextMenuContainer.innerHTML = '';
-                return;
-            }
-
-            const menuItems = state.activeProject?.settings?.contextMenuItems || [];
-
-            // 3. 메뉴를 열어야 하지만 표시할 아이템이 없다면, 역시 컨테이너를 비우고 종료합니다.
-            if (menuItems.length === 0) {
-                // ▼▼▼ [수정] 이 부분도 컨테이너를 비워야 합니다. ▼▼▼
-                contextMenuContainer.innerHTML = '';
-                return;
-            }
-
-            const itemsHtml = menuItems.map((item, index) =>
-                `<button data-action="execute-context-menu" data-index="${index}" class="block w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 hover:text-slate-900">${DOMPurify.sanitize(item.name)}</button>`
-            ).join('');
-
-            // 4. 메뉴 HTML을 생성하여 컨테이너에 삽입합니다. (처음에는 숨겨진 상태로)
-            contextMenuContainer.innerHTML = `
-            <div id="context-menu" class="fixed z-[2500] mb-2 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none context-menu-unselectable"
-                style="visibility: hidden; top: ${y}px; left: ${x}px;">
-                <div class="py-1" role="menu" aria-orientation="vertical">${itemsHtml}</div>
-            </div>`;
-            const menuEl = document.getElementById('context-menu');
-            if (menuEl) {
-                // 이 리스너는 메뉴 클릭 시 텍스트 선택이 해제되는 것을 방지하는 핵심 역할을 합니다.
-                menuEl.addEventListener('mousedown', e => {
-                    console.log('[Debug] Context menu mousedown detected. Preventing default focus shift.');
-                    e.preventDefault();
-                });
-
-                // 메뉴 위치 조정 로직은 그대로 유지됩니다.
-                const rect = menuEl.getBoundingClientRect();
-                let finalX = x;
-                let finalY = y;
-                if (x + rect.width > window.innerWidth) finalX = window.innerWidth - rect.width - 10;
-                if (y + rect.height > window.innerHeight) finalY = window.innerHeight - rect.height - 10;
-                menuEl.style.left = `${finalX}px`;
-                menuEl.style.top = `${finalY}px`;
-                menuEl.style.visibility = 'visible';
-            }
-        },
+        
         renderToasts() {
             return `<div class="fixed bottom-4 right-4 space-y-3 z-[3000]">${state.toasts.map(toast => {
                 let icon = '';
@@ -3962,6 +3920,7 @@ renderQuizResultView() {
                 this.turndownService = turndownService;
 
                 this.bindGlobalEventListeners();
+                this.initializeMainContextMenu();
                 
                 // URL 해시 변경 이벤트를 감지하도록 리스너를 추가합니다.
                 window.addEventListener('hashchange', this.handleURLNavigation.bind(this));
@@ -4022,7 +3981,43 @@ renderQuizResultView() {
 
                 // 파싱할 때마다 새로운 Marked 인스턴스를 생성하여 상태 공유 문제를 원천적으로 차단합니다.
                 const isolatedParser = new marked.Marked();
+                const mathExtension = {
+                    name: 'math',
+                    level: 'inline', // 인라인 레벨에서 작동
+                    start(src) { return src.indexOf('$'); }, // '$' 문자로 시작 탐지
+                    tokenizer(src) {
+                        // 블록 수식 ($$ ... $$) 규칙
+                        const blockRule = /^\$\$([\s\S]+?)\$\$/;
+                        let match = blockRule.exec(src);
+                        if (match) {
+                            return {
+                                type: 'math',
+                                raw: match[0],
+                                text: match[1],
+                                displayMode: true // 블록 모드 플래그
+                            };
+                        }
 
+                        // 인라인 수식 ($ ... $) 규칙, $$로 시작하지 않는 경우에만
+                        if (!src.startsWith('$$')) {
+                            const inlineRule = /^\$((?:[^$]|\\[$])+?)\$/;
+                            match = inlineRule.exec(src);
+                            if (match) {
+                                return {
+                                    type: 'math',
+                                    raw: match[0],
+                                    text: match[1],
+                                    displayMode: false // 인라인 모드 플래그
+                                };
+                            }
+                        }
+                    },
+                    renderer(token) {
+                        // KaTeX가 나중에 렌더링할 수 있도록 원본 문자열을 그대로 반환합니다.
+                        // marked.js가 내부를 파싱하는 것을 막는 것이 핵심입니다.
+                        return token.raw;
+                    }
+                };
                 const highlightExtension = {
                     name: 'highlight',
                     level: 'inline',
@@ -4061,10 +4056,11 @@ renderQuizResultView() {
                     }
                 };
                 
-                isolatedParser.use({ gfm: true, breaks: true, extensions: [highlightExtension, footnoteRefExtension] });
+                isolatedParser.use({ gfm: true, breaks: true, extensions: [mathExtension, highlightExtension, footnoteRefExtension] });
 
-                console.log(`[Debug] Parsing with isolated instance. Input length: ${markdownText.length}`);
+                //console.log(`[Debug] Parsing with isolated instance. Input length: ${markdownText.length}`);
                 const result = isolatedParser.parse(markdownText);
+                //console.log('[디버그 3] marked.js 파싱 결과 (HTML 문자열):', result);
                 return result;
             },
             // ▲▲▲ [수정 완료] ▲▲▲
@@ -4078,38 +4074,7 @@ renderQuizResultView() {
                 View.updateSaveStatusIndicator(); 
                 this.updateUnloadWarning(); // 저장 중 경고 상태도 함께 업데이트
             },
-            // 1. (유지) 브라우저의 기본 컨텍스트 메뉴를 막는 역할은 여전히 매우 중요합니다.
-           handleContextMenu(e) {
-                const viewPanel = e.target.closest('.prose-readable');
-                // 메뉴가 열릴 조건이 아니면 즉시 종료 (기본 메뉴는 그대로 나타남)
-                if (state.currentView !== 'workspace' || state.workspaceMode !== 'view' || !viewPanel) {
-                    return;
-                }
-
-                // [핵심 수정] setTimeout을 제거하고, 텍스트 선택 여부를 즉시 확인합니다.
-                const selection = window.getSelection();
-                const selectedText = selection.toString().trim();
-                const menuItems = state.activeProject?.settings?.contextMenuItems || [];
-                
-                // [핵심 수정] 텍스트가 선택되었고, 표시할 메뉴 아이템이 있을 때만 기본 메뉴를 막고 커스텀 메뉴를 엽니다.
-                if (selectedText && !selection.isCollapsed && selection.rangeCount > 0 && menuItems.length > 0) {
-                    e.preventDefault(); // << 이 줄의 위치가 매우 중요합니다.
-
-                    state.contextMenu = {
-                        isOpen: true,
-                        x: e.clientX,
-                        y: e.clientY,
-                        selectedText: selectedText,
-                        range: selection.getRangeAt(0)
-                    };
-                    console.log('[Debug] 텍스트 선택됨. 커스텀 컨텍스트 메뉴를 엽니다.', state.contextMenu);
-                    View.render(); // render()가 내부적으로 renderContextMenu()를 호출합니다.
-                } else {
-                    // 텍스트가 선택되지 않았으면 아무것도 하지 않고 브라우저 기본 메뉴가 나타나도록 둡니다.
-                    console.log('[Debug] 선택된 텍스트 없음. 기본 컨텍스트 메뉴를 허용합니다.');
-                }
-            },
-            // [추가] 렌더링 후 폼 요소의 값을 강제로 동기화하는 함수
+            
             isNavigating: false, 
         syncFormElements() {
             if (state.currentView !== 'workspace' || !state.activeChapterContent) {
@@ -4250,63 +4215,14 @@ handleHighlightClick(event) {
 
         // Controller 객체 내부에 아래 두 함수를 새로 추가하세요.
 
-            /**
-             * [신규 함수] selectionchange 이벤트를 처리하는 핸들러.
-             * debounce를 통해 안정적으로 호출됩니다.
-             */
-            handleSelectionChange() {
-                const selection = window.getSelection();
-                const selectedText = selection.toString().trim();
-                const viewPanel = document.querySelector('#workspace-main-content .prose-readable');
-                const menuItems = state.activeProject?.settings?.contextMenuItems || [];
-
-                // 메뉴가 표시되어야 하는 모든 조건을 검사합니다.
-                const shouldShowMenu =
-                    !selection.isCollapsed &&
-                    state.currentView === 'workspace' &&
-                    state.workspaceMode === 'view' &&
-                    selectedText &&
-                    menuItems.length > 0 &&
-                    viewPanel &&
-                    selection.rangeCount > 0 &&
-                    viewPanel.contains(selection.getRangeAt(0).commonAncestorContainer);
-
-                if (shouldShowMenu) {
-                    const range = selection.getRangeAt(0);
-                    const rect = range.getBoundingClientRect();
-
-                    state.contextMenu = {
-                        isOpen: true,
-                        x: rect.left + rect.width / 2,
-                        y: rect.top,
-                        selectedText: selectedText,
-                        openedAt: Date.now() // [핵심] 메뉴를 열 때 타임스탬프를 기록합니다.
-                    };
-                    View.renderContextMenu();
-                } else if (state.contextMenu.isOpen) {
-                    // 선택이 해제되는 등 메뉴가 닫혀야 할 경우
-                    state.contextMenu.isOpen = false;
-                    View.renderContextMenu();
-                }
-            },
+            
 
             /**
              * [신규 함수] mousedown 이벤트를 처리하여 메뉴를 닫는 핸들러.
              * 유예 시간(Grace Period) 로직이 포함됩니다.
              */
             handleMouseDown(e) {
-                // [핵심] 메뉴가 열린 지 200ms가 채 지나지 않았다면, 닫기 로직을 무시합니다.
-                if (Date.now() - state.contextMenu.openedAt < 200) {
-                    return;
-                }
-
-                // 메뉴 바깥을 클릭했을 때만 메뉴를 닫습니다.
-                if (state.contextMenu.isOpen && !e.target.closest('#context-menu-root')) {
-                    state.contextMenu.isOpen = false;
-                    View.renderContextMenu();
-                }
-
-                // TOC 컨텍스트 메뉴 닫기 로직 (기존과 동일)
+                // TOC 컨텍스트 메뉴 닫기 로직
                 if (state.tocContextMenu.isOpen && !e.target.closest('#toc-context-menu')) {
                     e.preventDefault();
                     state.tocContextMenu.isOpen = false;
@@ -4390,6 +4306,51 @@ handleHighlightClick(event) {
                 await DB.put(CONFIG.STORES.CONTENTS, content);
                 Controller.showToast(message, 'info');
             },
+            initializeMainContextMenu() {
+                // 문서 전체에 단 하나의 contextmenu 리스너만 등록합니다.
+                document.body.addEventListener('contextmenu', e => {
+                    // **1. 목차(TOC) 관리 모달의 컨텍스트 메뉴 처리**
+                    const tocItem = e.target.closest('.modal-container #toc-editor-list .toc-item');
+                    if (tocItem) {
+                        e.preventDefault(); // 기본 메뉴 방지
+                        this.openTocContextMenu(e, tocItem.dataset.path);
+                        return; // 목차 메뉴를 처리했으므로 여기서 종료
+                    }
+
+                    // **2. 메인 콘텐츠('보기' 탭)의 컨텍스트 메뉴 처리**
+                    const proseElement = e.target.closest('.prose-readable');
+                    if (proseElement && state.workspaceMode === 'view' && state.currentView === 'workspace') {
+                        const selection = window.getSelection();
+                        const selectedText = selection.toString().trim();
+
+                        if (selectedText.length > 0) {
+                            e.preventDefault(); // 기본 메뉴 방지
+
+                            const menuItemsConfig = state.activeProject?.settings?.contextMenuItems || [];
+                            if (menuItemsConfig.length === 0) return;
+
+                            // Controller.initializeMainContextMenu() 내부
+                            const items = menuItemsConfig.map(item => ({
+                                title: item.name,
+                                fn: (data, el, event) => { 
+                                    event.stopPropagation(); 
+                                    
+                                    state.contextMenu = { selectedText };
+                                    if (item.action && typeof this.ACTION_HANDLERS[item.action] === 'function') {
+                                        this.ACTION_HANDLERS[item.action]();
+                                    } else if (item.template) {
+                                        this.processAndCopyPrompt(item.template, `실행: ${item.name}`);
+                                    }
+                                }
+                            }));
+
+                            basicContext.show(items, e);
+                        }
+                        // 텍스트가 선택되지 않았으면 기본 메뉴가 뜨도록 아무것도 하지 않음
+                    }
+                    // 다른 모든 영역에서는 기본 브라우저 메뉴가 정상적으로 작동합니다.
+                });
+            },
 
             unsavedChangesHandler(e) {
                 e.preventDefault();
@@ -4406,6 +4367,58 @@ handleHighlightClick(event) {
                     node.children.forEach(child => this.ensureAllNodesHaveContentId(child));
                 }
             },
+            // [1단계: 아래 코드를 Controller 객체 내부에 통째로 추가]
+
+            /**
+             * marked.js가 생성한 HTML 문자열을 입력받아, KaTeX 렌더링 및 ** 볼드 처리를 적용한
+             * 새로운 DOM 요소를 반환하는 후처리기입니다.
+             * @param {string} htmlString - marked.js의 결과물
+             * @returns {HTMLElement} - 후처리가 완료된 body 요소
+             */
+            
+            postProcessMarkedHTML(htmlString) {
+                const processTextNode = (textNode) => {
+                    const fragment = document.createDocumentFragment();
+                    let currentText = textNode.textContent;
+                    let lastIndex = 0;
+
+                    currentText.replace(/\*\*(.*?)\*\*/g, (match, content, offset) => {
+                        if (offset > lastIndex) {
+                            fragment.appendChild(document.createTextNode(currentText.substring(lastIndex, offset)));
+                        }
+                        const strong = document.createElement('strong');
+                        strong.textContent = content;
+                        fragment.appendChild(strong);
+                        lastIndex = offset + match.length;
+                    });
+
+                    if (lastIndex < currentText.length) {
+                        fragment.appendChild(document.createTextNode(currentText.substring(lastIndex)));
+                    }
+                    return fragment;
+                };
+
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(`<body>${htmlString}</body>`, 'text/html');
+                const walker = document.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT, (node) => {
+                    const parentName = node.parentNode.nodeName.toLowerCase();
+                    return ['code', 'pre', 'script', 'style'].includes(parentName) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT;
+                });
+
+                const nodesToProcess = [];
+                while (walker.nextNode()) nodesToProcess.push(walker.currentNode);
+
+                nodesToProcess.forEach(textNode => {
+                    if (!textNode.textContent.includes('**')) return;
+                    const newContent = processTextNode(textNode);
+                    if (textNode.parentNode) {
+                        textNode.parentNode.replaceChild(newContent, textNode);
+                    }
+                });
+
+                return doc.body;
+            },
+            
             showTooltip(target) {
                 if (window.innerWidth <= 1024) return; // 모바일에선 비활성화
                 const tooltipEl = document.getElementById('app-tooltip');
@@ -4485,25 +4498,21 @@ handleHighlightClick(event) {
                     return;
                 }
 
-                // 1. 시스템이 자동으로 채울 수 있는 모든 변수 목록 정의
-                const systemVariables = [
-                    'bookTitle', 'projectGenre', 'projectAgeGroup', 'projectAudience', 
-                    'references', 'partTitle', 'partDescription', 'chapterTitle', 
-                    'chapterDescription', 'fullToc', 'partToc', 'projectStyleExample', 
-                    'manuscript', 'translation', 'notes', 'selected_text'
-                ];
+                // ▼▼▼ [핵심 수정] ▼▼▼
+                // 1. 하드코딩된 변수 목록 대신, getSystemVariableValues() 함수를 먼저 호출하여
+                //    현재 시스템이 제공할 수 있는 모든 변수와 그 값을 가져옵니다.
+                const systemValues = this.getSystemVariableValues();
+                const availableSystemVars = Object.keys(systemValues);
+                // ▲▲▲ [수정 완료] ▲▲▲
 
-                // 2. 템플릿에서 모든 {{...}} 변수를 추출
+                // 2. 템플릿에서 모든 {{...}} 변수를 추출합니다.
                 const allVarsInTemplate = [...template.matchAll(/{{\s*([^}]+?)\s*}}/g)].map(match => match[1]);
                 const uniqueVars = [...new Set(allVarsInTemplate)];
 
-                // 3. 사용자가 직접 입력해야 하는 변수 필터링
-                const userVariables = uniqueVars.filter(v => !systemVariables.includes(v));
-
-                // 4. 모든 시스템 변수의 현재 값을 가져옵니다.
-                const systemValues = this.getSystemVariableValues();
-
-                // 5. 사용자 입력이 필요한 변수가 있다면 모달을 엽니다.
+                // 3. 사용자가 직접 입력해야 하는 변수를 필터링합니다. (시스템에 없는 변수만 남김)
+                const userVariables = uniqueVars.filter(v => !availableSystemVars.includes(v));
+                
+                // 4. 사용자 입력이 필요한 변수가 있다면 모달을 엽니다.
                 if (userVariables.length > 0) {
                     ModalManager.open('promptVariables', {
                         title: actionTitle,
@@ -4512,7 +4521,7 @@ handleHighlightClick(event) {
                         systemValues: systemValues // 시스템 값들을 모달 데이터로 전달
                     });
                 } else {
-                    // 6. 필요한 변수가 없다면 즉시 프롬프트를 생성하고 복사합니다.
+                    // 5. 필요한 변수가 없다면 즉시 프롬프트를 생성하고 복사합니다.
                     let finalPrompt = template;
                     for (const [key, value] of Object.entries(systemValues)) {
                         const regex = new RegExp(`{{\\s*${key}\\s*}}`, 'g');
@@ -4705,7 +4714,7 @@ handleHighlightClick(event) {
                     }
                 };
                 document.body.addEventListener('click', handleAction.bind(this));
-                document.body.addEventListener('contextmenu', this.handleContextMenu.bind(this));
+                
 
                 document.body.addEventListener('touchend', handleAction.bind(this));
 
@@ -4773,10 +4782,7 @@ handleHighlightClick(event) {
                     const target = e.target.closest('[data-tooltip]');
                     if (target) Controller.hideTooltip();
                 }, true);
-                document.addEventListener('katex-loaded', () => {
-                    state.isKaTeXLoaded = true;
-                    this.applyPostRenderEffects();
-                });
+                
                 document.addEventListener('keydown', e => {
                     const isInputActive = ['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName);
                     if (!isInputActive && state.currentView === 'workspace') {
@@ -4790,68 +4796,9 @@ handleHighlightClick(event) {
                 }
             });
                 
-                // Controller.bindGlobalEventListeners 함수 내부에 추가
-                document.addEventListener('selectionchange', Utils.debounce(() => {
-                    const selection = window.getSelection();
-                    if (!selection || selection.rangeCount === 0) return;
-
-                    const viewPanel = document.querySelector('#workspace-main-content .prose-readable');
-                    // 메뉴가 표시되어야 하는 모든 조건을 검사합니다.
-                    const shouldShowMenu = 
-                        !selection.isCollapsed &&
-                        state.currentView === 'workspace' &&
-                        state.workspaceMode === 'view' &&
-                        viewPanel &&
-                        viewPanel.contains(selection.getRangeAt(0).commonAncestorContainer);
-
-                    if (shouldShowMenu) {
-                        const range = selection.getRangeAt(0);
-                        const rect = range.getBoundingClientRect();
-                        
-                        // 뷰포트 상단이나 하단에 너무 가깝게 붙어있으면 메뉴를 숨깁니다.
-                        if (rect.top < 20 || rect.bottom > window.innerHeight - 20) {
-                            if (state.contextMenu.isOpen) {
-                                state.contextMenu.isOpen = false;
-                                View.render();
-                            }
-                        } else {
-                            // 메뉴의 위치를 뷰포트 기준 좌표로 업데이트합니다.
-                            state.contextMenu = {
-                                isOpen: true,
-                                // pageX, pageY 대신 rect 좌표를 사용합니다.
-                                x: rect.left + rect.width / 2,
-                                y: rect.top, // 메뉴가 텍스트 바로 위에 위치하도록 top 좌표 사용
-                                selectedText: selection.toString().trim()
-                            };
-                            View.render();
-                        }
-                    } else if (state.contextMenu.isOpen) {
-                        // 메뉴가 표시될 조건이 아니면 메뉴를 닫습니다.
-                        state.contextMenu.isOpen = false;
-                        View.render();
-                    }
-                }, 100)); // 50ms 디바운스로 스크롤 중 과도한 렌더링 방지
-                // ▲▲▲ [수정 완료] ▲▲▲                document.addEventListener('paste', e => this.handleImagePaste(e));
-                    const contentView = document.getElementById('content-view');
-                    if (contentView) {
-                        contentView.addEventListener('contextmenu', (e) => this.handleContextMenu(e), false);
-                    }
+               
                     
-                    // 2. 메뉴 닫기: 문서 전체의 'mousedown' 이벤트를 감지합니다.
-                    //    사용자가 메뉴 바깥의 아무 곳이나 클릭(터치)하면 메뉴가 닫힙니다.
-                    //    캡처링 단계(true)에서 실행하여 다른 이벤트보다 먼저 안정적으로 처리합니다.
                 document.body.addEventListener('mousedown', this.handleMouseDown.bind(this), true);
-
-                // 2. 데스크톱용 우클릭 이벤트 (이벤트 위임 방식)
-                document.body.addEventListener('contextmenu', (e => {
-                    const targetItem = e.target.closest('.modal-container #toc-editor-list .toc-item');
-                    if (targetItem) {
-                        e.preventDefault();
-                        this.openTocContextMenu(e, targetItem.dataset.path);
-                    }
-                }).bind(this));
-
-                // 3. 모바일/터치용 롱 프레스 이벤트 핸들링
                 document.body.addEventListener('touchstart', (e => {
                     const targetItem = e.target.closest('.modal-container #toc-editor-list .toc-item');
                     if (targetItem) {
@@ -6941,23 +6888,17 @@ Micro-interactions are the small, often unnoticed animations and design elements
                     const project = await DB.get(CONFIG.STORES.PROJECTS, id);
                     if (!project) throw new Error("프로젝트를 찾을 수 없습니다.");
 
-                    // ▼▼▼ [핵심 수정] 설정 로딩 로직 통합 및 단순화 ▼▼▼
                     const savedSettings = project.settings || {};
                     const defaultSettings = JSON.parse(JSON.stringify(CONFIG.DEFAULT_PROJECT_SETTINGS));
                     
-                    // 기본 설정 위에 저장된 설정을 덮어씌웁니다.
-                    // 이렇게 하면 사용자가 직접 삭제한 기본 항목이 다시 살아나지 않으며,
-                    // 앱 업데이트로 추가된 새로운 기본 설정은 자연스럽게 포함됩니다.
                     project.settings = {
                         ...defaultSettings,
                         ...savedSettings,
-                        // 배열 형태인 커스텀 항목들은 개별적으로 덮어씌워 보장합니다.
+                        
                         customPrompts: savedSettings.customPrompts || defaultSettings.customPrompts,
-                        contextMenuItems: savedSettings.contextMenuItems || defaultSettings.contextMenuItems
+                        contextMenuItems: Utils.mergeCustomItems(savedSettings.contextMenuItems, defaultSettings.contextMenuItems)
                     };
-                    // ▲▲▲ [수정 완료] ▲▲▲
-
-                    // 1. 마이그레이션 필요 여부 확인
+                    
                     let needsMigration = false;
                     const checkNeedsMigration = (node) => {
                         if (!node) return;
@@ -6966,7 +6907,6 @@ Micro-interactions are the small, often unnoticed animations and design elements
                     };
                     if (project.toc) checkNeedsMigration(project.toc);
 
-                    // 2. 마이그레이션 실행
                     if (needsMigration) {
                         this.showToast('이전 버전 프로젝트를 업데이트합니다...', 'info');
                         const migrationPromises = [];
@@ -7172,113 +7112,106 @@ Micro-interactions are the small, often unnoticed animations and design elements
                     state.toasts = state.toasts.filter(t => t.id !== id);
                 }
             },
+            // [2단계 수정] Controller.applyPostRenderEffects 함수 교체
             applyPostRenderEffects() {
+                //console.log('[디버그 5] applyPostRenderEffects 함수 실행 시작.');
                 const tocLinks = document.querySelectorAll('.sidebar .toc-item a');
                 tocLinks.forEach(link => {
                     const textSpan = link.querySelector('span.truncate');
                     if (!textSpan) return;
-
                     const path = link.dataset.path;
                     const node = Utils.getNodeByPath(state.activeProject.toc, path);
                     const content = node ? state.activeContentsMap.get(`${state.activeProjectId}_${node.contentId}`) : null;
-                    
                     const isTruncated = textSpan.scrollWidth > textSpan.clientWidth;
-
-                    // 1. 콘텐츠 정보가 없으면 툴팁을 아예 표시하지 않음
-                    if (!content) {
-                        link.removeAttribute('data-tooltip');
-                        return;
-                    }
-                    
-                    // 2. 콘텐츠 정보를 바탕으로 통계 데이터 생성
+                    if (!content) { link.removeAttribute('data-tooltip'); return; }
                     const manuscriptCount = content.manuscript?.length || 0;
                     const translationCount = content.translation?.length || 0;
                     const hasImage = !!content.imageDataUrl;
                     const hasQuizzes = content.questions && content.questions.length > 0;
-
-                    // 3. 텍스트가 잘렸거나, 추가 정보가 하나라도 있을 경우에만 툴팁을 생성
                     if (isTruncated || manuscriptCount > 0 || translationCount > 0 || hasImage || hasQuizzes) {
                         const fullTitle = DOMPurify.sanitize(textSpan.textContent);
-                        
-                        // 4. 아이콘과 함께 표시될 상세 정보 HTML 생성
-                        const detailsHtml = `
-                            <hr class='border-slate-500 my-1 opacity-50'>
-                            <div class='grid grid-cols-2 gap-x-2 mt-1.5 font-normal text-xs'>
-                                <div class='flex items-center' title="원고 글자수">
-                                    ${Heroicons.render('document-text', { class: 'w-3.5 h-3.5 mr-1 flex-shrink-0' })}
-                                    <span>${Utils.formatCount(manuscriptCount)}자</span>
-                                </div>
-                                <div class='flex items-center' title="번역문 글자수">
-                                    ${Heroicons.render('language', { class: 'w-3.5 h-3.5 mr-1 flex-shrink-0' })}
-                                    <span>${Utils.formatCount(translationCount)}자</span>
-                                </div>
-                                <div class='flex items-center' title="이미지">
-                                    ${Heroicons.render(hasImage ? 'check-circle' : 'x-circle', { class: `w-3.5 h-3.5 mr-1 flex-shrink-0 ${hasImage ? 'text-green-400' : 'text-slate-500'}` })}
-                                    <span>이미지</span>
-                                </div>
-                                <div class='flex items-center' title="퀴즈">
-                                    ${Heroicons.render(hasQuizzes ? 'check-circle' : 'x-circle', { class: `w-3.5 h-3.5 mr-1 flex-shrink-0 ${hasQuizzes ? 'text-green-400' : 'text-slate-500'}` })}
-                                    <span>퀴즈</span>
-                                </div>
-                            </div>
-                        `;
-                        
-                        // 5. 최종 툴팁 HTML을 data-tooltip 속성에 할당
+                        const detailsHtml = `<hr class='border-slate-500 my-1 opacity-50'><div class='grid grid-cols-2 gap-x-2 mt-1.5 font-normal text-xs'><div class='flex items-center' title="원고 글자수">${Heroicons.render('document-text', { class: 'w-3.5 h-3.5 mr-1 flex-shrink-0' })}<span>${Utils.formatCount(manuscriptCount)}자</span></div><div class='flex items-center' title="번역문 글자수">${Heroicons.render('language', { class: 'w-3.5 h-3.5 mr-1 flex-shrink-0' })}<span>${Utils.formatCount(translationCount)}자</span></div><div class='flex items-center' title="이미지">${Heroicons.render(hasImage ? 'check-circle' : 'x-circle', { class: `w-3.5 h-3.5 mr-1 flex-shrink-0 ${hasImage ? 'text-green-400' : 'text-slate-500'}` })}<span>이미지</span></div><div class='flex items-center' title="퀴즈">${Heroicons.render(hasQuizzes ? 'check-circle' : 'x-circle', { class: `w-3.5 h-3.5 mr-1 flex-shrink-0 ${hasQuizzes ? 'text-green-400' : 'text-slate-500'}` })}<span>퀴즈</span></div></div>`;
                         const tooltipContent = `<div class='text-left'><div class='font-semibold mb-1'>${fullTitle}</div>${detailsHtml}</div>`;
                         link.setAttribute('data-tooltip', tooltipContent);
-
                     } else {
-                        // 텍스트가 잘리지도 않았고, 추가 정보도 없으면 툴팁을 제거
                         link.removeAttribute('data-tooltip');
                     }
                 });
-                 const mainContentEl = document.querySelector('.main-content');
+                const mainContentEl = document.querySelector('.main-content');
                 if (mainContentEl) {
                     mainContentEl.addEventListener('scroll', () => {
-                        // 컨텍스트 메뉴가 열려있으면 닫습니다.
-                        if (state.contextMenu.isOpen) {
-                            state.contextMenu.isOpen = false;
-                            View.renderContextMenu();
-                        }
-                        // 진행률 표시줄을 업데이트합니다.
                         this.updateViewProgressBar();
                     }, { passive: true });
                 }
-                if (state.currentView === 'workspace' && state.workspaceMode === 'view' && state.isKaTeXLoaded && window.renderMathInElement) {
-                    const viewPanel = document.querySelector('.prose.prose-readable');
-                    if (viewPanel) {
-                        try {
-                            renderMathInElement(viewPanel, {
-                                delimiters: [{
-                                    left: '$',
-                                    right: '$',
-                                    display: true
-                                }, {
-                                    left: '\\(',
-                                    right: '\\)',
-                                    display: false
-                                }, {
-                                    left: '\\[',
-                                    right: '\\]',
-                                    display: true
-                                }]
+                
+                // [핵심 변경] 모든 후처리를 이 함수에서 순서대로 실행합니다.
+                if (state.currentView === 'workspace' && state.workspaceMode === 'view') {
+                    // querySelectorAll을 사용해 원문, 번역문 패널을 모두 선택합니다.
+                    const viewPanels = document.querySelectorAll('.prose.prose-readable');
+                    
+                    if (viewPanels.length > 0) {
+                        // 1단계: **bold** 처리를 DOM에 직접 적용합니다.
+                        const processTextNode = (textNode) => {
+                            const fragment = document.createDocumentFragment();
+                            let currentText = textNode.textContent;
+                            let lastIndex = 0;
+                            currentText.replace(/\*\*(.*?)\*\*/g, (match, content, offset) => {
+                                if (offset > lastIndex) fragment.appendChild(document.createTextNode(currentText.substring(lastIndex, offset)));
+                                const strong = document.createElement('strong');
+                                strong.textContent = content;
+                                fragment.appendChild(strong);
+                                lastIndex = offset + match.length;
                             });
-                        } catch (e) {
-                            console.error("KaTeX rendering failed:", e);
+                            if (lastIndex < currentText.length) fragment.appendChild(document.createTextNode(currentText.substring(lastIndex)));
+                            return fragment;
+                        };
+
+                        viewPanels.forEach(panel => {
+                            const walker = document.createTreeWalker(panel, NodeFilter.SHOW_TEXT, (node) => {
+                                const parentName = node.parentNode.nodeName.toLowerCase();
+                                return ['code', 'pre', 'script', 'style', 'a', 'strong', 'em'].includes(parentName) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT;
+                            });
+
+                            const nodesToProcess = [];
+                            while (walker.nextNode()) nodesToProcess.push(walker.currentNode);
+
+                            nodesToProcess.forEach(textNode => {
+                                if (textNode.textContent.includes('**')) {
+                                    const newContent = processTextNode(textNode);
+                                    if (textNode.parentNode) {
+                                        textNode.parentNode.replaceChild(newContent, textNode);
+                                    }
+                                }
+                            });
+                        });
+                        
+                        // 2단계: KaTeX 렌더링을 실행합니다. (bold 처리가 끝난 DOM에 적용)
+                        if (window.renderMathInElement) {
+                            viewPanels.forEach(panel => {
+                                try {
+                                    renderMathInElement(panel, {
+                                        delimiters: [
+                                            { left: '$$', right: '$$', display: true },
+                                            { left: '$', right: '$', display: false },
+                                            { left: '\\(', right: '\\)', display: false },
+                                            { left: '\\[', right: '\\]', display: true }
+                                        ]
+                                    });
+                                } catch (e) {
+                                    console.error("KaTeX rendering failed:", e);
+                                }
+                            });
                         }
                     }
                 }
+
                 if (state.activeChapterPath) {
                     const keyPrefix = `${state.activeProjectId}_${state.activeChapterPath}`;
-
-                    // 현재 모드에 맞는 메인 패널 스크롤 위치 복원
                     const mainContentPanel = document.getElementById('workspace-main-content');
                     const savedMainScroll = state.scrollPositions[`${keyPrefix}_${state.workspaceMode}`];
                     if (mainContentPanel && savedMainScroll !== undefined) {
                         mainContentPanel.scrollTop = savedMainScroll;
                     }
-
-                    // 기존 텍스트 영역 스크롤 위치 복원 로직은 유지
                     const elementsToRestore = ['manuscript', 'notes', 'translation'];
                     elementsToRestore.forEach(id => {
                         const el = document.getElementById(id);
@@ -7867,7 +7800,24 @@ Micro-interactions are the small, often unnoticed animations and design elements
                     View.render();
                 }
             },
-            buildSplitChapterPrompt(sourceType) { // 'manuscript' 또는 'translation'
+            _getParagraphsForSplitting(text) {
+                if (!text || !text.trim()) {
+                    return { paragraphs: [], separator: '\n\n' };
+                }
+
+                // 1. 먼저 두 줄 이상의 공백으로 문단을 나눠봅니다.
+                let paragraphs = text.split(/\n{2,}/).map(p => p.trim()).filter(Boolean);
+                let separator = '\n\n';
+
+                // 2. 만약 문단이 2개 미만이라면, 한 줄 개행을 기준으로 다시 나눠봅니다.
+                if (paragraphs.length < 2) {
+                    paragraphs = text.split(/\n/).map(p => p.trim()).filter(Boolean);
+                    separator = '\n';
+                }
+                
+                return { paragraphs, separator };
+            },
+             buildSplitChapterPrompt(sourceType) { // 'manuscript' 또는 'translation'
                 const sourceText = state.activeChapterContent[sourceType];
                 const sourceLabel = sourceType === 'manuscript' ? '원문' : '번역문';
 
@@ -7875,11 +7825,16 @@ Micro-interactions are the small, often unnoticed animations and design elements
                     this.showToast(`분할할 ${sourceLabel}이 없습니다.`, 'error');
                     return null;
                 }
-                const paragraphs = sourceText.split(/\n\s*\n/).map(p => p.trim()).filter(Boolean);
+                
+                // ▼▼▼ [수정] 새로운 헬퍼 함수를 사용하여 문단을 가져옵니다. ▼▼▼
+                const { paragraphs } = this._getParagraphsForSplitting(sourceText);
+
+                // 최종적으로 문단이 2개 미만이면 오류를 표시합니다.
                 if (paragraphs.length < 2) {
-                    this.showToast(`${sourceLabel}의 내용이 분할하기에 충분하지 않습니다.`, 'error');
+                    this.showToast(`${sourceLabel}의 내용이 분할하기에 충분하지 않습니다. (최소 2줄 이상 필요)`, 'error');
                     return null;
                 }
+                // ▲▲▲ [수정 완료] ▲▲▲
 
                 const totalParagraphs = paragraphs.length;
                 const totalCharacters = sourceText.replace(/\s/g, '').length;
@@ -7919,7 +7874,10 @@ Micro-interactions are the small, often unnoticed animations and design elements
                     if (!Array.isArray(subChaptersData) || !subChaptersData.every(i => i.sub_chapter_title && i.start_paragraph)) throw new Error('Invalid JSON format.');
 
                     const sourceText = state.activeChapterContent[sourceType];
-                    const paragraphs = sourceText.split(/\n{2,}/).map(p => p.trim()).filter(Boolean);
+                    
+                    // ▼▼▼ [수정] 새로운 헬퍼 함수를 사용하여 문단과 구분자를 모두 가져옵니다. ▼▼▼
+                    const { paragraphs, separator } = this._getParagraphsForSplitting(sourceText);
+                    // ▲▲▲ [수정 완료] ▲▲▲
 
                     const projectId = state.activeProjectId;
                     const parentPath = state.activeChapterPath;
@@ -7931,7 +7889,11 @@ Micro-interactions are the small, often unnoticed animations and design elements
                     for (let i = 0; i < subChaptersData.length; i++) {
                         const start = subChaptersData[i].start_paragraph - 1;
                         const end = (i < subChaptersData.length - 1) ? subChaptersData[i + 1].start_paragraph - 1 : paragraphs.length;
-                        const content = paragraphs.slice(start, end).join('\n\n');
+                        
+                        // ▼▼▼ [수정] 하드코딩된 '\n\n' 대신 감지된 구분자를 사용합니다. ▼▼▼
+                        const content = paragraphs.slice(start, end).join(separator);
+                        // ▲▲▲ [수정 완료] ▲▲▲
+                        
                         // Create a new TOC node with its own contentId via helper
                         const newChildNode = Utils.createTocNode(subChaptersData[i].sub_chapter_title);
                         parentNode.children.push(newChildNode);
@@ -8965,34 +8927,7 @@ Micro-interactions are the small, often unnoticed animations and design elements
                     ModalManager.close();
                     View.render();
                 },
-                'execute-context-menu': (el) => {
-                    const index = parseInt(el.dataset.index, 10);
-                    const allContextMenuItems = state.activeProject?.settings?.contextMenuItems || [];
-                    const menuItem = allContextMenuItems[index];
-
-                    console.log(`[Debug] Context menu item clicked: "${menuItem?.name || 'Unknown'}"`);
-
-                    if (!menuItem) {
-                        console.error('[Debug] 메뉴 아이템을 찾을 수 없습니다. Index:', index);
-                        return;
-                    }
-
-                    if (menuItem.action && typeof Controller.ACTION_HANDLERS[menuItem.action] === 'function') {
-                        Controller.ACTION_HANDLERS[menuItem.action]();
-                    } else if (menuItem.template) {
-                        // 프롬프트 복사 시점에도 window에서 직접 선택 영역 텍스트를 가져옵니다.
-                        const selectedText = window.getSelection().toString().trim();
-                        state.contextMenu.selectedText = selectedText;
-                        Controller.processAndCopyPrompt(menuItem.template, `실행: ${menuItem.name}`);
-                    } else {
-                        Controller.showToast('이 메뉴 항목을 실행할 수 없습니다.', 'error');
-                    }
-
-                    // [중요] 어떤 액션이 실행되든, 마지막에 항상 메뉴를 닫고 UI를 갱신합니다.
-                    console.log('[Debug] 액션 실행 완료. 컨텍스트 메뉴를 닫습니다.');
-                    state.contextMenu.isOpen = false;
-                    View.render();
-                },
+                
                 'submit-prompt-variables': (form) => {
                     const { template, systemValues } = ModalManager.data;
                     const formData = new FormData(form);
@@ -9155,8 +9090,8 @@ Micro-interactions are the small, often unnoticed animations and design elements
                 'manage-toc': () => {
                     // ▼▼▼ [디버깅 코드 추가] ▼▼▼
                     const tocCopy = JSON.parse(JSON.stringify(state.activeProject.toc));
-                    console.log("--- [1. 목차 관리 시작] ---");
-                    console.log("모달을 위해 복사된 초기 TOC 데이터:", tocCopy);
+                    //console.log("--- [1. 목차 관리 시작] ---");
+                    //console.log("모달을 위해 복사된 초기 TOC 데이터:", tocCopy);
                     // ▲▲▲ [디버깅 코드 추가] ▲▲▲
 
                     ModalManager.open('manageToc', {
