@@ -1204,6 +1204,7 @@ html.dark .highlight-delete-btn:hover {
     <div id="toast-root"></div>
     <div id="app-tooltip" class="app-tooltip"></div>
     <div id="highlight-menu-root"></div>
+    <div id="toc-context-menu-root"></div>
     <script type="module">
         // ===================================================================================
 // 통합 학습 및 저작 시스템 v3.16 (UX 개선)
@@ -2664,15 +2665,11 @@ const View = {
                 }
             });
             this.toastEl.innerHTML = this.renderToasts();
-            // Inside the View.render function, find the line with this.renderToasts()
-            this.modalEl.querySelector('.modal-container')?.insertAdjacentHTML('beforeend', this.renderTocContextMenu()); // Add this line
-            const contextMenuContainer = document.getElementById('context-menu-root') || (() => {
-                const el = document.createElement('div');
-                el.id = 'context-menu-root';
-                document.body.appendChild(el);
-                return el;
-            })();
-            this.renderContextMenu(); // 반환값을 받지 않고 함수를 호출하기만 합니다.
+
+            // 🟩 수정된 호출 방식
+            this.renderContextMenu();      // 메인 컨텍스트 메뉴 렌더링
+            this.renderTocContextMenu();   // 목차 컨텍스트 메뉴 렌더링 (이제 독립적으로 동작)
+
             Controller.applyPostRenderEffects();
             Controller.bindDynamicEventListeners();
         },
@@ -2748,19 +2745,25 @@ const View = {
         },
         // Inside the View object
         renderTocContextMenu() {
+            const root = document.getElementById('toc-context-menu-root');
+            if (!root) return; // 컨테이너가 없으면 아무 작업도 하지 않음
+
             const { isOpen, x, y, path } = state.tocContextMenu;
-            if (!isOpen) return '';
 
-            const isFolder = Utils.getNodeByPath(ModalManager.data.editableToc, path)?.children;
+            // 메뉴가 열려있지 않다면, 컨테이너를 완전히 비웁니다.
+            if (!isOpen) {
+                root.innerHTML = '';
+                return;
+            }
 
+            // 메뉴 아이템 HTML을 생성하는 로직 (기존과 동일)
             const menuItems = [
-                { action: 'toc-context-new-item', label: 'New File', icon: 'document-plus' },
-                { action: 'toc-context-new-folder', label: 'New Folder', icon: 'folder-plus' },
+                { action: 'toc-context-new-item', label: '새 파일', icon: 'document-plus' },
+                { action: 'toc-context-new-folder', label: '새 폴더', icon: 'folder-plus' },
                 { type: 'separator' },
-                { action: 'toc-context-rename', label: 'Rename', icon: 'pencil-square' },
-                { action: 'toc-context-delete', label: 'Delete', icon: 'trash' },
+                { action: 'toc-context-rename', label: '이름 바꾸기', icon: 'pencil-square' },
+                { action: 'toc-context-delete', label: '삭제', icon: 'trash' },
             ];
-            
             const itemsHtml = menuItems.map(item => {
                 if (item.type === 'separator') return '<hr>';
                 return `
@@ -2771,7 +2774,12 @@ const View = {
                 `;
             }).join('');
 
-            return `<div id="toc-context-menu" style="left: ${x}px; top: ${y}px;">${itemsHtml}</div>`;
+            // [핵심] HTML 문자열을 반환하는 대신, root 컨테이너의 내용을 직접 덮어씁니다.
+            root.innerHTML = `
+                <div id="toc-context-menu" style="left: ${x}px; top: ${y}px;">
+                    ${itemsHtml}
+                </div>
+            `;
         },
         updateSaveStatusIndicator() {
             const container = document.getElementById('save-status-container');
@@ -4238,6 +4246,8 @@ handleHighlightClick(event) {
             View.render();
             this.syncFormElements(); 
         },
+        
+
         // Controller 객체 내부에 아래 두 함수를 새로 추가하세요.
 
             /**
@@ -4832,6 +4842,7 @@ handleHighlightClick(event) {
                     //    캡처링 단계(true)에서 실행하여 다른 이벤트보다 먼저 안정적으로 처리합니다.
                 document.body.addEventListener('mousedown', this.handleMouseDown.bind(this), true);
 
+                // 2. 데스크톱용 우클릭 이벤트 (이벤트 위임 방식)
                 document.body.addEventListener('contextmenu', (e => {
                     const targetItem = e.target.closest('.modal-container #toc-editor-list .toc-item');
                     if (targetItem) {
@@ -4840,19 +4851,22 @@ handleHighlightClick(event) {
                     }
                 }).bind(this));
 
+                // 3. 모바일/터치용 롱 프레스 이벤트 핸들링
                 document.body.addEventListener('touchstart', (e => {
                     const targetItem = e.target.closest('.modal-container #toc-editor-list .toc-item');
                     if (targetItem) {
+                        // 터치가 시작되면 타이머를 설정합니다.
                         this.touchStartX = e.touches[0].clientX;
                         this.touchStartY = e.touches[0].clientY;
                         this.touchTimer = setTimeout(() => {
                             this.openTocContextMenu(e.touches[0], targetItem.dataset.path);
-                            this.touchTimer = null;
-                        }, 500);
+                            this.touchTimer = null; // 타이머 실행 후 초기화
+                        }, 500); // 500ms 이상 누르면 롱 프레스로 간주
                     }
                 }).bind(this));
 
                 document.body.addEventListener('touchmove', (e => {
+                    // 터치 이동 거리가 크면 롱 프레스 타이머를 취소합니다 (스크롤 방지).
                     if (this.touchTimer) {
                         const moveX = Math.abs(this.touchStartX - e.touches[0].clientX);
                         const moveY = Math.abs(this.touchStartY - e.touches[0].clientY);
@@ -4864,6 +4878,7 @@ handleHighlightClick(event) {
                 }).bind(this));
 
                 document.body.addEventListener('touchend', (e => {
+                    // 터치가 끝나면 타이머를 무조건 취소합니다.
                     if (this.touchTimer) {
                         clearTimeout(this.touchTimer);
                         this.touchTimer = null;
@@ -6238,11 +6253,11 @@ Notion: 교육용 템플릿 제작자 커뮤니티를 위한 '효과적인 질�
     <promptDesignFramework>
         <objectiveDefinition id="1" title="목표 정의: 과업의 제1원칙">
             <finalDeliverable id="1.1" description="프롬프트를 통해 얻고자 하는 최종 결과물">
-                먼저 '{{chapterTitle}}' 장에 대한 매우 상세하고 구체적인 목차를 제시하고, 그 다음 그 목차에 따라 작성된 완성도 높은 원고 초안을 제공한다.
-            </finalDeliverable>
-            <coreTask id="1.2" description="LLM이 수행해야 할 핵심적인 동사">
-                제시된 모든 맥락과 제약 조건을 엄격히 준수하여, '{{chapterTitle}}' 장의 내용을 **분석하고, 상세 목차를 설계한 후, 이를 바탕으로 원고를 집필하라**.
-            </coreTask>
+            먼저 {{chapterTitle}} 장에 대한 매우 상세하고 구체적인 목차를 제시하고, 그 다음 그 목차에 따라 작성된 완성도 높은 원고 초안을 제공한다.
+        </finalDeliverable>
+        <coreTask id="1.2" description="LLM이 수행해야 할 핵심적인 동사">
+            제시된 모든 맥락과 제약 조건을 엄격히 준수하여, {{chapterTitle}} 장의 내용을 **분석하고, 상세 목차를 설계한 후, 이를 바탕으로 원고를 집필하라**.
+        </coreTask>
             <successCriteria id="1.3" description="결과물이 '성공'이라고 판단할 객관적인 기준">
                 1. 생성된 원고가 '{{chapterDescription}}'에 명시된 목표와 내용을 충실히 반영하는가?
                 2. 원고가 전체 목차('{{fullToc}}')의 흐름 속에서 현재 장의 역할을 정확히 수행하는가?
@@ -6366,24 +6381,24 @@ OpenAI: GPT 시리즈의 장문 생성 일관성 및 논리적 강화를 위한 
             ]]></outputFormat>
         </contextAndFormat>
         <reasoningDesign id="4" title="추론 과정 설계: 단계적 사고 경로 구축">
-            <reasoningFramework id="4.1" description="과업 복잡성에 따른 추론 방식 선택">
-                <option type="ProblemDecomposition" description="복잡한 프로젝트 수행 시 사용">
-                    <instruction>
-                        최상의 결과물을 위해, 아래 두 단계를 순서대로 엄격히 수행하라. 각 단계의 결과는 다음 단계의 입력이 된다.
-                    </instruction>
-                    <subTasks>
-                        <task id="1">
-                            **[1단계: 상세 목차 설계]**
-                            먼저, 집필할 '{{chapterTitle}}' 장의 내용을 어떻게 구성할지에 대한 매우 상세하고 구체적인 목차를 설계한다. 이 목차는 단순히 큰 제목만 나열하는 것이 아니라, 글의 논리적 흐름, 소주제, 세부 항목까지 포함해야 한다. 결과물은 마크다운 형식의 계층적 목록으로 제시하라.
-                        </task>
-                        <task id="2">
-                            **[2단계: 목차 기반 원고 집필]**
-                            오직 위 1단계에서 당신이 직접 설계한 상세 목차에 따라서만 원고 본문을 집필한다. 각 목차 항목에 해당하는 내용을 충실하고 상세하게 작성하며, 전체적인 일관성과 흐름을 유지하라. 최종 결과물은 서문이나 요약 없이, 즉시 본문에 삽입 가능한 원고 본문만으로 구성되어야 한다.
-                        </task>
-                    </subTasks>
-                </option>
-            </reasoningFramework>
-        </reasoningDesign>
+        <reasoningFramework id="4.1" description="과업 복잡성에 따른 추론 방식 선택">
+            <option type="ProblemDecomposition" description="복잡한 프로젝트 수행 시 사용">
+                <instruction>
+                    최상의 결과물을 위해, 아래 두 단계를 순서대로 엄격히 수행하라. 각 단계의 결과는 다음 단계의 입력이 된다.
+                </instruction>
+                <subTasks>
+                    <task id="1">
+                        **[1단계: 상세 목차 설계]**
+                        먼저, 집필할 '{{chapterTitle}}' 장의 내용을 어떻게 구성할지에 대한 매우 상세하고 구체적인 목차를 설계한다. 이 목차는 단순히 큰 제목만 나열하는 것이 아니라, 글의 논리적 흐름, 소주제, 세부 항목까지 포함해야 한다. 결과물은 마크다운 형식의 계층적 목록으로 제시하라.
+                    </task>
+                    <task id="2">
+                        **[2단계: 목차 기반 원고 집필]**
+                        오직 위 1단계에서 당신이 직접 설계한 상세 목차에 따라서만 원고 본문을 집필한다. 각 목차 항목에 해당하는 내용을 충실하고 상세하게 작성하며, 전체적인 일관성과 흐름을 유지하라. 최종 결과물은 서문이나 요약 없이, 즉시 본문에 삽입 가능한 원고 본문만으로 구성되어야 한다.
+                    </task>
+                </subTasks>
+            </option>
+        </reasoningFramework>
+    </reasoningDesign>
         <constraints id="5" title="제약 조건 설정: 탐색 공간 제어">
             <mustInclude id="5.1" description="결과물에 반드시 포함되어야 할 키워드, 개념, 데이터 포인트">
                 - 원고 내용은 '{{chapterDescription}}'의 목표를 직접적으로 달성해야 한다.
@@ -7760,21 +7775,12 @@ Micro-interactions are the small, often unnoticed animations and design elements
             handleTocTitleEdit(input) {
                 const node = Utils.getNodeByPath(ModalManager.data.editableToc, input.dataset.path);
                 if (node) {
-                    // ▼▼▼ [디버깅 코드 추가] ▼▼▼
-                    console.log(`--- [2. 제목 수정 감지] ---
-Path: ${input.dataset.path}
-기존 제목: "${node.title}"
-새 제목: "${input.value}"`);
-                    // ▲▲▲ [디버깅 코드 추가] ▲▲▲
+                    // [핵심] 입력이 발생할 때마다 실시간으로 데이터 모델에 반영
                     node.title = input.value;
+                    // console.log(`Title updated in memory for path ${input.dataset.path}: ${input.value}`);
                 }
             },
-            // learning.html 파일의 Controller 객체 내부
-
-            // learning.html 파일의 Controller 객체 내부
-
-            // learning.html 파일의 Controller 객체 내부
-
+            
             async saveToc() {
                 // [핵심 수정] 모달이 닫히기 전에, 수정된 목차 데이터를 안전한 지역 변수에 먼저 깊은 복사합니다.
                 // 이것이 경쟁 조건 버그를 해결하는 가장 중요한 부분입니다.
@@ -8257,7 +8263,7 @@ Path: ${input.dataset.path}
                         Controller.ACTION_HANDLERS['toc-context-rename'](el);
                         return;
                     }
-                    
+
                     // Shift 키를 이용한 범위 선택
                     if (shiftKey && tocData.lastSelectedTocPath) {
                         const lastIdx = flatToc.findIndex(item => item.path === tocData.lastSelectedTocPath);
@@ -8278,35 +8284,40 @@ Path: ${input.dataset.path}
                         tocData.selectedTocPaths.clear();
                         tocData.selectedTocPaths.add(path);
                     }
-                    
+
                     tocData.lastSelectedTocPath = path;
-                    ModalManager.render();
+                    ModalManager.updateTocView(); // 전체 render 대신 부분 업데이트
                 },
 
                 // [신규] 이름 변경 핸들러: input 필드를 편집 가능하게 만듭니다.
+                // 🟩 Controller.ACTION_HANDLERS 객체에 'toc-context-rename' 핸들러를 아래 코드로 교체하세요.
                 'toc-context-rename': (el) => {
+                    // 컨텍스트 메뉴에서 호출될 경우 el.dataset.path가 없을 수 있으므로, 선택된 항목에서 경로를 가져옵니다.
                     const path = el.dataset.path || ModalManager.data.selectedTocPaths.values().next().value;
                     if (!path) return;
-                    
+
                     const input = document.querySelector(`.modal-container input[data-path="${path}"]`);
                     if (input) {
                         input.readOnly = false;
                         input.focus();
                         input.select();
-                        
+
                         const handleRenameEnd = () => {
                             input.readOnly = true;
-                            const node = Utils.getNodeByPath(ModalManager.data.editableToc, path);
-                            if(node) node.title = input.value;
+                            // 이벤트 리스너를 즉시 제거하여 중복 실행 방지
                             input.removeEventListener('blur', handleRenameEnd);
                             input.removeEventListener('keydown', handleKeydown);
-                            ModalManager.render();
                         };
                         const handleKeydown = (e) => {
-                            if (e.key === 'Enter') handleRenameEnd();
+                            if (e.key === 'Enter') {
+                                // Enter 키를 누르면 blur 이벤트가 자동으로 발생하므로 focus만 해제
+                                input.blur();
+                            }
                             if (e.key === 'Escape') {
-                                input.value = Utils.getNodeByPath(ModalManager.data.editableToc, path).title;
-                                handleRenameEnd();
+                                // Escape를 누르면 원본 제목으로 되돌리고 focus 해제
+                                const node = Utils.getNodeByPath(ModalManager.data.editableToc, path);
+                                if(node) input.value = node.title;
+                                input.blur();
                             }
                         };
                         input.addEventListener('blur', handleRenameEnd);
@@ -8409,6 +8420,7 @@ Path: ${input.dataset.path}
                     View.render();
                 },
                 
+                
                 'toc-context-delete': () => {
                     const selectedPaths = ModalManager.data.selectedTocPaths;
                     if (selectedPaths.size === 0) return;
@@ -8429,9 +8441,11 @@ Path: ${input.dataset.path}
                     const pathsToDelete = ModalManager.data.pathsToDelete;
 
                     // 2. 전달받은 데이터를 사용하여 메모리 상에서 삭제 로직을 수행합니다.
+                    // 깊은 경로(자식)부터 삭제해야 인덱스 오류가 발생하지 않습니다.
                     const sortedPaths = [...pathsToDelete].sort((a, b) => b.split('.').length - a.split('.').length);
 
                     sortedPaths.forEach(path => {
+                        // 이미 상위 폴더가 삭제 대상에 포함된 경우, 하위 항목은 건너뜁니다.
                         const isSubpathOfSelection = sortedPaths.some(p => p !== path && path.startsWith(p + '.'));
                         if (isSubpathOfSelection) {
                             return;
@@ -9151,14 +9165,13 @@ Path: ${input.dataset.path}
                         lastSelectedTocPath: null
                     });
                 },
-                 'toc-add-child': (el) => {
+                'toc-add-child': (el) => {
                     const parentNode = Utils.getNodeByPath(ModalManager.data.editableToc, el.dataset.path);
                     if (parentNode) {
                         if (!parentNode.children) parentNode.children = [];
-                        // createTocNode 유틸리티를 사용하여 ID가 포함된 노드를 생성합니다.
                         const newNode = Utils.createTocNode("새 하위 항목");
                         parentNode.children.push(newNode);
-                        ModalManager.render();
+                        ModalManager.updateTocView(); // 부분 업데이트 호출
                     }
                 },
 
@@ -9169,10 +9182,9 @@ Path: ${input.dataset.path}
                     if (ModalManager.data && ModalManager.data.editableToc) {
                         const toc = ModalManager.data.editableToc;
                         if (toc) {
-                            // createTocNode 유틸리티를 사용하여 ID가 포함된 노드를 생성합니다.
                             const newNode = Utils.createTocNode("새 최상위 항목");
                             toc.children.push(newNode);
-                            ModalManager.render();
+                            ModalManager.updateTocView(); // 부분 업데이트 호출
                         }
                         return;
                     }
