@@ -19,8 +19,7 @@
     <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js" defer></script>
     
     <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/basiccontext@3.5.1/dist/basicContext.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/basiccontext@3.5.1/dist/basicContext.min.js"></script>
+  
     
     <style>
 /* ▼▼▼ [1단계] 나눔고딕, 나눔명조 및 기본 글꼴 웹 폰트 불러오기 ▼▼▼ */
@@ -2757,43 +2756,55 @@ const View = {
             // ▲▲▲ [수정 완료] ▲▲▲
         },
         // Inside the View object
-        renderTocContextMenu() {
-            const root = document.getElementById('toc-context-menu-root');
-            if (!root) return; // 컨테이너가 없으면 아무 작업도 하지 않음
+     // 약 981번째 줄 근처의 View.renderTocContextMenu 함수를 찾으세요.
 
-            const { isOpen, x, y, path } = state.tocContextMenu;
+renderTocContextMenu() {
+    const root = document.getElementById('toc-context-menu-root');
+    if (!root) return;
 
-            // 메뉴가 열려있지 않다면, 컨테이너를 완전히 비웁니다.
-            if (!isOpen) {
-                root.innerHTML = '';
-                return;
-            }
+    const { isOpen, x, y, items, data } = state.tocContextMenu;
 
-            // 메뉴 아이템 HTML을 생성하는 로직 (기존과 동일)
-            const menuItems = [
-                { action: 'toc-context-new-item', label: '새 파일', icon: 'document-plus' },
-                { action: 'toc-context-new-folder', label: '새 폴더', icon: 'folder-plus' },
-                { type: 'separator' },
-                { action: 'toc-context-rename', label: '이름 바꾸기', icon: 'pencil-square' },
-                { action: 'toc-context-delete', label: '삭제', icon: 'trash' },
-            ];
-            const itemsHtml = menuItems.map(item => {
-                if (item.type === 'separator') return '<hr>';
-                return `
-                    <button data-action="${item.action}" data-path="${path}">
-                        ${Heroicons.render(item.icon, { class: 'w-4 h-4' })}
-                        <span>${item.label}</span>
-                    </button>
-                `;
-            }).join('');
+    if (!isOpen) {
+        root.innerHTML = '';
+        return;
+    }
 
-            // [핵심] HTML 문자열을 반환하는 대신, root 컨테이너의 내용을 직접 덮어씁니다.
-            root.innerHTML = `
-                <div id="toc-context-menu" style="left: ${x}px; top: ${y}px;">
-                    ${itemsHtml}
-                </div>
-            `;
-        },
+    const itemsHtml = (items || []).map((item, index) => { 
+        if (item.type === 'separator') return '<hr>';
+        
+        const dataAttributes = Object.entries(data || {})
+                                     .map(([key, value]) => `data-${key}="${value}"`)
+                                     .join(' ');
+        
+        const actionName = item.action || (item.config ? 'context-execute-config' : '');
+
+        return `
+            <button data-action="${actionName}" ${dataAttributes} data-item-index="${index}">
+                ${Heroicons.render(item.icon || 'chevron-right', { class: 'w-4 h-4' })}
+                <span>${item.label}</span>
+            </button>
+        `;
+    }).join('');
+
+    root.innerHTML = `
+        <div id="toc-context-menu" style="left: ${x}px; top: ${y}px;">
+            ${itemsHtml}
+        </div>
+    `;
+
+    // ▼▼▼ [핵심 수정] 이 블록을 함수 맨 아래에 추가하세요. ▼▼▼
+    const menuEl = document.getElementById('toc-context-menu');
+    if (menuEl) {
+        // 메뉴 위에서 발생하는 mousedown 이벤트의 기본 동작을 막아
+        // 보기(view) 패널의 텍스트 선택이 해제되는 것을 방지합니다.
+        menuEl.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+        });
+    }
+    // ▲▲▲ [수정 완료] ▲▲▲
+},
+
+
         updateSaveStatusIndicator() {
             const container = document.getElementById('save-status-container');
             if (!container) return;
@@ -3943,6 +3954,66 @@ renderQuizResultView() {
                 // 모든 데이터 로드 후, 현재 URL을 기반으로 초기 화면을 설정하고 렌더링합니다.
                 await this.handleURLNavigation();
             },
+        initializeMainContextMenu() {
+    document.body.addEventListener('contextmenu', e => {
+        let menuItems = [];
+        let menuData = {};
+        let shouldShowMenu = false;
+
+        const tocItem = e.target.closest('.modal-container #toc-editor-list .toc-item');
+        const proseElement = e.target.closest('.prose-readable');
+
+        if (tocItem) {
+            // 1. TOC 메뉴 항목 구성 (action 이름 수정됨)
+            e.preventDefault();
+            menuItems = [
+                { label: '하위 파일 추가', icon: 'document-plus', action: 'toc-add-child' },
+                { label: '하위 폴더 추가', icon: 'folder-plus', action: 'toc-add-folder-child' },
+                { type: 'separator' },
+                { label: '이름 바꾸기', icon: 'pencil-square', action: 'toc-context-rename' },
+                { label: '삭제', icon: 'trash', action: 'toc-context-delete' },
+            ];
+            menuData = { path: tocItem.dataset.path };
+            shouldShowMenu = true;
+
+        } else if (proseElement && state.workspaceMode === 'view' && state.currentView === 'workspace') {
+            // 2. 메인 콘텐츠 메뉴 항목 구성
+            const selection = window.getSelection();
+            const selectedText = selection.toString().trim();
+
+            if (selectedText.length > 0) {
+                e.preventDefault();
+                const menuItemsConfig = state.activeProject?.settings?.contextMenuItems || [];
+                if (menuItemsConfig.length === 0) return;
+
+                menuItems = menuItemsConfig.map(item => ({
+                    label: item.name,
+                    icon: item.icon,
+                    config: item
+                }));
+                menuData = { selectedText };
+                shouldShowMenu = true;
+            }
+        }
+
+        // 3. 메뉴 표시 로직
+        if (shouldShowMenu && menuItems.length > 0) {
+            state.tocContextMenu = {
+                isOpen: true,
+                x: e.clientX,
+                y: e.clientY,
+                items: menuItems,
+                data: menuData
+            };
+            View.renderTocContextMenu();
+        } else {
+            if (state.tocContextMenu.isOpen) {
+                state.tocContextMenu.isOpen = false;
+                View.renderTocContextMenu();
+            }
+        }
+    });
+},
             async checkVersion() {
                 try {
                     // 브라우저 캐시를 무시하고 항상 최신 파일을 가져오기 위해 타임스탬프를 쿼리 파라미터로 추가합니다.
@@ -4217,18 +4288,17 @@ handleHighlightClick(event) {
 
             
 
-            /**
-             * [신규 함수] mousedown 이벤트를 처리하여 메뉴를 닫는 핸들러.
-             * 유예 시간(Grace Period) 로직이 포함됩니다.
-             */
             handleMouseDown(e) {
-                // TOC 컨텍스트 메뉴 닫기 로직
-                if (state.tocContextMenu.isOpen && !e.target.closest('#toc-context-menu')) {
-                    e.preventDefault();
-                    state.tocContextMenu.isOpen = false;
-                    View.render();
-                }
-            },
+    // 1. 마우스 왼쪽 버튼(primary) 클릭이 아닐 경우 무시하는 조건을 추가합니다.
+    if (e.button !== 0) {
+        return;
+    }
+    if (state.tocContextMenu.isOpen && !e.target.closest('#toc-context-menu')) {
+        state.tocContextMenu.isOpen = false;
+        // 2. View.render() 대신 더 가벼운 View.renderTocContextMenu()를 호출합니다.
+        View.renderTocContextMenu();
+    }
+},
             updateViewProgressBar() {
                 const container = document.querySelector('.main-content');
                 const progressBar = document.getElementById('view-progress-bar');
@@ -4305,51 +4375,6 @@ handleHighlightClick(event) {
                 
                 await DB.put(CONFIG.STORES.CONTENTS, content);
                 Controller.showToast(message, 'info');
-            },
-            initializeMainContextMenu() {
-                // 문서 전체에 단 하나의 contextmenu 리스너만 등록합니다.
-                document.body.addEventListener('contextmenu', e => {
-                    // **1. 목차(TOC) 관리 모달의 컨텍스트 메뉴 처리**
-                    const tocItem = e.target.closest('.modal-container #toc-editor-list .toc-item');
-                    if (tocItem) {
-                        e.preventDefault(); // 기본 메뉴 방지
-                        this.openTocContextMenu(e, tocItem.dataset.path);
-                        return; // 목차 메뉴를 처리했으므로 여기서 종료
-                    }
-
-                    // **2. 메인 콘텐츠('보기' 탭)의 컨텍스트 메뉴 처리**
-                    const proseElement = e.target.closest('.prose-readable');
-                    if (proseElement && state.workspaceMode === 'view' && state.currentView === 'workspace') {
-                        const selection = window.getSelection();
-                        const selectedText = selection.toString().trim();
-
-                        if (selectedText.length > 0) {
-                            e.preventDefault(); // 기본 메뉴 방지
-
-                            const menuItemsConfig = state.activeProject?.settings?.contextMenuItems || [];
-                            if (menuItemsConfig.length === 0) return;
-
-                            // Controller.initializeMainContextMenu() 내부
-                            const items = menuItemsConfig.map(item => ({
-                                title: item.name,
-                                fn: (data, el, event) => { 
-                                    event.stopPropagation(); 
-                                    
-                                    state.contextMenu = { selectedText };
-                                    if (item.action && typeof this.ACTION_HANDLERS[item.action] === 'function') {
-                                        this.ACTION_HANDLERS[item.action]();
-                                    } else if (item.template) {
-                                        this.processAndCopyPrompt(item.template, `실행: ${item.name}`);
-                                    }
-                                }
-                            }));
-
-                            basicContext.show(items, e);
-                        }
-                        // 텍스트가 선택되지 않았으면 기본 메뉴가 뜨도록 아무것도 하지 않음
-                    }
-                    // 다른 모든 영역에서는 기본 브라우저 메뉴가 정상적으로 작동합니다.
-                });
             },
 
             unsavedChangesHandler(e) {
@@ -8302,6 +8327,44 @@ Micro-interactions are the small, often unnoticed animations and design elements
                         Controller.showToast('프로젝트 정보를 찾을 수 없습니다.', 'error');
                     }
                 },
+                // 2. Controller.ACTION_HANDLERS 객체에 아래 핸들러를 새로 추가합니다.
+
+// [1. 교체] 'context-execute-config' 함수
+'context-execute-config': (el) => {
+    state.tocContextMenu.isOpen = false;
+    View.renderTocContextMenu();
+
+    const { selectedText } = state.tocContextMenu.data;
+    const allItems = state.tocContextMenu.items;
+
+    // data-item-index 속성에서 인덱스를 직접 가져와서 항목을 찾습니다.
+    const itemIndex = parseInt(el.dataset.itemIndex, 10);
+    const item = allItems[itemIndex];
+
+    if (item && item.config) {
+        const config = item.config;
+        state.contextMenu = { selectedText };
+
+        if (config.action && typeof Controller.ACTION_HANDLERS[config.action] === 'function') {
+            Controller.ACTION_HANDLERS[config.action]();
+        } else if (config.template) {
+            Controller.processAndCopyPrompt(config.template, `실행: ${config.name}`);
+        }
+    }
+},
+
+// [2. 추가] 'toc-add-folder-child' 함수
+'toc-add-folder-child': (el) => {
+    const path = el.dataset.path;
+    const parentNode = Utils.getNodeByPath(ModalManager.data.editableToc, path);
+    if (parentNode) {
+        if (!parentNode.children) parentNode.children = [];
+        const newNode = Utils.createTocNode("새 폴더");
+        newNode.children = []; // 폴더임을 나타내기 위해 children 배열을 가집니다.
+        parentNode.children.push(newNode);
+        ModalManager.updateTocView();
+    }
+},
 
                 // 전역 검색 결과를 추가로 더 보여주는 버튼의 핸들러입니다.
                 'global-search-show-more': () => {
