@@ -4571,7 +4571,7 @@ handleHighlightClick(event) {
                 const partNode = toc.children?.[pathParts[0]];
                 
                 return {
-                    'selected_text': state.contextMenu.selectedText || '',
+                    'selected_text': state.contextMenu?.selectedText || '',
                     'bookTitle': toc.title || '',
                     'projectGenre': settings.writingGenre || '',
                     'projectAgeGroup': settings.writingAgeGroup || '',
@@ -4601,7 +4601,7 @@ handleHighlightClick(event) {
                 const partNode = toc.children?.[pathParts[0]];
                 
                 return {
-                    'selected_text': state.contextMenu.selectedText || '',
+                    'selected_text': state.contextMenu?.selectedText || '',
                     'bookTitle': toc.title || '',
                     'projectGenre': settings.writingGenre || '',
                     'projectAgeGroup': settings.writingAgeGroup || '',
