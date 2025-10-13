@@ -5322,14 +5322,7 @@ Monotype: 가독성 알고리즘을 기반으로 콘텐츠에 따라 실시간�
     </Principle>
 
     <Principle name="MermaidSpecialCharEncoding (Mermaid 특수문자 처리)">
-        <Description>
-            Mermaid.js 다이어그램 텍스트 생성 시, 렌더링 오류를 유발하는 괄호 '()'를 직접 사용하지 않는다.
-            대신, 반드시 HTML 엔티티 코드 '#40;'와 '#41;'로 대체한다. 머메이드는 &을 고려하지 않으므로 주의한다.
-        </Description>
-        <Example>
-            - Bad: subgraph "최신 판례 변경 (배임죄 부정)"
-            - Good: subgraph "최신 판례 변경 #40;배임죄 부정 #41;"
-        </Example>
+        Mermaid 다이어그램 내에서 괄호 ()를 포함한 텍스트를 사용할 경우, Mermaid 표준에 따라 노드 레이블을 큰따옴표("...")로 감싸서 직접 사용합니다. (예: A["가정법원 (단독판사)"])
     </Principle>
 
 </CorePrinciples>
