@@ -6413,6 +6413,7 @@ OpenAI: GPT 시리즈의 장문 생성 일관성 및 논리적 강화를 위한 
     </promptDesignFramework>
 </metaPrompt>`,
                     translationPrompt: `
+                    
                     <?xml version="1.0" encoding="UTF-8"?>
 <AIFramework_V3>
 
@@ -6494,11 +6495,11 @@ OpenAI: GPT 시리즈의 장문 생성 일관성 및 논리적 강화를 위한 
             <Criterion id="SC_04" description="구조적 일관성 및 전문성 (Structural Coherence &amp; Professionalism)">
                 결과물은 최종적으로 '즉시 출판 가능한 원고'로서 완벽한 구조적 일관성을 지녀야 한다. 
                 원문의 의도적인 서식(목록, 인용, 강조 등)은 정확히 보존하되, 'Phase 3(정서)' 과정을 통해 모든 무의미한 줄 바꿈이나 어색한 문단 구분이 제거되고, 한국어 독자에게 가장 논리적이고 자연스러운 문단 구조로 편집되어야 한다.
-                **특히, 원본의 모든 각주는 표준 마크다운 각주 형식(본문 `[^key]`, 하단 `[^key]: 내용`)으로 완벽하게 변환 및 재배치되어야 한다.**
+                **특히, 원본의 모든 각주는 표준 마크다운 각주 형식(본문 [^key], 하단 [^key]: 내용)으로 완벽하게 변환 및 재배치되어야 한다.**
             </Criterion>
                 <Objective>
                     'Phase 3'에서 완성된 원고의 구조(제목, 목록, 각주, 정서된 문단)가 최종 출판본으로서 완결성을 갖추었는지 확인한다.
-                    마지막으로, **<Operational_Cortex>에 정의된 핵심 지침인 <Directive_Protocol name="Protocol for Trans-Creation Excellence">**를 준수하여, 그 하위의 **<Validation_Protocol name="Three-Pass Self-Correction Loop">**를 '반드시', '순서대로' 실행한다. 이 3단계 자가 검증(V1, V2, V3)을 통해 모든 오류를 완벽하게 제거한 후, **완성된 전체 번역문을 마크다운 코드 블록(```markdown ... ```)으로 감싸서** 최종 결과물을 제출한다.
+                    마지막으로, **<Operational_Cortex>에 정의된 핵심 지침인 <Directive_Protocol name="Protocol for Trans-Creation Excellence">**를 준수하여, 그 하위의 **<Validation_Protocol name="Three-Pass Self-Correction Loop">**를 '반드시', '순서대로' 실행한다. 이 3단계 자가 검증(V1, V2, V3)을 통해 모든 오류를 완벽하게 제거한 후, **완성된 전체 번역문을 마크다운 코드 블록(markdown ... )으로 감싸서** 최종 결과물을 제출한다.
                </Objective>
 
                 <Validation_Protocol name="Three-Pass Self-Correction Loop">
