@@ -198,6 +198,23 @@
             color: var(--accent-color);
             text-decoration: none;
         }
+        
+        /* --- New Loader CSS --- */
+        #loader {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            color: var(--primary-color);
+            z-index: 10;
+        }
+        /* --- End Loader CSS --- */
 
         /* Responsive adjustments */
         @media (max-width: 600px) {
@@ -209,6 +226,7 @@
     </style>
 </head>
 <body>
+    <div id="loader">데이터셋을 불러오는 중...</div>
     <div id="app">
         <h1>Quiz Factory</h1>
         <!-- Step 1: Upload JSON -->
@@ -581,8 +599,7 @@
         // Utility to show alert messages consistently
         function showError(message) {
             // Replaced alert() with console.error for a non-blocking experience
-            console.error('Quiz Factory Error:', message);
-            // You could implement a custom modal/toast here
+            console.warn('Quiz Factory:', message); // Changed to warn to be less intrusive
         }
 
         // Validate problems ensure they contain minimal required fields
@@ -687,6 +704,7 @@
                 container.appendChild(label);
             });
         }
+
 
         // Apply current filter selections to problems
         function applyFilters() {
@@ -841,6 +859,75 @@
                     },
                 ],
             });
+            const blob = await Packer.toBlob(doc);
+            return blob;
+        }
+
+        // Create a docx Blob for "O/X" format
+        async function createDocxBlob_OX(problemBatch) {
+            const docx = window.docx;
+            const { Document, Packer, Paragraph, TextRun, HeadingLevel, SectionType, AlignmentType } = docx;
+
+            const oxProblems = [];
+            const oxAnswers = [];
+            let oxCounter = 1;
+
+            problemBatch.forEach((p, problemIndex) => {
+                const sourceText = `[출처: ${p.source} #${p.sourceNumber || p.id.split('-').pop()}]`;
+                
+                // For STANDARD type, use options
+                if (p.type === 'STANDARD' && Array.isArray(p.choices)) {
+                    p.choices.forEach(choice => {
+                        if (choice && typeof choice === 'object' && choice.text != null && choice.isTrue != null) {
+                            const questionText = `${oxCounter}. (O / X) ${choice.text} ${sourceText}`;
+                            oxProblems.push(new Paragraph({ text: questionText, size: 20 }));
+                            oxAnswers.push(new Paragraph({ text: `${oxCounter}. ${choice.isTrue ? 'O' : 'X'}` }));
+                            oxCounter++;
+                        }
+                    });
+                }
+                // For COMBINATION type, use statements
+                else if (p.type === 'COMBINATION' && Array.isArray(p.statements)) {
+                     p.statements.forEach(statement => {
+                        if (statement && statement.text != null && statement.isTrue != null) {
+                            const questionText = `${oxCounter}. (O / X) ${statement.text} ${sourceText}`;
+                            oxProblems.push(new Paragraph({ text: questionText, size: 20 }));
+                            oxAnswers.push(new Paragraph({ text: `${oxCounter}. ${statement.isTrue ? 'O' : 'X'}` }));
+                            oxCounter++;
+                        }
+                    });
+                }
+                // Add a visual separator after all O/X questions from one original problem
+                if (oxProblems.length > 0) {
+                     oxProblems.push(new Paragraph({ text: "--------------------", alignment: AlignmentType.CENTER, spacing: { before: 100, after: 100 } }));
+                }
+            });
+
+            // Remove last separator
+            if (oxProblems.length > 0) oxProblems.pop();
+            
+            // --- Answer key paragraphs ---
+            const answerSheetParagraphs = [];
+            answerSheetParagraphs.push(new Paragraph({ text: 'O/X 정오표', heading: HeadingLevel.HEADING_2, alignment: AlignmentType.CENTER }));
+            answerSheetParagraphs.push(...oxAnswers);
+            
+            // --- Document structure ---
+            const doc = new Document({
+                sections: [
+                    {
+                        properties: { column: { count: 1 } },
+                        children: [
+                            new Paragraph({ text: 'O/X 문제', heading: HeadingLevel.HEADING_1, alignment: AlignmentType.CENTER }),
+                            ...oxProblems
+                        ],
+                    },
+                    {
+                        properties: { type: SectionType.NEXT_PAGE, column: { count: 3 } }, // Answer key in 3 columns
+                        children: answerSheetParagraphs,
+                    },
+                ],
+            });
+
             const blob = await Packer.toBlob(doc);
             return blob;
         }
@@ -1117,15 +1204,48 @@
 
         // Initialize database and load existing datasets on page load
         document.addEventListener('DOMContentLoaded', async () => {
+            const loader = document.getElementById('loader');
             try {
                 await initDB();
+
+                // --- New: Default Dataset Fetch Logic ---
+                const defaultDatasetName = 'exam_data_combined.json';
+                const defaultDatasetUrl = 'https://mminimin112313.github.io/learn/exam_data_combined.json';
+
+                // 1. Check if default dataset exists
+                let existing = null;
+                try {
+                     existing = await loadDataset(defaultDatasetName);
+                } catch (e) {
+                    console.warn("Error checking for existing dataset:", e);
+                }
+               
+
+                if (!existing) {
+                    // 2. If not, fetch it
+                    loader.textContent = '기본 데이터셋을 다운로드 중입니다...';
+                    const response = await fetch(defaultDatasetUrl);
+                    if (!response.ok) {
+                        throw new Error(`Default dataset fetch failed: ${response.statusText}`);
+                    }
+                    const rawData = await response.json();
+
+                    // 3. Parse, validate, and save
+                    const problems = parseJsonData(rawData, defaultDatasetName);
+                    validateProblems(problems);
+                    await saveDataset(defaultDatasetName, problems);
+                    console.log('Default dataset loaded and saved.');
+                }
+                // --- End: Default Dataset Fetch Logic ---
+
                 await updateDatasetList();
             } catch (err) {
-                showError('IndexedDB 초기화에 실패했습니다: ' + err.message);
+                showError('IndexedDB 초기화 또는 기본 데이터셋 로드에 실패했습니다: ' + err.message);
+            } finally {
+                // Hide loader
+                if(loader) loader.style.display = 'none';
             }
         });
     </script>
 </body>
 </html>
-
-
