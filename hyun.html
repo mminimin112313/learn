@@ -1,0 +1,1131 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Quiz Factory</title>
+    <!-- Load docx.js library from unpkg CDN (version 8.5.0) -->
+    <script src="https://unpkg.com/docx@8.5.0/build/index.umd.js"></script>
+    <style>
+        :root {
+            --primary-color: #0055aa;
+            --accent-color: #007bff;
+            --bg-color: #f4f6f9;
+            --border-color: #dcdfe6;
+            --font-size: 16px;
+            --spacing: 8px;
+        }
+
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+            background-color: var(--bg-color);
+            color: #333;
+            line-height: 1.5;
+        }
+
+        #app {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1rem;
+        }
+
+        h1, h2 {
+            color: var(--primary-color);
+        }
+
+        .wizard-step {
+            display: none;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            background: #fff;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .wizard-step.active {
+            display: block;
+        }
+
+        .file-uploader {
+            border: 2px dashed var(--border-color);
+            border-radius: 4px;
+            padding: 2rem;
+            text-align: center;
+            color: #666;
+            background: #fafafa;
+            cursor: pointer;
+        }
+
+        .file-uploader.dragover {
+            background: #e6f2ff;
+            border-color: var(--accent-color);
+            color: var(--accent-color);
+        }
+
+        /* Dataset manager styles */
+        #dataset-manager {
+            margin-top: 1rem;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            background: #fafafa;
+            padding: 0.5rem;
+            max-height: 250px;
+            overflow-y: auto;
+        }
+
+        #dataset-manager h3 {
+            margin: 0 0 0.5rem 0;
+            font-size: 1rem;
+            color: var(--primary-color);
+        }
+
+        #dataset-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .dataset-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.25rem 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .dataset-item:last-child {
+            border-bottom: none;
+        }
+
+        .dataset-name {
+            flex: 1;
+            font-size: 0.9rem;
+        }
+
+        .dataset-item button {
+            margin-left: 0.25rem;
+            padding: 0.25rem 0.5rem;
+            font-size: 0.8rem;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            color: #fff;
+            background: var(--primary-color);
+        }
+
+        .dataset-item button.delete {
+            background: #d9534f;
+        }
+
+        .filter-panel {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .filter-panel > div {
+            flex: 1 1 250px;
+            min-width: 200px;
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 0.5rem;
+            background: #fafafa;
+        }
+
+        .filter-panel h3 {
+            margin-top: 0;
+            font-size: 1rem;
+            color: var(--primary-color);
+        }
+
+        .filter-panel label {
+            display: block;
+            margin-bottom: 0.25rem;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+
+        .filter-panel ul {
+            list-style: none;
+            padding-left: 1rem;
+            margin: 0;
+        }
+
+        .filter-panel li {
+            margin-bottom: 0.25rem;
+        }
+
+        .actions {
+            margin-top: 1rem;
+            display: flex;
+            gap: 1rem;
+        }
+
+        .actions button {
+            padding: 0.5rem 1rem;
+            font-size: 1rem;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            color: #fff;
+            background: var(--primary-color);
+        }
+
+        .actions button[disabled] {
+            background: #aaa;
+            cursor: default;
+        }
+
+        .options {
+            margin-top: 1rem;
+        }
+
+        .options label {
+            font-size: 0.9rem;
+        }
+
+        #selected-count {
+            font-weight: bold;
+            color: var(--accent-color);
+        }
+
+        #download-links a {
+            display: block;
+            margin-top: 0.5rem;
+            color: var(--accent-color);
+            text-decoration: none;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 600px) {
+            .filter-panel > div {
+                flex: 1 1 100%;
+                max-height: 200px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <h1>Quiz Factory</h1>
+        <!-- Step 1: Upload JSON -->
+        <section id="step-1" class="wizard-step active">
+            <h2>1단계: JSON 업로드</h2>
+            <div id="upload-area" class="file-uploader">
+                <p>여기에 JSON 파일을 드래그 앤 드롭하거나 클릭하여 업로드하세요.</p>
+                <input type="file" id="file-input" accept="application/json" hidden />
+            </div>
+            <!-- Dataset manager panel -->
+            <div id="dataset-manager">
+                <h3>저장된 데이터셋</h3>
+                <ul id="dataset-list"></ul>
+            </div>
+            <div class="actions">
+                <button id="step1-next" disabled>다음 단계</button>
+            </div>
+        </section>
+        <!-- Step 2: Filters and Options -->
+        <section id="step-2" class="wizard-step">
+            <h2>2단계: 필터 및 옵션</h2>
+            <div class="filter-panel">
+                <div id="subjects-panel">
+                    <h3>과목</h3>
+                    <div id="filter-subjects"></div>
+                </div>
+                <div id="categories-panel">
+                    <h3>세부 카테고리</h3>
+                    <div id="filter-categories"></div>
+                </div>
+                <div id="tags-panel">
+                    <h3>태그</h3>
+                    <div id="filter-tags"></div>
+                </div>
+                <div id="sources-panel">
+                    <h3>출처</h3>
+                    <div id="filter-sources"></div>
+                </div>
+                <div id="types-panel">
+                    <h3>문제 유형</h3>
+                    <div id="filter-types"></div>
+                    
+                    <div class="options" style="margin-top: 1rem; border-top: 1px solid var(--border-color); padding-top: 1rem;">
+                        <label for="problem-count">
+                            문제 수 (최대 <span id="selected-count">0</span>개):
+                        </label>
+                        <input type="number" id="problem-count" min="0" value="0" style="width: 80px; border: 1px solid var(--border-color); border-radius: 3px; padding: 0.25rem;">
+                    </div>
+
+                    <div class="options" style="margin-top: 0.5rem;">
+                        <label for="output-type">출제 유형:</label>
+                        <select id="output-type" style="border: 1px solid var(--border-color); border-radius: 3px; padding: 0.25rem;">
+                            <option value="original">원본 문제 형식</option>
+                            <option value="ox">O/X 문제 형식</option>
+                        </select>
+                    </div>
+
+                    <div class="options" style="margin-top: 0.5rem;">
+                        <label><input type="checkbox" id="randomize-toggle" /> 문제 순서 섞기</label>
+                    </div>
+                </div>
+            </div>
+            <div class="actions">
+                <button id="step2-prev">이전 단계</button>
+                <button id="step2-next" disabled>다음 단계</button>
+            </div>
+        </section>
+        <!-- Step 3: Generate Document -->
+        <section id="step-3" class="wizard-step">
+            <h2>3단계: 문서 생성</h2>
+            <p>필터링된 문제를 기반으로 Word 문서를 생성합니다.</p>
+            <div class="actions">
+                <button id="generate-btn">문서 생성</button>
+            </div>
+            <div id="download-links"></div>
+            <div class="actions">
+                <button id="step3-prev">이전 단계</button>
+            </div>
+        </section>
+    </div>
+    <script>
+        // Application state
+        const appState = {
+            problems: [], // currently loaded dataset's problems
+            filteredProblems: [],
+            filters: {
+                subjects: new Set(),      // New
+                subcategories: new Set(), // Renamed
+                sources: new Set(),
+                tags: new Set(),
+                types: new Set(),
+            },
+            selections: {
+                subjects: new Set(),      // New
+                subcategories: new Set(), // Renamed
+                sources: new Set(),
+                tags: new Set(),
+                types: new Set(),
+            },
+            randomize: false,
+            problemCount: 0,
+            outputType: 'original',
+        };
+
+        // IndexedDB variables
+        const DB_NAME = 'quizFactoryDB';
+        const DB_VERSION = 1;
+        const STORE_NAME = 'datasets';
+        let db = null;
+        let currentDatasetName = null;
+
+        // Initialize IndexedDB
+        function initDB() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open(DB_NAME, DB_VERSION);
+                request.onupgradeneeded = (event) => {
+                    const database = event.target.result;
+                    if (!database.objectStoreNames.contains(STORE_NAME)) {
+                        database.createObjectStore(STORE_NAME, { keyPath: 'name' });
+                    }
+                };
+                request.onerror = (event) => {
+                    reject(event.target.error);
+                };
+                request.onsuccess = (event) => {
+                    db = event.target.result;
+                    resolve();
+                };
+            });
+        }
+
+        // Save dataset to IndexedDB
+        function saveDataset(name, problems) {
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(STORE_NAME, 'readwrite');
+                const store = tx.objectStore(STORE_NAME);
+                store.put({ name, problems, count: problems.length, created: Date.now() });
+                tx.oncomplete = () => resolve();
+                tx.onerror = (event) => reject(event.target.error);
+            });
+        }
+
+        // Get all datasets
+        function getAllDatasets() {
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(STORE_NAME, 'readonly');
+                const store = tx.objectStore(STORE_NAME);
+                const req = store.getAll();
+                req.onsuccess = () => resolve(req.result);
+                req.onerror = (event) => reject(event.target.error);
+            });
+        }
+
+        // Load dataset by name
+        function loadDataset(name) {
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(STORE_NAME, 'readonly');
+                const store = tx.objectStore(STORE_NAME);
+                const req = store.get(name);
+                req.onsuccess = () => resolve(req.result);
+                req.onerror = (event) => reject(event.target.error);
+            });
+        }
+
+        // Delete dataset by name
+        function deleteDataset(name) {
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(STORE_NAME, 'readwrite');
+                const store = tx.objectStore(STORE_NAME);
+                const req = store.delete(name);
+                req.onsuccess = () => resolve();
+                req.onerror = (event) => reject(event.target.error);
+            });
+        }
+
+        // Update dataset list UI
+        async function updateDatasetList() {
+            const listElem = document.getElementById('dataset-list');
+            if (!db) return;
+            const datasets = await getAllDatasets();
+            listElem.innerHTML = '';
+            datasets.sort((a, b) => a.name.localeCompare(b.name));
+            datasets.forEach(ds => {
+                const li = document.createElement('li');
+                li.className = 'dataset-item';
+                const nameSpan = document.createElement('span');
+                nameSpan.className = 'dataset-name';
+                nameSpan.textContent = `${ds.name} (${ds.count})`;
+                if (ds.name === currentDatasetName) {
+                    nameSpan.style.fontWeight = 'bold';
+                }
+                const loadBtn = document.createElement('button');
+                loadBtn.textContent = '불러오기';
+                loadBtn.dataset.name = ds.name;
+                loadBtn.addEventListener('click', async () => {
+                    await handleDatasetLoad(ds.name);
+                });
+                const deleteBtn = document.createElement('button');
+                deleteBtn.textContent = '삭제';
+                deleteBtn.classList.add('delete');
+                deleteBtn.dataset.name = ds.name;
+                deleteBtn.addEventListener('click', async () => {
+                    // Replaced confirm() with a simple alert for non-blocking notification
+                    const confirmed = true; // Simulating auto-confirm to avoid blocking
+                    if (confirmed) {
+                        await handleDatasetDelete(ds.name);
+                    }
+                });
+                li.appendChild(nameSpan);
+                li.appendChild(loadBtn);
+                li.appendChild(deleteBtn);
+                listElem.appendChild(li);
+            });
+        }
+
+        // Handle loading of a dataset
+        async function handleDatasetLoad(name) {
+            try {
+                const entry = await loadDataset(name);
+                if (entry && entry.problems) {
+                    currentDatasetName = name;
+                    appState.problems = entry.problems;
+                    
+                    // Reset selections with the correct structure
+                    appState.selections = {
+                        subjects: new Set(),
+                        subcategories: new Set(),
+                        sources: new Set(),
+                        tags: new Set(),
+                        types: new Set(),
+                    };
+                    
+                    initializeFilters(); // This will call applyFilters
+                    
+                    // Enable next step
+                    document.getElementById('step1-next').disabled = appState.problems.length === 0;
+                    
+                    // Reset UI elements in step 2
+                    document.getElementById('problem-count').value = 0;
+                    document.getElementById('output-type').value = 'original';
+                    document.getElementById('randomize-toggle').checked = false;
+                    appState.problemCount = 0;
+                    appState.outputType = 'original';
+                    appState.randomize = false;
+
+                    updateDatasetList();
+                    showError(`${name} 데이터셋을 불러왔습니다.`);
+                }
+            } catch (err) {
+                showError('데이터셋을 불러오지 못했습니다: ' + err.message);
+            }
+        }
+
+        // Handle deletion of dataset
+        async function handleDatasetDelete(name) {
+            try {
+                await deleteDataset(name);
+                // If current dataset is deleted, clear state
+                if (name === currentDatasetName) {
+                    currentDatasetName = null;
+                    appState.problems = [];
+                    appState.filteredProblems = [];
+                    initializeFilters();
+                    applyFilters();
+                    document.getElementById('step1-next').disabled = true;
+                    document.getElementById('step2-next').disabled = true;
+                    // If user is not on step1, return to step1
+                    document.getElementById('step-2').classList.remove('active');
+                    document.getElementById('step-3').classList.remove('active');
+                    document.getElementById('step-1').classList.add('active');
+                }
+                await updateDatasetList();
+                showError(`${name} 데이터셋이 삭제되었습니다.`);
+            } catch (err) {
+                showError('데이터셋 삭제 중 오류가 발생했습니다: ' + err.message);
+            }
+        }
+
+        // Parse uploaded JSON into internal problem objects
+        function parseJsonData(data, fileName) {
+            const problems = [];
+            const addProblem = (obj, sourceName) => {
+                // Derive unique ID using dataset name and index
+                const baseId = problems.length + 1;
+                const problem = {};
+                problem.id = `${sourceName}-${baseId}`;
+                problem.question = obj.question || obj.prompt || '';
+                problem.type = obj.question_type || obj.type || 'UNKNOWN';
+                
+                // Handle category (array[Subject, Subcategory])
+                if (Array.isArray(obj.category) && obj.category.length > 0) {
+                    problem.subject = obj.category[0] || '미분류';
+                    // Join all parts after the first as the subcategory
+                    problem.subcategory = obj.category.slice(1).join(' / ') || '없음';
+                } else if (typeof obj.category === 'string' && obj.category.includes('/')) { // Handle old slash format
+                    const parts = obj.category.split('/');
+                    problem.subject = parts[0];
+                    problem.subcategory = parts.slice(1).join(' / ') || '없음';
+                } else {
+                    problem.subject = (typeof obj.category === 'string' && obj.category) ? obj.category : '미분류';
+                    problem.subcategory = '없음';
+                }
+
+                // Handle source (might be object or string)
+                if (obj.source && typeof obj.source === 'object' && obj.source.exam) {
+                    problem.source = obj.source.exam;
+                    problem.sourceNumber = obj.source.number || ''; // Store source number
+                } else if (obj.source) {
+                    problem.source = obj.source;
+                } else {
+                    problem.source = sourceName;
+                }
+                
+                problem.tags = Array.isArray(obj.tags) ? obj.tags : [];
+                
+                // choices (for STANDARD) - store full objects
+                if (Array.isArray(obj.options)) {
+                    problem.choices = obj.options; 
+                } else {
+                    problem.choices = [];
+                }
+                
+                // statements (for COMBINATION) - store full objects
+                if (Array.isArray(obj.statements)) {
+                    problem.statements = obj.statements;
+                } else {
+                    problem.statements = [];
+                }
+                
+                // answer
+                problem.answer = obj.answer != null ? obj.answer : '';
+                problems.push(problem);
+            };
+            
+            if (Array.isArray(data)) {
+                data.forEach(item => {
+                    if (item.question || item.prompt) {
+                        // It's a single problem object
+                        addProblem(item, fileName);
+                    } else if (Array.isArray(item.questions)) {
+                        // It's an object containing a 'questions' array
+                        // Iterate nested problems
+                        item.questions.forEach(nestedProblem => {
+                            addProblem(nestedProblem, fileName);
+                        });
+                    }
+                    // Items that are neither (like empty objects) are safely skipped
+                });
+            } else if (data && typeof data === 'object') {
+                if (Array.isArray(data.questions)) {
+                    data.questions.forEach(item => addProblem(item, fileName));
+                } else if (data.files) {
+                    // exam-parser format
+                    for (const fileKey in data.files) {
+                        const f = data.files[fileKey];
+                        const pd = f.parsedData;
+                        if (pd && Array.isArray(pd.questions)) {
+                            pd.questions.forEach(item => addProblem(item, fileKey));
+                        }
+                    }
+                } else {
+                    throw new Error('지원되지 않는 JSON 구조입니다.');
+                }
+            } else {
+                throw new Error('지원되지 않는 JSON 구조입니다.');
+            }
+            return problems;
+        }
+
+        // Utility to show alert messages consistently
+        function showError(message) {
+            // Replaced alert() with console.error for a non-blocking experience
+            console.error('Quiz Factory Error:', message);
+            // You could implement a custom modal/toast here
+        }
+
+        // Validate problems ensure they contain minimal required fields
+        function validateProblems(problems) {
+            if (!Array.isArray(problems)) {
+                throw new Error('JSON 구조가 유효하지 않습니다.');
+            }
+            problems.forEach((p, idx) => {
+                if (typeof p !== 'object' || p === null) {
+                    throw new Error(`문제 ${idx + 1}는 객체가 아닙니다.`);
+                }
+                if (!p.question) {
+                    throw new Error(`문제 ${idx + 1}에 question 필드가 없습니다.`);
+                }
+                if (p.answer == null) {
+                    throw new Error(`문제 ${idx + 1}에 answer 필드가 없습니다.`);
+                }
+            });
+        }
+
+        // Initialize filters after file upload
+        function initializeFilters() {
+            // Reset filter sets
+            appState.filters.subjects.clear();
+            appState.filters.subcategories.clear();
+            appState.filters.sources.clear();
+            appState.filters.tags.clear();
+            appState.filters.types.clear();
+
+            // Populate all possible filters from the loaded problems
+            appState.problems.forEach(p => {
+                appState.filters.subjects.add(p.subject);
+                appState.filters.subcategories.add(p.subcategory);
+                appState.filters.sources.add(p.source);
+                p.tags.forEach(t => appState.filters.tags.add(t));
+                appState.filters.types.add(p.type);
+            });
+
+            // Render all filters for the first time
+            updateFilterRenders();
+        }
+
+        // Render simple filter list (subjects, subcategories, sources, tags, types)
+        // This function now calculates counts dynamically based on the passed problemList.
+        function renderSimpleFilter(containerId, problemList, propertyKey, selectionKey, masterList) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            container.innerHTML = '';
+
+            // 1. Calculate counts from the *filtered* problem list
+            const counts = new Map();
+            problemList.forEach(p => {
+                if (propertyKey === 'tag') {
+                    // Tags is an array, count each tag
+                    if (Array.isArray(p.tags)) {
+                        p.tags.forEach(tag => {
+                            counts.set(tag, (counts.get(tag) || 0) + 1);
+                        });
+                    }
+                } else {
+                    // Other properties are single strings
+                    const value = p[propertyKey];
+                    counts.set(value, (counts.get(value) || 0) + 1);
+                }
+            });
+
+            // 2. Get all unique items from the *master* list
+            const items = Array.from(masterList).sort();
+
+            // 3. Render list, showing items from masterList and counts from problemList
+            items.forEach(item => {
+                const count = counts.get(item) || 0;
+                const isChecked = appState.selections[selectionKey].has(item);
+
+                // MODIFICATION: Hide items with (0) count, unless they are currently checked
+                if (count === 0 && !isChecked) {
+                    return; // Skip rendering this item
+                }
+                
+                const label = document.createElement('label');
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.dataset.value = item;
+
+                // Set checked state based on current selections
+                checkbox.checked = isChecked;
+
+                checkbox.addEventListener('change', () => {
+                    const set = appState.selections[selectionKey];
+                    if (checkbox.checked) {
+                        set.add(item);
+                    } else {
+                        set.delete(item);
+                    }
+                    // Re-render all filters and update final count
+                    updateFilterRenders();
+                });
+                
+                label.appendChild(checkbox);
+                // Show item with its dynamic count
+                label.appendChild(document.createTextNode(` ${item} (${count})`));
+                container.appendChild(label);
+            });
+        }
+
+        // Apply current filter selections to problems
+        function applyFilters() {
+            let result = appState.problems;
+
+            // Filter by subjects
+            if (appState.selections.subjects.size > 0) {
+                const subArray = Array.from(appState.selections.subjects);
+                result = result.filter(p => subArray.includes(p.subject));
+            }
+
+            // Filter by subcategories
+            if (appState.selections.subcategories.size > 0) {
+                const catArray = Array.from(appState.selections.subcategories);
+                result = result.filter(p => catArray.includes(p.subcategory));
+            }
+
+            // Filter by sources
+            if (appState.selections.sources.size > 0) {
+                const srcArray = Array.from(appState.selections.sources);
+                result = result.filter(p => srcArray.includes(p.source));
+            }
+            
+            // Filter by tags (problem must include at least one of the selected tags)
+            if (appState.selections.tags.size > 0) {
+                const tagArray = Array.from(appState.selections.tags);
+                result = result.filter(p => Array.isArray(p.tags) && tagArray.some(t => p.tags.includes(t)));
+            }
+
+            // Filter by types
+            if (appState.selections.types.size > 0) {
+                const typeArray = Array.from(appState.selections.types);
+                result = result.filter(p => typeArray.includes(p.type));
+            }
+
+            appState.filteredProblems = result;
+            
+            // Update selected count display
+            const count = result.length;
+            document.getElementById('selected-count').textContent = count;
+            
+            // Update problem count input max
+            const problemCountInput = document.getElementById('problem-count');
+            problemCountInput.max = count;
+            if (parseInt(problemCountInput.value, 10) > count || parseInt(problemCountInput.value, 10) === 0) {
+                problemCountInput.value = count; // Set to max if current value is invalid or 0
+                appState.problemCount = count;
+            }
+            
+            // Enable or disable next step button based on filtered problems
+            document.getElementById('step2-next').disabled = count === 0;
+        }
+
+        // Shuffle array (Fisher-Yates)
+        function shuffleArray(array) {
+            const arr = array.slice();
+            for (let i = arr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [arr[i], arr[j]] = [arr[j], arr[i]];
+            }
+            return arr;
+        }
+
+        // Create a docx Blob for "Original" format
+        async function createDocxBlob_Original(problemBatch) {
+            const docx = window.docx;
+            const { Document, Packer, Paragraph, TextRun, HeadingLevel, SectionType, AlignmentType } = docx;
+            
+            function getNumberPrefix(index) {
+                if (index < 20) { // Support for ① to ⑳
+                    return String.fromCharCode(0x2460 + index) + ' ';
+                }
+                return `${index + 1}. `; // Fallback
+            }
+
+            // --- Generate question paragraphs ---
+            const questionParagraphs = [];
+            problemBatch.forEach((p, index) => {
+                const runs = [];
+                // Number and question text
+                runs.push(new TextRun({ text: `${index + 1}. ${p.question}`, bold: true, size: 22 })); // 11pt
+                runs.push(new TextRun({ text: '', break: 1 }));
+
+                // If statements exist (COMBINATION type), print <보기> block
+                if (Array.isArray(p.statements) && p.statements.length > 0) {
+                    runs.push(new TextRun({ text: '--- <보기> ---', italic: true, size: 20 })); // 10pt
+                    runs.push(new TextRun({ text: '', break: 1 }));
+                    p.statements.forEach((st) => {
+                        const prefix = st.id ? st.id + '. ' : '';
+                        runs.push(new TextRun({ text: prefix + (st.text || ''), size: 20 }));
+                        runs.push(new TextRun({ text: '', break: 1 }));
+                    });
+                }
+
+                // List choices if provided (for both STANDARD and COMBINATION)
+                if (Array.isArray(p.choices) && p.choices.length > 0) {
+                    p.choices.forEach((choice, idx) => {
+                        const prefix = getNumberPrefix(idx); // ①, ②, ③...
+                        // 'choice' can be a string or an object {text: ..., isTrue: ...}
+                        const choiceText = (typeof choice === 'string') ? choice : (choice.text || '');
+                        runs.push(new TextRun({ text: prefix + choiceText, size: 20 }));
+                        runs.push(new TextRun({ text: '', break: 1 }));
+                    });
+                }
+                
+                // Add source information
+                const sourceText = `[출처: ${p.source} #${p.sourceNumber || p.id.split('-').pop()}]`;
+                runs.push(new TextRun({ text: sourceText, color: "808080", size: 18, italic: true })); // 9pt, gray
+                
+                // Extra break between questions
+                runs.push(new TextRun({ text: '', break: 1 }));
+                questionParagraphs.push(new Paragraph({ children: runs, spacing: { after: 100 } })); // Add spacing after paragraph
+            });
+
+            // --- Answer key paragraphs ---
+            const answerParagraphs = [];
+            answerParagraphs.push(new Paragraph({ text: '정오표', heading: HeadingLevel.HEADING_2, alignment: AlignmentType.CENTER }));
+            
+            problemBatch.forEach((p, idx) => {
+                let ansPrefix = '';
+                try {
+                    const answerIndex = parseInt(p.answer, 10) - 1;
+                    if (answerIndex >= 0 && answerIndex < 20) {
+                        ansPrefix = getNumberPrefix(answerIndex); // Get ①, ②, ③...
+                    } else {
+                         ansPrefix = `${p.answer}.`; // Fallback
+                    }
+                } catch (e) {
+                    ansPrefix = `${p.answer}.`; // Fallback
+                }
+                
+                const answerText = `${idx + 1}. ${ansPrefix.trim()}`;
+                answerParagraphs.push(new Paragraph({ text: answerText, style: "ListParagraph" }));
+            });
+            
+            // Document structure: 2-column first section, next page single column for answer sheet
+            const doc = new Document({
+                sections: [
+                    {
+                        properties: {
+                            // Use 2 columns for questions
+                            column: { count: 2, space: 720 },
+                        },
+                        children: questionParagraphs,
+                    },
+                    {
+                        properties: {
+                            type: SectionType.NEXT_PAGE,
+                            // Single column for answer key (implicitly 1)
+                        },
+                        children: answerParagraphs,
+                    },
+                ],
+            });
+            const blob = await Packer.toBlob(doc);
+            return blob;
+        }
+
+        // New function to update all filter panels and their counts
+        function updateFilterRenders() {
+            
+            // Helper function to get a filtered list of problems, excluding one filter key
+            // This shows counts for items *as if* this filter wasn't applied
+            const getFilteredProblems = (excludeSelectionKey = null) => {
+                let problems = appState.problems;
+                
+                if (excludeSelectionKey !== 'subjects' && appState.selections.subjects.size > 0) {
+                    const selection = appState.selections.subjects;
+                    problems = problems.filter(p => selection.has(p.subject));
+                }
+                if (excludeSelectionKey !== 'subcategories' && appState.selections.subcategories.size > 0) {
+                    const selection = appState.selections.subcategories;
+                    problems = problems.filter(p => selection.has(p.subcategory));
+                }
+                if (excludeSelectionKey !== 'tags' && appState.selections.tags.size > 0) {
+                    const selection = appState.selections.tags;
+                    problems = problems.filter(p => Array.isArray(p.tags) && selection.some(t => p.tags.includes(t)));
+                }
+                if (excludeSelectionKey !== 'sources' && appState.selections.sources.size > 0) {
+                    const selection = appState.selections.sources;
+                    problems = problems.filter(p => selection.has(p.source));
+                }
+                if (excludeSelectionKey !== 'types' && appState.selections.types.size > 0) {
+                    const selection = appState.selections.types;
+                    problems = problems.filter(p => selection.has(p.type));
+                }
+                return problems;
+            };
+
+            // Get problem lists for each filter context
+            const subjectProblems = getFilteredProblems('subjects');
+            const subcategoryProblems = getFilteredProblems('subcategories');
+            const tagProblems = getFilteredProblems('tags');
+            const sourceProblems = getFilteredProblems('sources');
+            const typeProblems = getFilteredProblems('types');
+
+            // Render all filters with updated counts and master lists
+            renderSimpleFilter('filter-subjects', subjectProblems, 'subject', 'subjects', appState.filters.subjects);
+            renderSimpleFilter('filter-categories', subcategoryProblems, 'subcategory', 'subcategories', appState.filters.subcategories);
+            renderSimpleFilter('filter-tags', tagProblems, 'tag', 'tags', appState.filters.tags);
+            renderSimpleFilter('filter-sources', sourceProblems, 'source', 'sources', appState.filters.sources);
+            renderSimpleFilter('filter-types', typeProblems, 'type', 'types', appState.filters.types);
+
+            // Finally, update the main problem count based on *all* filters
+            applyFilters();
+        }
+
+        // Generate .docx files from filteredProblems
+        async function handleGeneration() {
+            const problems = appState.filteredProblems;
+            
+            // 1. Get generation options from UI
+            appState.randomize = document.getElementById('randomize-toggle').checked;
+            appState.outputType = document.getElementById('output-type').value;
+            let count = parseInt(document.getElementById('problem-count').value, 10);
+            
+            if (isNaN(count) || count <= 0 || count > problems.length) {
+                count = problems.length;
+            }
+            appState.problemCount = count; // Update state
+            
+            // 2. Prepare final list
+            let list = appState.filteredProblems;
+
+            if (appState.randomize) {
+                // First, shuffle the order of problems
+                let shuffledList = shuffleArray(list);
+
+                // Second, iterate and shuffle contents *within* each problem
+                // We must map to a new array to avoid mutating the original appState.problems
+                list = shuffledList.map(p => {
+                    // Create a deep-enough copy to avoid mutation
+                    const shuffledProblem = JSON.parse(JSON.stringify(p)); 
+
+                    // A) Shuffle STANDARD choices and update answer
+                    if (shuffledProblem.type === 'STANDARD' && Array.isArray(shuffledProblem.choices)) {
+                        // Find the original correct choice object
+                        const originalCorrectChoice = shuffledProblem.choices.find(c => c.isTrue);
+                        
+                        if (originalCorrectChoice) {
+                            // Shuffle the choices array
+                            shuffledProblem.choices = shuffleArray(shuffledProblem.choices);
+                            // Find the new index of that correct choice
+                            const newAnswerIndex = shuffledProblem.choices.findIndex(c => c.text === originalCorrectChoice.text);
+                            // Update the answer to the new 1-based index
+                            shuffledProblem.answer = newAnswerIndex + 1;
+                        }
+                        // If no isTrue (data error?), just shuffle choices without updating answer
+                        else {
+                            shuffledProblem.choices = shuffleArray(shuffledProblem.choices);
+                        }
+                    }
+
+                    // B) Shuffle COMBINATION statements and options, and update answer
+                    if (shuffledProblem.type === 'COMBINATION') {
+                        // Shuffle <보기> statements
+                        if (Array.isArray(shuffledProblem.statements)) {
+                            shuffledProblem.statements = shuffleArray(shuffledProblem.statements);
+                        }
+
+                        // Shuffle final options (①, ②, ...) and update answer
+                        if (Array.isArray(shuffledProblem.choices)) {
+                            // Find original answer text (e.g., "ㄱ, ㄷ, ㅂ")
+                            const originalAnswerIndex = parseInt(shuffledProblem.answer, 10) - 1;
+                            const originalAnswerText = (shuffledProblem.choices[originalAnswerIndex] && typeof shuffledProblem.choices[originalAnswerIndex] === 'object') 
+                                                        ? shuffledProblem.choices[originalAnswerIndex].text 
+                                                        : null;
+
+                            if (originalAnswerText) {
+                                // Shuffle the options array
+                                shuffledProblem.choices = shuffleArray(shuffledProblem.choices);
+                                // Find new index
+                                const newAnswerIndex = shuffledProblem.choices.findIndex(c => c.text === originalAnswerText);
+                                // Update answer
+                                shuffledProblem.answer = newAnswerIndex + 1;
+                            } else {
+                                // Fallback: just shuffle
+                                shuffledProblem.choices = shuffleArray(shuffledProblem.choices);
+                            }
+                        }
+                    }
+                    
+                    return shuffledProblem;
+                });
+            }
+            
+            // 3. Slice to desired count
+            if (count > 0 && count < list.length) {
+                list = list.slice(0, count);
+            }
+
+            const BATCH_SIZE = 1000; // docx.js performance limit per batch
+            const downloadLinks = document.getElementById('download-links');
+            downloadLinks.innerHTML = '문서 생성 중...';
+
+            let part = 1;
+            for (let i = 0; i < list.length; i += BATCH_SIZE) {
+                const batch = list.slice(i, i + BATCH_SIZE);
+                let blob;
+                
+                try {
+                    // 4. Branch based on output type
+                    if (appState.outputType === 'ox') {
+                        blob = await createDocxBlob_OX(batch);
+                    } else { // 'original'
+                        blob = await createDocxBlob_Original(batch);
+                    }
+                    
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    const filename = list.length > BATCH_SIZE 
+                        ? `quiz_factory_${appState.outputType}_part_${part}.docx` 
+                        : `quiz_factory_${appState.outputType}.docx`;
+                    
+                    a.href = url;
+                    a.download = filename;
+                    a.textContent = `${filename} 다운로드`;
+                    
+                    if (part === 1) downloadLinks.innerHTML = ''; // Clear "loading" message
+                    downloadLinks.appendChild(a);
+                    part++;
+
+                } catch (err) {
+                    showError('문서를 생성하는 데 실패했습니다: ' + err.message);
+                    downloadLinks.innerHTML = ''; // Clear "loading" on error
+                    return; // Stop generation
+                }
+            }
+            
+            if (list.length === 0) {
+                 downloadLinks.innerHTML = '생성할 문제가 없습니다.';
+            }
+        }
+
+        // Event listeners for wizard navigation
+        document.getElementById('step1-next').addEventListener('click', () => {
+            document.getElementById('step-1').classList.remove('active');
+            document.getElementById('step-2').classList.add('active');
+        });
+        document.getElementById('step2-prev').addEventListener('click', () => {
+            document.getElementById('step-2').classList.remove('active');
+            document.getElementById('step-1').classList.add('active');
+        });
+        document.getElementById('step2-next').addEventListener('click', () => {
+            document.getElementById('step-2').classList.remove('active');
+            document.getElementById('step-3').classList.add('active');
+        });
+        document.getElementById('step3-prev').addEventListener('click', () => {
+            document.getElementById('step-3').classList.remove('active');
+            document.getElementById('step-2').classList.add('active');
+        });
+        document.getElementById('generate-btn').addEventListener('click', handleGeneration);
+
+        // --- New Event Listeners for UI ---
+        document.getElementById('randomize-toggle').addEventListener('change', (e) => {
+            appState.randomize = e.target.checked;
+        });
+         document.getElementById('problem-count').addEventListener('change', (e) => {
+            const max = parseInt(e.target.max, 10);
+            let value = parseInt(e.target.value, 10);
+            if (isNaN(value) || value < 0) value = 0;
+            if (value > max) value = max;
+            e.target.value = value;
+            appState.problemCount = value;
+        });
+        document.getElementById('output-type').addEventListener('change', (e) => {
+            appState.outputType = e.target.value;
+        });
+
+
+        // File upload handlers
+        const uploadArea = document.getElementById('upload-area');
+        const fileInput = document.getElementById('file-input');
+        // Show file select dialog on click
+        uploadArea.addEventListener('click', () => {
+            fileInput.click();
+        });
+        // Drag and drop events
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFile(files[0]);
+            }
+        });
+        // File input change event
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                handleFile(file);
+            }
+        });
+
+        function handleFile(file) {
+            if (!file.name.endsWith('.json')) {
+                showError('JSON 파일만 업로드할 수 있습니다.');
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = async (ev) => {
+                try {
+                    const rawData = JSON.parse(ev.target.result);
+                    // Convert input JSON into internal problem objects
+                    const problems = parseJsonData(rawData, file.name);
+                    validateProblems(problems);
+                    // Save to IndexedDB
+                    await saveDataset(file.name, problems);
+                    await updateDatasetList();
+                    // Load this dataset immediately
+                    await handleDatasetLoad(file.name);
+                } catch (err) {
+                    showError('파일을 처리할 수 없습니다: ' + err.message);
+                }
+            };
+            reader.onerror = () => {
+                showError('파일을 읽는 동안 오류가 발생했습니다.');
+            };
+            reader.readAsText(file);
+        }
+
+        // Initialize database and load existing datasets on page load
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                await initDB();
+                await updateDatasetList();
+            } catch (err) {
+                showError('IndexedDB 초기화에 실패했습니다: ' + err.message);
+            }
+        });
+    </script>
+</body>
+</html>
+
+
