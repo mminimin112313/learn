@@ -3,15 +3,22 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <!-- (v11.1) 타이틀 업데이트: Google Auth Integration -->
-  <title>AI 퀴즈 VSCode (v11.1 - Google Auth)</title>
+  <!-- (v12.0) 타이틀 업데이트: 뷰어 모드 통합 -->
+  <title>AI 퀴즈 VSCode (v12.0 - 뷰어 모드)</title>
 
   <!-- 1. 의존성 로드: React, Tailwind, JSZip, Firebase -->
   <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-  
+
+  <!-- (v12.0) 뷰어 모드 의존성 추가 -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.8/purify.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+
   <!-- 
     (v11.1) Firebase SDK 추가 (Google Auth 포함)
   -->
@@ -84,8 +91,11 @@
     // }
   </script>
   
-  <!-- 2. 스타일 (v10.1과 동일) -->
+  <!-- 2. 스타일 -->
   <style>
+    /* (v12.0) 나눔고딕, 나눔명조 웹 폰트 불러오기 */
+    @import url('https://fonts.googleapis.com/css2?family=Nanum+Gothic:wght@400;700;800&family=Nanum+Myeongjo:wght@400;700;800&display=swap');
+
     body {
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
         Helvetica, Arial, sans-serif;
@@ -231,6 +241,33 @@
     .main-editor-title {
         font-size: 0.9rem;
     }
+    /* (v12.0) 편집/보기 토글 버튼 스타일 */
+    .editor-toggle-group {
+        display: inline-flex;
+        border: 1px solid #444;
+        border-radius: 4px;
+        overflow: hidden;
+    }
+    .editor-toggle-btn {
+        background-color: #333;
+        color: #b0b0b0;
+        padding: 4px 10px;
+        border: none;
+        cursor: pointer;
+        font-size: 0.85rem;
+        transition: background-color 0.2s, color 0.2s;
+    }
+    .editor-toggle-btn:not(:last-child) {
+        border-right: 1px solid #444;
+    }
+    .editor-toggle-btn.active {
+        background-color: #4a4a4a;
+        color: #ffffff;
+    }
+    .editor-toggle-btn:hover:not(.active) {
+        background-color: #404040;
+    }
+
     .main-editor-action-btn {
         background-color: #0e639c;
         color: white;
@@ -242,6 +279,7 @@
     }
     .main-editor-action-btn:hover { background-color: #1177bb; }
     .main-editor-action-btn:disabled { background-color: #555; cursor: not-allowed; }
+    
     .main-editor {
       flex-grow: 1;
       background-color: #1e1e1e;
@@ -254,6 +292,13 @@
       line-height: 1.5;
       resize: none;
     }
+    /* (v12.0) 뷰어 래퍼 스타일 */
+    .prose-readable-wrapper {
+        flex-grow: 1;
+        overflow-y: auto;
+        padding: 20px;
+    }
+
     .main-editor.\!p-4 {
         padding: 1rem;
     }
@@ -578,6 +623,185 @@
     }
     .bg-gray-600 { background-color: #4a4a4a; }
     .text-gray-400 { color: #a0a0a0; }
+
+
+    /* ================================================================== */
+    /* ▼▼▼ (v12.0) 뷰어 모드 타이포그래피 스타일 (다크 모드 최적화) ▼▼▼ */
+    /* ================================================================== */
+
+    .prose-readable-wrapper {
+        /* KaTeX 폰트가 깨지지 않도록 기본 폰트 재정의 */
+        font-family: 'Nanum Myeongjo', serif;
+    }
+
+    /* --- 다크 모드용 뷰어 스타일 --- */
+    .prose-dark-theme {
+        --text-primary: #ffffff;
+        --text-secondary: #cccccc;
+        --text-tertiary: #94a3b8; 
+        --border-color: #334155;
+        --accent-primary: #9cdcfe;
+        --accent-primary-hover: #0e639c;
+        --bg-tertiary: #252526;
+        --bg-hover: #334155;
+    }
+
+    /* --- 전체적인 텍스트 렌더링 최적화 --- */
+    .prose-readable {
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        font-feature-settings: "kern" on, "liga" on;
+        text-rendering: optimizeLegibility;
+        max-width: 800px; /* 읽기 편한 최대 너비 설정 */
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    /* --- 제목 (Headings) --- */
+    .prose-readable h1,
+    .prose-readable h2,
+    .prose-readable h3,
+    .prose-readable h4 {
+        font-family: 'Nanum Gothic', sans-serif;
+        color: var(--text-primary);
+        margin-top: 2em;
+        margin-bottom: 0.7em;
+        letter-spacing: -0.025em;
+        word-break: keep-all;
+    }
+    .prose-readable h1 {
+        font-size: 2.2em; font-weight: 800; padding-bottom: 0.4em;
+        border-bottom: 2px solid var(--border-color);
+    }
+    .prose-readable h2 {
+        font-size: 1.7em; font-weight: 700; padding-bottom: 0.4em;
+        border-bottom: 1px solid var(--border-color);
+    }
+    .prose-readable h3 { font-size: 1.4em; font-weight: 700; border: none; }
+    .prose-readable h4 { font-size: 1.2em; font-weight: 700; color: var(--text-secondary); }
+
+    /* --- 본문 (Paragraphs) --- */
+    .prose-readable p {
+        font-family: 'Nanum Myeongjo', serif;
+        color: var(--text-secondary);
+        font-size: 1.1em; /* 폰트 크기 살짝 키움 */
+        line-height: 1.85;
+        letter-spacing: -0.015em;
+        word-spacing: 0.05em;
+        text-align: justify;
+        word-break: keep-all;
+        margin-bottom: 1.2em;
+    }
+
+    /* --- 강조 (Strong) --- */
+    .prose-readable strong {
+        color: var(--text-primary);
+        font-weight: 700;
+    }
+
+    /* --- 링크 (Links) --- */
+    .prose-readable a {
+        color: var(--accent-primary);
+        text-decoration: none;
+        border-bottom: 1px solid var(--accent-primary);
+        font-weight: 600;
+        transition: all 0.2s ease-in-out;
+    }
+    .prose-readable a:hover {
+        color: white;
+        background-color: var(--accent-primary-hover);
+        border-bottom-color: transparent;
+    }
+
+    /* --- 인용문 (Blockquotes) --- */
+    .prose-readable blockquote {
+        border-left: 3px solid var(--accent-primary);
+        padding: 0.5em 1.2em;
+        margin: 1.5em 0;
+        color: var(--text-tertiary);
+        background-color: var(--bg-tertiary);
+        font-style: normal;
+    }
+    .prose-readable blockquote p { font-size: 1em; line-height: 1.7; }
+
+    /* --- 코드 (Code) & 테이블 (Table) --- */
+    .prose-readable code {
+        background-color: var(--bg-hover);
+        color: var(--accent-primary);
+        padding: 0.2em 0.5em;
+        margin: 0 0.1em;
+        font-size: 85%;
+        border-radius: 6px;
+        font-family: 'D2Coding', 'Courier New', Courier, monospace;
+    }
+    .prose-readable table {
+        width: 100%; border-collapse: collapse; margin: 2em 0;
+        font-size: 0.9em; border: 1px solid var(--border-color);
+    }
+    .prose-readable th, .prose-readable td {
+        border: 1px solid var(--border-color); padding: 0.8em 1em; text-align: left;
+    }
+    .prose-readable th {
+        font-family: 'Nanum Gothic', sans-serif; font-weight: 700;
+        background-color: var(--bg-tertiary);
+    }
+
+    /* --- 목록 (Lists) --- */
+    .prose-readable ul, .prose-readable ol {
+        list-style-position: outside; padding-left: 2em; margin-bottom: 1.2em;
+    }
+    .prose-readable ul { list-style-type: disc; }
+    .prose-readable ol { list-style-type: decimal; }
+    .prose-readable li { margin-bottom: 0.8em; padding-left: 0.5em; }
+    .prose-readable li > p { margin-top: 0; margin-bottom: 0; }
+    .prose-readable li ul, .prose-readable li ol { margin-top: 0.8em; }
+        
+    /* --- 하이라이트 (Highlights) --- */
+    .prose-readable mark {
+        background-color: rgba(250, 204, 21, 0.4);
+        color: inherit;
+    }
+    /* 다크모드에선 하이라이트 배경을 더 선명하게 */
+    .prose-dark-theme .prose-readable mark {
+        background-color: rgba(234, 179, 8, 0.5);
+    }
+
+    /* --- 각주 (Footnotes) --- */
+    .prose-readable .footnote-ref {
+        font-size: 0.8em; vertical-align: super; line-height: 0;
+    }
+    .prose-readable .footnote-ref a {
+        border: none !important; background-color: transparent !important;
+        text-decoration: none !important; font-weight: normal;
+        color: var(--accent-primary);
+        padding: 0.1em 0.2em; margin: 0 0.1em; border-radius: 4px;
+        cursor: help; transition: background-color 0.2s, color 0.2s;
+    }
+    .prose-readable .footnote-ref a:hover {
+        background-color: var(--accent-primary-hover) !important;
+        color: white !important;
+    }
+    .prose-readable .footnote-divider {
+        margin-top: 4em; border-color: var(--border-color);
+    }
+    .prose-readable .footnotes {
+        margin-top: 2em; font-size: 0.9em; color: var(--text-tertiary);
+    }
+    .prose-readable .footnotes li {
+        display: flex; align-items: baseline; margin-bottom: 0.8em; line-height: 1.6;
+    }
+    .prose-readable .footnotes li p {
+        font-size: 1em; line-height: inherit; display: inline;
+    }
+    .prose-readable .footnote-backref {
+        font-size: 1.1em; text-decoration: none; margin-left: 0.5em;
+        border: none !important; background: none !important; padding: 0 4px;
+    }
+    .prose-readable .footnote-backref:hover {
+        background-color: var(--bg-hover) !important;
+        border-radius: 4px;
+    }
+
   </style>
 </head>
 <body>
@@ -623,6 +847,196 @@
     
     const AppContext = createContext(null);
     
+    // --- (v12.0) 뷰어 모드 로직 (From index (1).html) ---
+
+    const FootnoteManager = {
+        footnotes: {},
+        footnoteOrder: [],
+        
+        clear() {
+            this.footnotes = {};
+            this.footnoteOrder = [];
+        },
+    
+        addDefinition(key, content) {
+            const lowerKey = key.toLowerCase();
+            if (!this.footnotes[lowerKey]) {
+                const trimmedContent = content.trim().replace(/\n/g, ' ');
+                // marked.parseInline 사용 (window.marked)
+                const inlineHtml = window.marked.parseInline(trimmedContent);
+                this.footnotes[lowerKey] = {
+                    text: trimmedContent,
+                    html: inlineHtml
+                };
+            }
+        },
+    
+        addReference(key) {
+            const lowerKey = key.toLowerCase();
+            if (this.footnoteOrder.indexOf(lowerKey) === -1) {
+                this.footnoteOrder.push(lowerKey);
+            }
+        },
+        
+        getNote(key) {
+            return this.footnotes[key.toLowerCase()];
+        },
+        
+        getOrder() {
+            return this.footnoteOrder;
+        },
+    
+        extractAndClean(markdown) {
+            // 렌더링 파이프라인의 일부이므로, 매번 clear()를 호출해야 함
+            this.clear(); 
+            const footnoteDefRegex = /^\[\^(.+?)\]:\s*([\s\S]*?)(?=\n\[\^|$)/gm;
+    
+            const cleanedMarkdown = markdown.replace(footnoteDefRegex, (match, name, content) => {
+                this.addDefinition(name, content);
+                return ''; // 원본 텍스트에서 각주 정의 부분 제거
+            });
+            
+            return cleanedMarkdown;
+        }
+    };
+
+    /**
+     * (v12.0) 1차 파싱 (Markdown -> HTML)
+     * marked.js에 커스텀 확장(수학, 하이라이트, 각주 참조)을 추가하여 Markdown을 HTML로 변환합니다.
+     */
+    const parseMarkdownWithExtensions = (markdownText) => {
+        if (typeof markdownText !== 'string') return '';
+        if (!window.marked) {
+            console.error("marked.js가 로드되지 않았습니다.");
+            return markdownText; // fallback
+        }
+
+        const isolatedParser = new window.marked.Marked();
+        
+        const mathExtension = {
+            name: 'math',
+            level: 'inline', 
+            start(src) { return src.indexOf('$'); },
+            tokenizer(src) {
+                const blockRule = /^\$\$([\s\S]+?)\$\$/;
+                let match = blockRule.exec(src);
+                if (match) {
+                    return { type: 'math', raw: match[0], text: match[1], displayMode: true };
+                }
+                if (!src.startsWith('$$')) {
+                    const inlineRule = /^\$((?:[^$]|\\[$])+?)\$/;
+                    match = inlineRule.exec(src);
+                    if (match) {
+                        return { type: 'math', raw: match[0], text: match[1], displayMode: false };
+                    }
+                }
+            },
+            renderer(token) {
+                return token.raw; // KaTeX가 처리할 수 있도록 원본 보존
+            }
+        };
+
+        const highlightExtension = {
+            name: 'highlight',
+            level: 'inline',
+            start(src) { return src.indexOf('=='); },
+            tokenizer(src) {
+                const rule = /^==(.+?)==/;
+                const match = rule.exec(src);
+                if (match) {
+                    return { type: 'highlight', raw: match[0], text: this.lexer.inlineTokens(match[1].trim()) };
+                }
+            },
+            renderer(token) { return `<mark>${this.parser.parseInline(token.text)}</mark>`; },
+        };
+
+        const footnoteRefExtension = {
+            name: 'footnoteRef',
+            level: 'inline',
+            start(src) { return src.indexOf('[^'); },
+            tokenizer(src) {
+                const rule = /^\[\^((?:[^\]\\]|\\.)+)\](?!:)/; // :가 뒤따르지 않는 참조만
+                const match = rule.exec(src);
+                if (match) {
+                    FootnoteManager.addReference(match[1]);
+                    return { type: 'footnoteRef', raw: match[0], name: match[1] };
+                }
+            },
+            renderer(token) {
+                const name = token.name;
+                const order = FootnoteManager.getOrder();
+                const note = FootnoteManager.getNote(name);
+                const index = order.indexOf(name.toLowerCase()) + 1;
+                const finalIndex = index > 0 ? index : '?';
+                let tooltipContent = note ? (note.text || '').replace(/"/g, '&quot;').replace(/\n/g, ' ') : '각주 내용을 찾을 수 없습니다.';
+                
+                return `<sup id="fnref:${name}" class="footnote-ref"><a href="#fn:${name}" data-footnote-key="${name}" title="${tooltipContent}">${finalIndex}</a></sup>`;
+            }
+        };
+        
+        isolatedParser.use({ gfm: true, breaks: true, extensions: [mathExtension, highlightExtension, footnoteRefExtension] });
+
+        return isolatedParser.parse(markdownText);
+    };
+
+    /**
+     * (v12.0) 2차 후처리 (DOM)
+     * 1차 파싱된 HTML이 DOM에 삽입된 후, 수동으로 **bold**를 처리하고 KaTeX 렌더링을 실행합니다.
+     */
+    const applyPostRenderEffects = (element) => {
+        if (!element) return;
+        
+        // 1단계: **bold** 처리를 DOM에 직접 적용
+        const processTextNode = (textNode) => {
+            const fragment = document.createDocumentFragment();
+            let currentText = textNode.textContent;
+            let lastIndex = 0;
+            currentText.replace(/\*\*(.*?)\*\*/g, (match, content, offset) => {
+                if (offset > lastIndex) fragment.appendChild(document.createTextNode(currentText.substring(lastIndex, offset)));
+                const strong = document.createElement('strong');
+                strong.textContent = content;
+                fragment.appendChild(strong);
+                lastIndex = offset + match.length;
+            });
+            if (lastIndex < currentText.length) fragment.appendChild(document.createTextNode(currentText.substring(lastIndex)));
+            return fragment;
+        };
+
+        const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT, (node) => {
+            const parentName = node.parentNode.nodeName.toLowerCase();
+            // KaTeX, 코드, 링크, 이미 렌더링된 태그 등은 제외
+            return ['code', 'pre', 'script', 'style', 'a', 'strong', 'em', 'sup', 'mark', 'span', 'textarea', 'input'].includes(parentName) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT;
+        });
+
+        const nodesToProcess = [];
+        while (walker.nextNode()) nodesToProcess.push(walker.currentNode);
+
+        nodesToProcess.forEach(textNode => {
+            if (textNode.textContent.includes('**')) {
+                const newContent = processTextNode(textNode);
+                if (textNode.parentNode) {
+                    textNode.parentNode.replaceChild(newContent, textNode);
+                }
+            }
+        });
+        
+        // 2단계: KaTeX 렌더링 실행
+        if (window.renderMathInElement) {
+            try {
+                window.renderMathInElement(element, {
+                    delimiters: [
+                        { left: '$$', right: '$$', display: true },
+                        { left: '$', right: '$', display: false },
+                        { left: '\\(', right: '\\)', display: false },
+                        { left: '\\[', right: '\\]', display: true }
+                    ]
+                });
+            } catch (e) {
+                console.error("KaTeX 렌더링 실패:", e);
+            }
+        }
+    };
+
 
     // --- 1. AI Gemini API 호출 (v10.1과 동일) ---
 
@@ -684,13 +1098,15 @@
       const keyIndex = Date.now() % apiKeys.length; 
       const selectedKey = apiKeys[keyIndex];
       const apiKey = selectedKey.key.trim() ? selectedKey.key.trim() : "";
-      const model = settings?.modelName || DEFAULT_SETTINGS.modelName;
+      const model = settings?.modelName || DEFAULT_SETTINGS.modelName; // (v12.0) DEFAULT_SETTINGS.modelName 사용
       
       if (!apiKey) {
           throw new ApiError('API 키가 설정되지 않았습니다. [설정(⚙️) > API Keys]에서 유효한 키를 추가하십시오.', 401); 
       }
 
-      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;      
+      // (v12.0) CORS 오류 수정: generativelace -> generativelanguage
+      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+      
       let systemPrompt = settings.quizSystemPrompt || DEFAULT_SETTINGS.quizSystemPrompt;
       
       systemPrompt = systemPrompt
@@ -740,13 +1156,15 @@ ${sourceText}
       const keyIndex = Date.now() % apiKeys.length; 
       const selectedKey = apiKeys[keyIndex];
       const apiKey = selectedKey.key.trim() ? selectedKey.key.trim() : "";
-      const model = settings?.modelName || DEFAULT_SETTINGS.modelName;
+      const model = settings?.modelName || DEFAULT_SETTINGS.modelName; // (v12.0) DEFAULT_SETTINGS.modelName 사용
 
       if (!apiKey) {
         throw new ApiError('API 키가 설정되지 않았습니다. [설정(⚙️) > API Keys]에서 유효한 키를 추가하십시오.', 401);
       }
       
-      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;      
+      // (v12.0) CORS 오류 수정: generativelace -> generativelanguage
+      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+      
       const systemPrompt = settings.gradingSystemPrompt || DEFAULT_SETTINGS.gradingSystemPrompt;
       
       const userQuery = `--- QUESTION ---
@@ -879,14 +1297,14 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
     const workerUrl = URL.createObjectURL(workerBlob);
     
     
-    // --- 3. 기본 설정 및 훅 (v11.1) ---
+    // --- 3. 기본 설정 및 훅 (v12.0) ---
 
     const DEFAULT_SETTINGS = {
         apiKeys: [{ key: "", rpm: 60 }],
         defaultDifficulty: "Medium",
         defaultQuestionType: "MultipleChoice",
         defaultNumQuestions: 10,
-        modelName: "gemini-2.5-flash",
+        modelName: "gemini-2.5-flash", // (v12.0) 기본 모델 설정
         quizSystemPrompt: `You are an expert quiz generation AI. You must generate a {{NUM_QUESTIONS}}-question quiz based *only* on the provided source text.
 - Difficulty: {{DIFFICULTY}}
 - Requested Question Type: {{QUESTION_TYPE}}
@@ -1781,7 +2199,64 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
         );
     };
 
-    // (v11.1) 메인 컨텐츠 에디터 (Google Auth)
+    // (v12.0) 뷰어 모드 컴포넌트
+    const MarkdownViewer = ({ markdownText }) => {
+        const viewerRef = useRef(null);
+
+        // 1. 1차 파싱 (Markdown -> HTML)
+        const { contentHtml, footnotesHtml } = useMemo(() => {
+            if (!markdownText) return { contentHtml: '', footnotesHtml: '' };
+
+            const cleanedText = FootnoteManager.extractAndClean(markdownText);
+            let contentHtml = parseMarkdownWithExtensions(cleanedText);
+            
+            let footnotesHtml = '';
+            const footnoteOrder = FootnoteManager.getOrder();
+            if (footnoteOrder.length > 0) {
+                footnotesHtml += '<hr class="footnote-divider"><section class="footnotes"><ol>';
+                footnoteOrder.forEach(name => {
+                    const note = FootnoteManager.getNote(name);
+                    if (note) {
+                        const backRef = `<a href="#fnref:${name}" class="footnote-backref" role="doc-backlink">↩</a>`;
+                        footnotesHtml += `<li id="fn:${name}"><p class="mr-2 font-mono text-xs text-slate-500">[${name}]:</p><div class="flex-1">${note.html}${backRef}</div></li>`;
+                    }
+                });
+                footnotesHtml += '</ol></section>';
+            }
+            
+            // DOMPurify로 정화
+            const sanitizedContent = window.DOMPurify.sanitize(contentHtml, {
+                ALLOWED_TAGS: ['strong', 'em', 'p', 'br', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'a', 'code', 'pre', 'blockquote', 'table', 'thead', 'tbody', 'tr', 'th', 'td', 'mark', 'sup', 'hr'],
+                ALLOWED_ATTR: ['href', 'title', 'id', 'class', 'data-footnote-key']
+            });
+            const sanitizedFootnotes = window.DOMPurify.sanitize(footnotesHtml, {
+                ALLOWED_TAGS: ['strong', 'em', 'p', 'br', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'a', 'code', 'pre', 'blockquote', 'table', 'thead', 'tbody', 'tr', 'th', 'td', 'mark', 'sup', 'hr', 'section', 'div'],
+                ALLOWED_ATTR: ['href', 'title', 'id', 'class', 'role', 'data-footnote-key']
+            });
+
+            return { contentHtml: sanitizedContent, footnotesHtml: sanitizedFootnotes };
+        }, [markdownText]);
+
+        // 2. 2차 후처리 (DOM 렌더링 후)
+        useEffect(() => {
+            if (viewerRef.current) {
+                applyPostRenderEffects(viewerRef.current);
+            }
+        }, [contentHtml, footnotesHtml]); // HTML이 변경될 때마다 후처리 실행
+
+        return e('div', { 
+                ref: viewerRef, 
+                className: 'prose-readable-wrapper prose-dark-theme' 
+            },
+            e('div', {
+                className: 'prose-readable',
+                dangerouslySetInnerHTML: { __html: contentHtml + footnotesHtml }
+            })
+        );
+    };
+
+
+    // (v12.0) 메인 컨텐츠 에디터 (뷰어 모드 토글 추가)
     const MainContentEditor = () => {
         const { 
             activeEditorFile, fileActions, 
@@ -1792,6 +2267,7 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
         
         const [content, setContent] = useState("");
         const [saveStatus, setSaveStatus] = useState('saved');
+        const [isViewerMode, setIsViewerMode] = useState(false); // (v12.0) 뷰어 모드 상태
         
         const toast = useToast();
         
@@ -1803,6 +2279,7 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
                 setContent("");
                 setSaveStatus('saved');
             }
+            setIsViewerMode(false); // 파일 변경 시 항상 편집 모드로
         }, [activeEditorFile]);
         
         const debouncedContent = useDebounce(content, 1000);
@@ -1866,25 +2343,44 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
         return e('div', { className: 'flex flex-col h-full' },
             e('div', { className: 'main-editor-header' },
                 e('span', { className: 'main-editor-title' }, activeEditorFile.name),
+                
+                // (v12.0) 편집/보기 토글 버튼
+                e('div', { className: 'editor-toggle-group' },
+                    e('button', {
+                        className: `editor-toggle-btn ${!isViewerMode ? 'active' : ''}`,
+                        onClick: () => setIsViewerMode(false)
+                    }, '편집'),
+                    e('button', {
+                        className: `editor-toggle-btn ${isViewerMode ? 'active' : ''}`,
+                        onClick: () => setIsViewerMode(true)
+                    }, '보기')
+                ),
+                
                 e('button', { 
                     className: 'main-editor-action-btn',
                     onClick: handleGenerateQuiz,
                     disabled: saveStatus !== 'saved' || !content.trim()
                 }, '✨ 퀴즈 생성')
             ),
-            e('textarea', {
-                key: activeEditorFile.id,
-                className: 'main-editor',
-                value: content,
-                onChange: (ev) => {
-                    setContent(ev.target.value);
-                    setSaveStatus('editing');
-                }
-            }),
+
+            // (v12.0) 조건부 렌더링
+            isViewerMode
+                ? e(MarkdownViewer, { markdownText: content })
+                : e('textarea', {
+                    key: activeEditorFile.id,
+                    className: 'main-editor',
+                    value: content,
+                    onChange: (ev) => {
+                        setContent(ev.target.value);
+                        setSaveStatus('editing');
+                    }
+                  }),
+
             e('div', { className: 'main-editor-footer' }, statusMessages[saveStatus])
         );
     };
     
+    // 뷰 6: 설정 모달 (v12.0)
     const SettingsModal = ({ onClose }) => {
         const { userSettings, saveSettings } = useContext(AppContext);
         const [activeTab, setActiveTab] = useState('Quiz Defaults');
@@ -1894,15 +2390,14 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
         const [quizSystemPrompt, setQuizSystemPrompt] = useState("");
         const [gradingSystemPrompt, setGradingSystemPrompt] = useState("");
         const [defaultSettings, setDefaultSettings] = useState({});
-        const [modelName, setModelName] = useState(""); // 📌 1. modelName 상태 추가
+        const [modelName, setModelName] = useState(""); // (v12.0) 모델명 상태
 
         useEffect(() => {
             if (userSettings) {
                 setApiKeys(userSettings.apiKeys || DEFAULT_SETTINGS.apiKeys);
                 setQuizSystemPrompt(userSettings.quizSystemPrompt || DEFAULT_SETTINGS.quizSystemPrompt);
                 setGradingSystemPrompt(userSettings.gradingSystemPrompt || DEFAULT_SETTINGS.gradingSystemPrompt);
-                // 📌 2. modelName 로드
-                setModelName(userSettings.modelName || DEFAULT_SETTINGS.modelName); 
+                setModelName(userSettings.modelName || DEFAULT_SETTINGS.modelName); // (v12.0) 모델명 로드
                 setDefaultSettings({
                     defaultDifficulty: userSettings.defaultDifficulty || DEFAULT_SETTINGS.defaultDifficulty,
                     defaultQuestionType: userSettings.defaultQuestionType || DEFAULT_SETTINGS.defaultQuestionType,
@@ -1928,12 +2423,11 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
 
         const handleSave = () => {
             saveSettings({
-                // 📌 3. modelName 저장
                 apiKeys,
                 ...defaultSettings,
                 quizSystemPrompt,
                 gradingSystemPrompt,
-                modelName: modelName // 상태에서 저장
+                modelName: modelName // (v12.0) 모델명 저장
             });
             onClose();
         };
@@ -1943,7 +2437,7 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
                 return e('div', null,
                     e('h3', { className: 'text-lg font-semibold mb-4' }, 'API Configuration'),
                     
-                    // 📌 4. 모델 이름 설정 UI 추가
+                    // (v12.0) 모델 이름 설정 UI 추가
                     e('div', { className: 'form-group' },
                         e('label', { htmlFor: 'model-name-input', className: 'form-label' }, 'Gemini Model Name'),
                         e('input', { 
@@ -2612,7 +3106,7 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
         return () => { quizWorker.onmessage = null; };
       }, [quizWorker, db, userId, appId, toast]);
       
-      // (v11.0) 설정 저장 (Firestore)
+      // (v12.0) 설정 저장 (Firestore) - 모델명 저장 로직 포함
       const handleSaveSettings = useCallback(async (newSettings) => {
           if (!db || !userId) {
               toast.show('❌ 로그인이 필요합니다.', 'error');
@@ -2620,7 +3114,12 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
           }
           const settingsRef = doc(db, `artifacts/${appId}/users/${userId}/settings/userConfig`);
           try {
-              await setDoc(settingsRef, newSettings, { merge: true });
+              // newSettings에 modelName이 포함되어 있는지 확인
+              const settingsToSave = {
+                  ...newSettings,
+                  modelName: newSettings.modelName || DEFAULT_SETTINGS.modelName
+              };
+              await setDoc(settingsRef, settingsToSave, { merge: true });
               toast.show('✅ 설정이 저장되었습니다.', 'success');
               // onSnapshot이 자동으로 userSettings를 업데이트
           } catch (e) {
