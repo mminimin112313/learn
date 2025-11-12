@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AI 퀴즈 VSCode (v9 - 리팩토링)</title>
+  <!-- (v10.2) 타이틀 업데이트 -->
+  <title>AI 퀴즈 VSCode (v10.2 - 사이드바 패치)</title>
 
   <!-- 1. 의존성 로드: React, Tailwind, JSZip -->
   <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
@@ -11,26 +12,21 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   
-  <!-- 2. 스타일: VSCode 다크 테마 및 신규 UI 스타일 -->
+  <!-- 2. 스타일 (v10.1과 동일) -->
   <style>
     body {
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
         Helvetica, Arial, sans-serif;
       margin: 0;
-      background-color: #1e1e1e; /* VSCode 배경 */
+      background-color: #1e1e1e;
       color: #cccccc;
       height: 100vh;
       overflow: hidden;
     }
-    
-    /* 스크롤바 스타일 */
     ::-webkit-scrollbar { width: 8px; }
     ::-webkit-scrollbar-track { background: #252526; }
     ::-webkit-scrollbar-thumb { background: #4a4a4a; border-radius: 4px; }
     ::-webkit-scrollbar-thumb:hover { background: #5a5a5a; }
-
-    /* * ReactVscodeSidebar 셸 스타일링
-     */
     .vsc-sidebar-container {
       display: flex;
       flex-direction: row;
@@ -64,7 +60,6 @@
       color: #ffffff;
       background-color: #4a4a4a;
     }
-    
     .vsc-sidebar-view {
       flex-grow: 1;
       overflow-y: auto;
@@ -87,12 +82,9 @@
       display: flex;
       flex-direction: column;
     }
-    
-    /* 뷰 컨텐츠 기본 패딩 */
     .view-padding {
         padding: 16px;
     }
-    /* 뷰 컨텐츠 헤더 */
     .view-header {
       margin-top: 0;
       color: #cccccc;
@@ -105,25 +97,20 @@
       justify-content: space-between;
       align-items: center;
     }
-    /* 뷰 헤더 아이콘 버튼 */
     .view-header-icon {
         background: none; border: none; color: #b0b0b0; cursor: pointer;
         padding: 4px; border-radius: 4px;
     }
     .view-header-icon:hover { background-color: #4a4a4a; color: white; }
-    
-    /* 뷰 컨텐츠 스크롤 영역 */
     .view-content-scroll {
         flex-grow: 1;
         overflow-y: auto;
         padding: 16px;
     }
-    .view-content-full { /* 패딩 없는 꽉 찬 컨텐츠 (파일 탐색기용) */
+    .view-content-full {
         flex-grow: 1;
         overflow-y: auto;
     }
-    
-    /* (v5) 분할 뷰 스타일 */
     .vsc-view-panes {
         display: flex;
         flex-direction: column;
@@ -149,20 +136,17 @@
         padding: 8px;
     }
     .vsc-view-pane-content.full {
-        padding: 0; /* 파일 트리용 */
+        padding: 0;
     }
-
-
-    /* * 메인 컨텐츠 영역 (파일 에디터)
-     */
+    .vsc-view-pane-content.full[data-drag-over='true'] {
+        background-color: #0e639c;
+    }
     .main-content {
       flex: 1;
       display: flex;
       flex-direction: column;
       overflow: hidden;
     }
-    
-    /* (v5) 메인 에디터 헤더 */
     .main-editor-header {
         display: flex;
         justify-content: space-between;
@@ -186,7 +170,6 @@
     }
     .main-editor-action-btn:hover { background-color: #1177bb; }
     .main-editor-action-btn:disabled { background-color: #555; cursor: not-allowed; }
-    
     .main-editor {
       flex-grow: 1;
       background-color: #1e1e1e;
@@ -199,6 +182,9 @@
       line-height: 1.5;
       resize: none;
     }
+    .main-editor.\!p-4 {
+        padding: 1rem;
+    }
     .main-editor-placeholder {
       display: flex;
       justify-content: center;
@@ -207,7 +193,6 @@
       color: #6a6a6a;
       font-size: 1.2rem;
     }
-    
     .main-editor-footer {
         padding: 4px 12px;
         background-color: #252526;
@@ -216,11 +201,8 @@
         font-size: 0.8rem;
         color: #a0a0a0;
         text-align: right;
-        min-height: 26px; /* 텍스트 높이 확보 */
+        min-height: 26px;
     }
-    
-    /* * 폼 요소 스타일 (퀴즈 생성기, 설정)
-     */
     .form-group { margin-bottom: 16px; }
     .form-label {
         display: block;
@@ -240,6 +222,10 @@
     }
     .form-textarea {
         font-family: 'Courier New', Courier, monospace;
+    }
+    .form-input.\!p-0.\!text-sm {
+        padding: 0;
+        font-size: 0.875rem;
     }
     .form-select {
         appearance: none;
@@ -277,9 +263,6 @@
     }
     .form-button:hover { background-color: #1177bb; }
     .form-button:disabled { background-color: #555; cursor: not-allowed; }
-
-    /* * 퀴즈 기록/모니터링 목록
-     */
     .list-item {
       padding: 10px;
       background-color: #3c3c3c;
@@ -300,8 +283,6 @@
     }
     .list-item-badge.success { background-color: #4CAF50; }
     .list-item-badge.error { background-color: #f44336; }
-    
-    /* (v6) 퀴즈 풀이/결과 스타일 */
     .quiz-question-card { margin-bottom: 1.5rem; }
     .quiz-question-text { font-weight: 600; font-size: 1.1rem; margin-bottom: 0.75rem; }
     .quiz-option-label {
@@ -314,10 +295,6 @@
     }
     .quiz-option-label:hover { background-color: #4a4a4a; }
     .quiz-option-label input { margin-right: 10px; }
-
-
-    /* * 모달 (설정, 퀴즈 결과)
-     */
     .modal-overlay {
       position: fixed;
       inset: 0;
@@ -378,8 +355,6 @@
       background-color: #4a4a4a; color: #cccccc; border: none;
     }
     .modal-button-secondary:hover { background-color: #5a5a5a; }
-    
-    /* 설정 모달 내부 네비게이션 */
     .settings-nav {
       width: 200px;
       flex-shrink: 0;
@@ -402,11 +377,9 @@
       padding: 24px;
       flex-grow: 1;
       overflow-y: auto;
-      display: flex; /* 자식(textarea)이 100% 높이 차지하도록 */
+      display: flex;
       flex-direction: column;
     }
-    
-    /* API 키 목록 */
     .api-key-item {
         display: flex;
         justify-content: space-between;
@@ -421,8 +394,6 @@
         border-radius: 4px; padding: 4px 8px; font-size: 0.8rem;
         cursor: pointer;
     }
-
-    /* 퀴즈 결과 모달 */
     .quiz-result-body { padding: 24px; }
     .quiz-result-score { font-size: 2rem; font-weight: bold; text-align: center; }
     .result-question {
@@ -432,14 +403,13 @@
     }
     .result-question-correct { background-color: #3a4a3a; }
     .result-question-incorrect { background-color: #5a3a3a; }
-    /* AI 채점 대기 중 스타일 */
     .bg-gray-700 { background-color: #3c3c3c; } 
     .result-question-text { font-weight: 600; margin-bottom: 4px; }
     .result-answer { font-size: 0.9rem; }
     .result-answer.correct { color: #81c784; }
     .result-answer.yours { color: #ffb74d; }
-
-    /* 파일 관리자 (vsc-view-content-full) */
+    .bg-gray-800 { background-color: #252526; }
+    .text-blue-300 { color: #9cdcfe; }
     .file-manager-container {
         height: 100%;
         font-size: 14px;
@@ -454,13 +424,10 @@
     }
     .file-tree-node:hover { background-color: #3c3c3c; }
     .file-tree-node[data-active='true'] { background-color: #094771; }
-    /* (v5) 드래그 오버 (폴더) */
     .file-tree-node[data-drag-over='true'] {
         background-color: #0e639c;
     }
     .file-tree-node-icon { margin-right: 6px; }
-    
-    /* (v4.1) 컨텍스트 메뉴 스타일 */
     .context-menu {
       position: fixed;
       z-index: 1000;
@@ -486,15 +453,12 @@
       border-top: 1px solid #37373d;
       margin: 4px 0;
     }
-    
-    /* 로딩 스피너 */
     .spinner-overlay {
       position: absolute; inset: 0;
       background-color: rgba(0, 0, 0, 0.5);
       display: flex; justify-content: center; align-items: center;
       z-index: 50;
     }
-    /* 스피너 스타일 재정의 (QuizResult용) */
     .spinner-overlay.\!relative { position: relative; }
     .spinner-overlay.\!h-10 { height: 2.5rem; }
     .spinner-overlay.\!bg-transparent { background-color: transparent; }
@@ -505,13 +469,10 @@
     }
     .spinner.\!w-6 { width: 1.5rem; }
     .spinner.\!h-6 { height: 1.5rem; }
-    
     @keyframes spin {
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
     }
-    
-    /* 📌 신규: 토스트 메시지 시스템 스타일 📌 */
     .toast-container {
       position: fixed;
       bottom: 20px;
@@ -531,25 +492,25 @@
       animation: toast-fade-in 0.3s ease-out;
     }
     .toast-item.success {
-      background-color: #4CAF50; /* Green */
+      background-color: #4CAF50;
     }
     .toast-item.error {
-      background-color: #f44336; /* Red */
+      background-color: #f44336;
     }
     .toast-item.info {
-      background-color: #0e639c; /* Blue */
+      background-color: #0e639c;
     }
     @keyframes toast-fade-in {
       from { transform: translateX(100%); opacity: 0; }
       to { transform: translateX(0); opacity: 1; }
     }
-
+    .bg-gray-600 { background-color: #4a4a4a; }
+    .text-gray-400 { color: #a0a0a0; }
   </style>
 </head>
 <body>
   
   <div id="root"></div>
-  <!-- 📌 수정: multiple 및 accept 속성 추가 📌 -->
   <input type="file" id="file-upload-input" style="display: none" multiple accept=".txt,.md,.zip" />
   <input type="file" id="project-import-input" style="display: none" accept=".json" />
 
@@ -567,23 +528,19 @@
     const { createRoot } = ReactDOM;
     const e = React.createElement;
 
-    // 📌 신규: 토스트 컨텍스트
     const ToastContext = createContext(null);
     const useToast = () => useContext(ToastContext);
     
-    // React 컨텍스트: 전역 상태 관리
     const AppContext = createContext(null);
     
-    // --- 0. IndexedDB 헬퍼 (v5 - 인덱스 추가) ---
-    // (Axiom: Systemic Scalability - Offline First)
+    // --- 0. IndexedDB 헬퍼 (v10.1과 동일) ---
     class IdbHelper {
         constructor(dbName, version, stores) {
             this.dbName = dbName;
             this.version = version;
-            this.stores = stores; // { name, keyPath, indexes: [{name, keyPath}] }[]
+            this.stores = stores;
             this.db = null;
         }
-
         init() {
             return new Promise((resolve, reject) => {
                 const request = indexedDB.open(this.dbName, this.version);
@@ -601,8 +558,6 @@
                         } else {
                             store = event.target.transaction.objectStore(storeConfig.name);
                         }
-                        
-                        // (v5) 인덱스 생성
                         (storeConfig.indexes || []).forEach(idx => {
                             if (!store.indexNames.contains(idx.name)) {
                                 store.createIndex(idx.name, idx.keyPath, { unique: false });
@@ -612,7 +567,6 @@
                 };
             });
         }
-
         get(storeName, key) {
             return new Promise((resolve, reject) => {
                 const tx = this.db.transaction(storeName, 'readonly');
@@ -622,7 +576,6 @@
                 request.onerror = () => reject(request.error);
             });
         }
-        
         getAll(storeName) {
             return new Promise((resolve, reject) => {
                 const tx = this.db.transaction(storeName, 'readonly');
@@ -632,8 +585,6 @@
                 request.onerror = () => reject(request.error);
             });
         }
-        
-        // (v5) 인덱스로 조회
         query(storeName, indexName, value) {
             return new Promise((resolve, reject) => {
                 const tx = this.db.transaction(storeName, 'readonly');
@@ -644,7 +595,6 @@
                 request.onerror = () => reject(request.error);
             });
         }
-
         put(storeName, item) {
              return new Promise((resolve, reject) => {
                 const tx = this.db.transaction(storeName, 'readwrite');
@@ -654,7 +604,6 @@
                 request.onerror = () => reject(request.error);
             });
         }
-        
         add(storeName, item) {
              return new Promise((resolve, reject) => {
                 const tx = this.db.transaction(storeName, 'readwrite');
@@ -664,7 +613,6 @@
                 request.onerror = () => reject(request.error);
             });
         }
-        
         delete(storeName, key) {
             return new Promise((resolve, reject) => {
                 const tx = this.db.transaction(storeName, 'readwrite');
@@ -674,7 +622,6 @@
                 request.onerror = () => reject(request.error);
             });
         }
-        
         clear(storeName) {
             return new Promise((resolve, reject) => {
                 const tx = this.db.transaction(storeName, 'readwrite');
@@ -686,7 +633,6 @@
         }
     }
     
-    // (v5) DB 스키마 정의
     const DB_STORES_CONFIG = [
         { name: 'files', keyPath: 'id', indexes: [{ name: 'by_parentId', keyPath: 'parentId' }] },
         { name: 'quizzes', keyPath: 'id', indexes: [{ name: 'by_fileId', keyPath: 'fileId' }] },
@@ -694,9 +640,8 @@
         { name: 'settings', keyPath: 'id' }
     ];
 
-    // --- 1. AI Gemini API 호출 (Rule R2.2.6) ---
+    // --- 1. AI Gemini API 호출 (v10.1과 동일) ---
 
-    // 📌 (수정 1) 퀴즈 생성을 위한 JSON 스키마 (채점 기준)
     const QUIZ_SCHEMA = {
       type: "OBJECT",
       properties: {
@@ -706,12 +651,10 @@
           items: {
             type: "OBJECT",
             properties: {
-              questionType: { type: "STRING" }, // "MultipleChoice", "ShortAnswer"
+              questionType: { type: "STRING" },
               questionText: { type: "STRING" },
-              // 객관식 전용
               options: { type: "ARRAY", items: { type: "STRING" }, nullable: true },
               correctAnswerIndex: { type: "NUMBER", nullable: true },
-              // 📌 (수정) 주관식/사례형 채점 기준
               gradingCriteria: { type: "STRING", nullable: true },
             },
             required: ["questionType", "questionText"]
@@ -721,7 +664,6 @@
       required: ["title", "questions"]
     };
     
-    /* 📌 (수정 2) 신규: AI 채점 결과 스키마 (법률 2) 📌 */
     const GRADING_SCHEMA = {
       type: "OBJECT",
       properties: {
@@ -752,7 +694,6 @@
       throw new Error('API call failed after all retries');
     };
     
-    // (v6) Gemini API 호출 함수 (다형성 스키마 사용)
     const generateQuizWithAi = async (sourceText, options, settings) => {
       const { numQuestions, difficulty, questionType, includeSnippets, provideAnswerKey, customInstructions } = options;
       const apiKeys = settings?.apiKeys || [{ key: "", rpm: 60 }]; 
@@ -761,7 +702,6 @@
       const apiKey = selectedKey.key.trim() ? selectedKey.key.trim() : "";
       const model = settings?.modelName || "gemini-2.5-flash-preview-09-2025";
       
-      /* 📌 (수정 3) API 키 가드 클로즈 (확인) */
       if (!apiKey) {
           throw new ApiError('API 키가 설정되지 않았습니다. [설정(⚙️) > API Keys]에서 유효한 키를 추가하십시오.', 401); 
       }
@@ -772,7 +712,7 @@
       
       systemPrompt = systemPrompt
           .replace('{{DIFFICULTY}}', difficulty)
-          .replace('{{QUESTION_TYPE}}', questionType) // 📌 (v6) AI에게 유형 명시
+          .replace('{{QUESTION_TYPE}}', questionType)
           .replace('{{INCLUDE_SNIPPETS}}', includeSnippets ? "Include relevant code snippets from the text if applicable." : "")
           .replace('{{PROVIDE_ANSWER_KEY}}', provideAnswerKey ? "Ensure correct answers are provided." : "")
           .replace('{{CUSTOM_INSTRUCTIONS}}', customInstructions ? `Additional Instructions: ${customInstructions}` : "")
@@ -788,7 +728,7 @@ ${sourceText}
         systemInstruction: { parts: [{ text: systemPrompt }] },
         generationConfig: {
           responseMimeType: "application/json",
-          responseSchema: QUIZ_SCHEMA, // 📌 (v6) 새 스키마
+          responseSchema: QUIZ_SCHEMA,
           temperature: 0.3,
         }
       };
@@ -812,7 +752,6 @@ ${sourceText}
       }
     };
     
-    /* 📌 (수정 4) 신규: AI 주관식 채점 API 함수 📌 */
     const gradeAnswerWithAi = async (questionText, userAnswer, gradingCriteria, settings) => {
       const apiKeys = settings?.apiKeys || [{ key: "", rpm: 60 }]; 
       const keyIndex = Date.now() % apiKeys.length; 
@@ -870,20 +809,16 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
       }
     };
     
-    // --- 2. Web Worker (백그라운드 처리) ---
-    // 📌 (수정 5) Worker Script 전면 수정 (AI 채점 기능 추가)
+    // --- 2. Web Worker (v10.1과 동일) ---
     const workerScript = `
-      /* 📌 1. 의존성 주입 (퀴즈 생성) 📌 */
       const fetchWithRetry = ${fetchWithRetry.toString()};
       ${ApiError.toString()}
       const generateQuizWithAi = ${generateQuizWithAi.toString()};
       const QUIZ_SCHEMA = ${JSON.stringify(QUIZ_SCHEMA)};
       
-      /* 📌 2. 의존성 주입 (퀴즈 채점) 📌 */
       const gradeAnswerWithAi = ${gradeAnswerWithAi.toString()};
       const GRADING_SCHEMA = ${JSON.stringify(GRADING_SCHEMA)};
 
-      /* 📌 3. AI 전체 채점 로직 (신규) 📌 */
       const handleAsyncGrading = async (attempt, settings, DEFAULT_SETTINGS) => {
           const results = JSON.parse(attempt.answers);
           
@@ -896,7 +831,7 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
                       originalResult.questionText,
                       originalResult.selectedAnswer,
                       originalResult.gradingCriteria,
-                      { ...DEFAULT_SETTINGS, ...settings } // 워커 스코프의 settings 사용
+                      { ...DEFAULT_SETTINGS, ...settings }
                   );
                   return {
                       ...originalResult,
@@ -907,7 +842,7 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
                   console.error("AI 개별 채점 오류 (Worker):", error);
                   return {
                       ...originalResult,
-                      isCorrect: false, // 오류 시 오답
+                      isCorrect: false,
                       feedback: \`AI 채점 실패: \${error.message}\`
                   };
               }
@@ -929,24 +864,21 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
           return updatedAttempt;
       };
 
-      /* 📌 4. 메인 워커 핸들러 (수정) 📌 */
       self.onmessage = async (e) => {
         const { id: taskId, taskType, sourceText, options, settings, DEFAULT_SETTINGS, attempt } = e.data;
         
         try {
           if (taskType === 'grade') {
-            // --- AI 채점 작업 ---
             const updatedAttempt = await handleAsyncGrading(attempt, settings, DEFAULT_SETTINGS);
             self.postMessage({ 
                 status: 'success', 
                 taskId, 
                 taskType, 
-                updatedAttempt, // 채점 완료된 attempt 객체
-                options: { quizTitle: attempt.quizTitle } // 작업 모니터 표시용
+                updatedAttempt,
+                options: { quizTitle: attempt.quizTitle }
             });
             
           } else {
-            // --- AI 퀴즈 생성 작업 (기존) ---
             const quizData = await generateQuizWithAi(sourceText, options, { ...DEFAULT_SETTINGS, ...settings });
             self.postMessage({ 
                 status: 'success', 
@@ -965,9 +897,8 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
     const workerUrl = URL.createObjectURL(workerBlob);
     
     
-    // --- 3. 기본 설정 및 훅 (v6 - 프롬프트 수정) ---
+    // --- 3. 기본 설정 및 훅 (v10.2) ---
 
-    // 📌 (수정 6) 기본 프롬프트 템플릿 (채점 기준)
     const DEFAULT_SETTINGS = {
         apiKeys: [{ key: "", rpm: 60 }],
         defaultDifficulty: "Medium",
@@ -979,12 +910,11 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
 - Adhere strictly to the provided JSON schema.
 - You MUST set 'questionType' for each question (e.g., "MultipleChoice" or "ShortAnswer", "Essay" etc.).
 - For "MultipleChoice" questions, provide 'options' (array) and 'correctAnswerIndex' (number).
-- 📌 (수정) For subjective questions (like "ShortAnswer", "Essay", "CaseStudy"), DO NOT provide 'correctAnswerIndex' or 'options'.
-- 📌 (수정) Instead, for subjective questions, you MUST provide detailed 'gradingCriteria' (string). This criteria is a rubric for another AI to use for grading. (예: "정확한 용어 'TDD' 언급 시 1점, '테스트 우선 작성'의 개념 설명 시 1점")
+- For subjective questions (like "ShortAnswer", "Essay", "CaseStudy"), DO NOT provide 'correctAnswerIndex' or 'options'.
+- Instead, for subjective questions, you MUST provide detailed 'gradingCriteria' (string). This criteria is a rubric for another AI to use for grading. (예: "정확한 용어 'TDD' 언급 시 1점, '테스트 우선 작성'의 개념 설명 시 1점")
 - {{INCLUDE_SNIPPETS}}
 - {{PROVIDE_ANSWER_KEY}}
 - {{CUSTOM_INSTRUCTIONS}}`,
-        /* 📌 신규: AI 채점 프롬프트 📌 */
         gradingSystemPrompt: `You are a fair and meticulous AI teaching assistant. Your task is to grade a user's answer based *only* on the provided grading criteria (rubric).
 - Evaluate the "USER'S ANSWER" strictly against the "GRADING CRITERIA".
 - Determine if the answer is correct (true) or incorrect (false).
@@ -992,7 +922,20 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
 - Adhere strictly to the JSON output schema.`
     };
 
-    // (v5) IndexedDB 기반 파일 시스템 훅
+    // 📌 (v10.1) Req 2: 질문 유형 한글화 맵
+    const QUESTION_TYPE_MAP = {
+      "MultipleChoice": "객관식 (선택형)",
+      "ShortAnswer": "주관식 (단답형)",
+      "Essay": "서술형",
+      "TrueFalse": "진위형 (O/X)",
+      "FillInTheBlank": "빈칸 채우기",
+      "CaseStudy": "사례 연구",
+      "Matching": "연결형",
+      "Sequencing": "순서 맞추기",
+      "CodeSnippet": "코드 분석"
+    };
+
+    // (v10) IndexedDB 기반 파일 시스템 훅
     const useFileSystem = (files, dbHelper, refetch) => {
         
         const fileActions = useMemo(() => {
@@ -1003,15 +946,14 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
               const children = allFiles.filter(f => f.parentId === parentId);
               for (const child of children) {
                   if (child.type === 'folder') {
-                      await recursiveDelete(child.id); // 자식 폴더 재귀 삭제
+                      await recursiveDelete(child.id);
                   }
-                  await dbHelper.delete('files', child.id); // 파일 또는 빈 폴더 삭제
+                  await dbHelper.delete('files', child.id);
               }
           };
           
-          // (v5) DnD 이동 로직
           const move = async (fileId, newParentId) => {
-              if (fileId === newParentId) return; // 자신에게 드롭 방지
+              if (fileId === newParentId) return;
               
               const file = await dbHelper.get('files', fileId);
               if(file && file.parentId !== newParentId) { 
@@ -1029,11 +971,12 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
                 type,
                 parentId,
                 content: type === 'file' ? content : null,
+                metadata: { notes: '' }, 
                 createdAt: new Date().toISOString()
               };
               await dbHelper.add('files', newFile);
-              refetch(); // 데이터 새로고침
-              return newFile; // 📌 (수정) 생성된 객체 반환
+              refetch();
+              return newFile;
             },
             rename: async (fileId, newName) => {
               const file = await dbHelper.get('files', fileId);
@@ -1042,21 +985,31 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
             },
             remove: async (fileId, type) => {
               if (type === 'folder') {
-                  await recursiveDelete(fileId); // 하위 항목 모두 삭제
+                  await recursiveDelete(fileId);
               }
-              await dbHelper.delete('files', fileId); // 본인 삭제
+              await dbHelper.delete('files', fileId);
               refetch();
             },
             updateContent: async (fileId, newContent) => {
               const file = await dbHelper.get('files', fileId);
               if(file) await dbHelper.put('files', { ...file, content: newContent });
-              refetch(); // 📌 (수정 2) refetch() 추가
+              await refetch();
             },
-            move: move // (v5)
+            move: move,
+            updateMetadata: async (fileId, newMetadata) => {
+                const file = await dbHelper.get('files', fileId);
+                if (file) {
+                    const oldMetadata = file.metadata || { notes: '' };
+                    await dbHelper.put('files', {
+                        ...file,
+                        metadata: { ...oldMetadata, ...newMetadata }
+                    });
+                }
+                await refetch();
+            }
           };
         }, [dbHelper, refetch]);
 
-        // 플랫 리스트를 트리 구조로 변환
         const fileTree = useMemo(() => {
           const map = {};
           const roots = [];
@@ -1089,10 +1042,9 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
 
     // --- 4. UI 컴포넌트 ---
     
-    /* 📌 신규: 토스트 시스템 📌 */
+    /* 토스트 시스템 */
     const ToastProvider = ({ children }) => {
         const [toasts, setToasts] = useState([]);
-
         const show = useCallback((message, type = 'info') => {
             const id = crypto.randomUUID();
             setToasts(prev => [...prev, { id, message, type }]);
@@ -1100,15 +1052,12 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
                 setToasts(prev => prev.filter(t => t.id !== id));
             }, 3000);
         }, []);
-
         const value = useMemo(() => ({ show }), [show]);
-
         return e(ToastContext.Provider, { value },
             children,
             e(ToastContainer, { toasts })
         );
     };
-
     const ToastContainer = ({ toasts }) => {
         return e('div', { className: 'toast-container' },
             toasts.map(toast => e('div', { 
@@ -1124,17 +1073,19 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
       e('div', { className: 'spinner' })
     );
 
-    // 셸: VSCode 사이드바
+    // 셸: 📌 (v10.2) Req 1: 사이드바 필터링 버그 수정
     const ReactVscodeSidebar = ({ items = [], onActiveChange, activeId, isVisible, children }) => {
       const activityBarTop = e('div', null,
-        items.filter(item => !item.isBottom).map((item) => e('button', {
+        // 📌 (v10.2) 'isBottom'이 명시적으로 true가 *아닌* 모든 항목
+        items.filter(item => item.isBottom !== true).map((item) => e('button', {
           key: item.id, className: 'vsc-activity-item',
           onClick: () => onActiveChange(item.id),
           'data-active': isVisible && item.id === activeId, 'aria-label': item.label
         }, item.icon))
       );
       const activityBarBottom = e('div', null,
-        items.filter(item => item.isBottom).map((item) => e('button', {
+        // 📌 (v10.2) 'isBottom'이 명시적으로 true인 항목
+        items.filter(item => item.isBottom === true).map((item) => e('button', {
           key: item.id, className: 'vsc-activity-item',
           onClick: () => onActiveChange(item.id),
           'data-active': isVisible && item.id === activeId, 'aria-label': item.label
@@ -1155,7 +1106,7 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
       );
     };
     
-    // (v4.1) 컨텍스트 메뉴 컴포넌트
+    // (v10) 컨텍스트 메뉴 컴포넌트
     const ContextMenu = ({ menuData, handlers, onClose }) => {
         if (!menuData.visible) return null;
         const { node } = menuData;
@@ -1188,13 +1139,16 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
                 (isRoot || isFolder) && e(React.Fragment, null,
                     e(MenuItem, { label: '새 파일', onClick: handlers.onCreateFile }),
                     e(MenuItem, { label: '새 폴더', onClick: handlers.onCreateFolder })
+                ),
+                !isRoot && !isFolder && e(React.Fragment, null,
+                    e('hr', { className: 'context-menu-divider' }),
+                    e(MenuItem, { label: '✨ 퀴즈 생성', onClick: handlers.onGenerateQuiz })
                 )
             )
         );
     };
 
-    // 뷰 1: 파일 관리자 (v5 - 2분할 뷰, DnD)
-    // 📌 [리팩토링]
+    // (v10) 파일 관리자
     const FileManagerView = ({ viewId }) => {
         const { 
             files, fileTree, fileActions, setActiveEditorFile, activeEditorFile,
@@ -1202,12 +1156,16 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
             quizzes, attempts, setModalContent,
             handleQuizSubmit,
             userSettings,
-            dispatchGradingTask
+            dispatchGradingTask,
+            dispatchTask, 
+            quizOptions 
         } = useContext(AppContext);
         
-        const toast = useToast(); // 📌 [리팩토링] toast 훅 직접 사용
+        const toast = useToast();
         
         const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, node: null });
+        const [isRootDragOver, setIsRootDragOver] = useState(false);
+        const [activeLowerPaneTab, setActiveLowerPaneTab] = useState('quizzes');
         
         const fileQuizzes = useMemo(() => 
             activeEditorFile ? quizzes.filter(q => q.fileId === activeEditorFile.id) : [],
@@ -1218,17 +1176,14 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
         [attempts, activeEditorFile]);
         
         
-        /* 📌 [리팩토링] ZIP/파일 업로드 로직 📌 */
+        /* 파일 업로드/프로젝트 임포트/익스포트 핸들러 (v10.1과 동일) */
         const handleFileUpload = useCallback(async (event) => {
             const files = event.target.files;
             if (!files.length) return;
-            
             toast.show('파일 업로드 시작...', 'info');
-
             for (const file of files) {
                 const fileName = file.name;
                 const fileExt = fileName.split('.').pop().toLowerCase();
-
                 if (['txt', 'md'].includes(fileExt)) {
                     const reader = new FileReader();
                     reader.onload = (e) => {
@@ -1240,20 +1195,16 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
                     reader.onload = async (e) => {
                         try {
                             const zip = await JSZip.loadAsync(e.target.result);
-                            // 1. ZIP 파일 이름으로 루트 폴더 생성
                             const zipRootFolder = await fileActions.create('root', 'folder', fileName.replace(/\.zip$/i, ''));
-                            
                             const createdFolderIds = new Map();
-                            createdFolderIds.set('root', zipRootFolder.id); // Zip's root maps to the target parentId
-
-                            // 2. 모든 폴더 경로 추출 및 정렬 (암시적/명시적 경로 모두)
+                            createdFolderIds.set('root', zipRootFolder.id);
                             const allFolderPaths = new Set();
                             Object.keys(zip.files).forEach(p => {
                                 if (zip.files[p].dir) {
                                     allFolderPaths.add(p);
                                 } else {
                                     const parts = p.split('/');
-                                    parts.pop(); // remove filename
+                                    parts.pop();
                                     let currentPath = '';
                                     for (const part of parts) {
                                         if (!part) continue;
@@ -1262,32 +1213,25 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
                                     }
                                 }
                             });
-
                             const sortedFolderPaths = Array.from(allFolderPaths)
                                 .filter(p => p && !p.startsWith('__MACOSX/'))
                                 .sort((a, b) => a.split('/').length - b.split('/').length);
-
-                            // 3. 모든 폴더 순차적으로 생성
                             for (const folderPath of sortedFolderPaths) {
                                 const parts = folderPath.replace(/\/$/, '').split('/');
                                 const folderName = parts[parts.length - 1];
                                 const parentPath = parts.slice(0, -1).join('/') + (parts.length > 1 ? '/' : '');
                                 const parentFolderId = createdFolderIds.get(parentPath || 'root');
-
                                 if (parentFolderId && folderName && !createdFolderIds.has(folderPath)) {
                                     const newFolder = await fileActions.create(parentFolderId, 'folder', folderName);
                                     createdFolderIds.set(folderPath, newFolder.id);
                                 }
                             }
-
-                            // 4. 모든 파일 생성
                             for (const [relativePath, zipEntry] of Object.entries(zip.files)) {
                                 if (!zipEntry.dir && !zipEntry.name.startsWith('__MACOSX/') && zipEntry.name) {
                                     const parts = zipEntry.name.split('/');
                                     const fileName = parts.pop();
                                     const parentPath = parts.join('/') + (parts.length > 0 ? '/' : '');
                                     const parentFolderId = createdFolderIds.get(parentPath || 'root');
-
                                     if (parentFolderId && fileName) {
                                         const content = await zipEntry.async('string');
                                         await fileActions.create(parentFolderId, 'file', fileName, content);
@@ -1302,17 +1246,12 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
                     reader.readAsArrayBuffer(file);
                 }
             }
-            
-            // 파일 리더기가 완료될 시간을 확보하기 위해 timeout 사용
             setTimeout(() => {
                 refetchAllData();
                 toast.show('✅ 파일 업로드 완료.', 'success');
-            }, 1500); // (파일 크기에 따라 조정 필요)
-            
-            event.target.value = null; // 인풋 초기화
+            }, 1500);
+            event.target.value = null;
         }, [fileActions, refetchAllData, toast]);
-
-        /* 📌 [리팩토링] 프로젝트 가져오기 로직 📌 */
         const handleImportProject = useCallback((event) => {
             const file = event.target.files[0];
             if (!file) return;
@@ -1324,13 +1263,11 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
                     await dbHelper.clear('files');
                     await dbHelper.clear('quizzes');
                     await dbHelper.clear('quizAttempts');
-                    
                     for (const file of data.files || []) await dbHelper.put('files', file);
                     for (const quiz of data.quizzes || []) await dbHelper.put('quizzes', quiz);
                     for (const attempt of data.attempts || []) await dbHelper.put('attempts', attempt);
                     if (data.settings) await dbHelper.put('settings', data.settings);
-                    
-                    refetchAllData(); // 전체 데이터 새로고침
+                    refetchAllData();
                     toast.show('✅ 프로젝트를 성공적으로 가져왔습니다.', 'success');
                 } catch (err) {
                     console.error("Import failed:", err);
@@ -1338,10 +1275,8 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
                 }
             };
             reader.readAsText(file);
-            event.target.value = null; // 인풋 초기화
+            event.target.value = null;
         }, [dbHelper, refetchAllData, toast]);
-
-        /* 📌 [신규] 누락된 handleExportProject 함수 추가 📌 */
         const handleExportProject = useCallback(async () => {
             try {
                 const data = {
@@ -1363,25 +1298,20 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
                 console.error("Export failed:", err);
                 toast.show(`❌ 내보내기 실패: ${err.message}`, 'error');
             }
-        }, [dbHelper, toast]); // 📌 의존성: dbHelper, toast
-
-
+        }, [dbHelper, toast]);
         useEffect(() => {
             const handleClick = () => setContextMenu({ visible: false });
             window.addEventListener('click', handleClick);
-            
             const fileUploadInput = document.getElementById('file-upload-input');
             const projectImportInput = document.getElementById('project-import-input');
-            
             fileUploadInput.addEventListener('change', handleFileUpload);
             projectImportInput.addEventListener('change', handleImportProject);
-
             return () => {
                 window.removeEventListener('click', handleClick);
                 fileUploadInput.removeEventListener('change', handleFileUpload);
                 projectImportInput.removeEventListener('change', handleImportProject);
             };
-        }, [handleFileUpload, handleImportProject]); // 📌 의존성 배열 수정
+        }, [handleFileUpload, handleImportProject]);
         
         const handleContextMenu = (e, node) => {
             e.preventDefault();
@@ -1389,26 +1319,21 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
             setContextMenu({ visible: true, x: e.clientX, y: e.clientY, node: node });
         };
         
-        // (v5) FileNode 수정 (DnD)
+        // (v10.1과 동일) FileNode
         const FileNode = ({ node, depth, onContextMenu }) => {
             const { activeEditorFile, editingNodeId, setEditingNodeId, fileActions } = useContext(AppContext);
-            
             const [isOpen, setIsOpen] = useState(true);
             const [editName, setEditName] = useState(node.name);
-            const [isDragOver, setIsDragOver] = useState(false); // (v5)
-            
+            const [isDragOver, setIsDragOver] = useState(false);
             const isEditing = editingNodeId === node.id;
-            
             useEffect(() => {
                 if (isEditing) setEditName(node.name);
             }, [isEditing, node.name]);
-            
             const handleToggle = (e) => {
                 e.stopPropagation();
                 if (node.type === 'folder') setIsOpen(!isOpen);
                 else setActiveEditorFile(files.find(f => f.id === node.id));
             };
-            
             const handleRenameSubmit = (e) => {
                 e.stopPropagation(); e.preventDefault();
                 if (editName.trim() && editName.trim() !== node.name) {
@@ -1416,8 +1341,6 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
                 }
                 setEditingNodeId(null);
             };
-            
-            // (v5) DnD 핸들러
             const handleDragStart = (e) => {
                 e.stopPropagation();
                 e.dataTransfer.setData('fileId', node.id);
@@ -1446,7 +1369,6 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
                     }
                 }
             };
-
             return e(React.Fragment, null,
                 e('div', { 
                     className: 'file-tree-node',
@@ -1454,12 +1376,12 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
                     onClick: handleToggle,
                     onContextMenu: (e) => onContextMenu(e, node),
                     'data-active': activeEditorFile?.id === node.id,
-                    draggable: true, // (v5)
+                    draggable: true,
                     onDragStart: handleDragStart,
                     onDragOver: handleDragOver,
                     onDragLeave: handleDragLeave,
                     onDrop: handleDrop,
-                    'data-drag-over': isDragOver // (v5)
+                    'data-drag-over': isDragOver
                   },
                   e('span', { className: 'file-tree-node-icon' }, 
                     node.type === 'folder' ? (isOpen ? '▼' : '►') : '📄'
@@ -1487,11 +1409,9 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
             );
         };
         
-        // 📌 [버그 수정] contextMenuHandlers가 올바른 parentId를 사용하도록 보장
+        // (v10.1과 동일) contextMenuHandlers
         const contextMenuHandlers = useMemo(() => {
             const { node } = contextMenu;
-            // node가 있으면 (폴더/파일) -> 폴더면 node.id, 파일이면 node.parentId
-            // node가 없으면 (루트) -> 'root'
             const parentId = (node && node.type === 'folder') ? node.id : (node ? node.parentId : 'root');
             
             return {
@@ -1499,31 +1419,81 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
                 onDelete: () => {
                     if (node && window.confirm(`'${node.name}'을(를) 삭제하시겠습니까?`)) {
                         fileActions.remove(node.id, node.type);
-                        if (activeEditorFile?.id === node.id) setActiveEditorFile(null); // (v5) 열린 파일 삭제 시 닫기
+                        if (activeEditorFile?.id === node.id) setActiveEditorFile(null);
                     }
                 },
                 onCreateFile: () => fileActions.create(parentId, 'file'),
                 onCreateFolder: () => fileActions.create(parentId, 'folder'),
+                onGenerateQuiz: () => {
+                    if (node && node.type === 'file') {
+                        dbHelper.get('files', node.id).then(file => {
+                            if (!file.content || !file.content.trim()) {
+                                toast.show('❌ 파일에 원문이 없습니다. 파일을 열어 내용을 추가하세요.', 'error');
+                                return;
+                            }
+                            if(activeEditorFile?.id !== file.id) {
+                                setActiveEditorFile(file);
+                            }
+                            dispatchTask({
+                                taskType: 'generate',
+                                sourceText: file.content,
+                                options: {
+                                    ...quizOptions,
+                                    fileId: file.id,
+                                    sourceFileName: file.name
+                                }
+                            });
+                        });
+                    }
+                }
             };
-        }, [contextMenu, fileActions, setEditingNodeId, activeEditorFile]);
+        }, [contextMenu, fileActions, setEditingNodeId, activeEditorFile, dbHelper, dispatchTask, quizOptions, toast, setActiveEditorFile]);
         
+        // (v10.1과 동일) 루트 DnD 핸들러
+        const handleRootDragOver = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setIsRootDragOver(true);
+            e.dataTransfer.dropEffect = 'move';
+        };
+        const handleRootDragLeave = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setIsRootDragOver(false);
+        };
+        const handleRootDrop = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setIsRootDragOver(false);
+            const fileId = e.dataTransfer.getData('fileId');
+            if (fileId) {
+                fileActions.move(fileId, 'root');
+            }
+        };
+
         return e('div', { 
             viewId, 
-            className: 'flex flex-col h-full vsc-view-panes', // (v5) 2분할 뷰
+            className: 'flex flex-col h-full vsc-view-panes',
             onContextMenu: (e) => handleContextMenu(e, null)
            },
-            // (v5) 상단: 파일 트리
+            // 상단: 파일 트리
             e('div', { className: 'vsc-view-pane' },
                 e('div', { className: 'view-header' },
                     e('h3', { className: 'border-b-0 p-0 m-0' }, '파일 탐색기'),
                     e('div', { className: 'flex gap-1' },
-                        e('button', { title: "새 폴더", className: 'view-header-icon', onClick: () => contextMenuHandlers.onCreateFolder() }, '📁+'), // 📌 [버그 수정] 핸들러 직접 호출
+                        e('button', { title: "새 폴더", className: 'view-header-icon', onClick: () => contextMenuHandlers.onCreateFolder() }, '📁+'),
                         e('button', { title: "파일 업로드", className: 'view-header-icon', onClick: () => document.getElementById('file-upload-input').click() }, '⬆️'),
                         e('button', { title: "내보내기", className: 'view-header-icon', onClick: handleExportProject }, '💾'),
                         e('button', { title: "가져오기", className: 'view-header-icon', onClick: () => document.getElementById('project-import-input').click() }, '📥')
                     )
                 ),
-                e('div', { className: 'vsc-view-pane-content full' }, 
+                e('div', { 
+                    className: 'vsc-view-pane-content full',
+                    onDragOver: handleRootDragOver,
+                    onDragLeave: handleRootDragLeave,
+                    onDrop: handleRootDrop,
+                    'data-drag-over': isRootDragOver
+                }, 
                     e('div', { className: 'file-tree-list' },
                         fileTree.map(node => e(FileNode, { 
                             key: node.id, 
@@ -1535,37 +1505,52 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
                 )
             ),
             
-            // (v5) 하단: 파일 상세 (퀴즈/기록)
+            // 하단: 파일 상세 (탭 뷰)
             activeEditorFile && e('div', { className: 'vsc-view-pane' },
-                e('div', { className: 'vsc-view-pane-header' }, 
-                    `파일 상세: ${activeEditorFile.name}`
+                e('div', { className: 'vsc-view-pane-header flex justify-between' }, 
+                    e('div', { className: 'flex' },
+                        e('button', {
+                            className: `px-3 py-1 text-xs ${activeLowerPaneTab === 'quizzes' ? 'text-white bg-gray-600' : 'text-gray-400'}`,
+                            onClick: () => setActiveLowerPaneTab('quizzes')
+                        }, '퀴즈/기록'),
+                        e('button', {
+                            className: `px-3 py-1 text-xs ${activeLowerPaneTab === 'notes' ? 'text-white bg-gray-600' : 'text-gray-400'}`,
+                            onClick: () => setActiveLowerPaneTab('notes')
+                        }, '메모')
+                    )
                 ),
-                e('div', { className: 'vsc-view-pane-content' },
-                    e('h4', { className: 'text-md font-semibold mt-0 mb-2' }, '생성된 퀴즈'),
-                    fileQuizzes.length === 0 && e('p', { className: 'text-sm text-gray-400' }, '이 파일로 생성된 퀴즈가 없습니다.'),
-                    fileQuizzes.map(quiz => e('div', { 
-                        key: quiz.id, className: 'list-item',
-                        onClick: () => setModalContent(e(QuizTaker, { 
-                            quiz, 
-                            onClose: () => setModalContent(null),
-                            onQuizSubmit: handleQuizSubmit 
-                        }))
-                    }, e('div', { className: 'list-item-title' }, quiz.title))),
-                    
-                    e('h4', { className: 'text-md font-semibold mt-4 mb-2' }, '풀이 기록'),
-                    fileAttempts.length === 0 && e('p', { className: 'text-sm text-gray-400' }, '이 파일의 퀴즈 풀이 기록이 없습니다.'),
-                    fileAttempts.map(attempt => e('div', { 
-                        key: attempt.id, className: 'list-item',
-                        onClick: () => setModalContent(e(QuizResult, { 
-                            attempt, 
-                            quiz: quizzes.find(q => q.id === attempt.quizId), 
-                            onClose: () => setModalContent(null),
-                            userSettings,
-                            dbHelper,
-                            refetchAllData,
-                            dispatchGradingTask
-                        }))
-                    }, e('div', { className: 'list-item-title' }, `${attempt.quizTitle} (${attempt.score}/${attempt.total})`)))
+                e('div', { className: `vsc-view-pane-content ${activeLowerPaneTab === 'notes' ? 'full' : ''}` },
+                    activeLowerPaneTab === 'quizzes' && e('div', null,
+                        e('h4', { className: 'text-md font-semibold mt-0 mb-2' }, '생성된 퀴즈'),
+                        fileQuizzes.length === 0 && e('p', { className: 'text-sm text-gray-400' }, '이 파일로 생성된 퀴즈가 없습니다.'),
+                        fileQuizzes.map(quiz => e('div', { 
+                            key: quiz.id, className: 'list-item',
+                            onClick: () => setModalContent(e(QuizTaker, { 
+                                quiz, 
+                                onClose: () => setModalContent(null),
+                                onQuizSubmit: handleQuizSubmit 
+                            }))
+                        }, e('div', { className: 'list-item-title' }, quiz.title))),
+                        
+                        e('h4', { className: 'text-md font-semibold mt-4 mb-2' }, '풀이 기록'),
+                        fileAttempts.length === 0 && e('p', { className: 'text-sm text-gray-400' }, '이 파일의 퀴즈 풀이 기록이 없습니다.'),
+                        fileAttempts.map(attempt => e('div', { 
+                            key: attempt.id, className: 'list-item',
+                            onClick: () => setModalContent(e(QuizResult, { 
+                                attempt, 
+                                quiz: quizzes.find(q => q.id === attempt.quizId), 
+                                onClose: () => setModalContent(null),
+                                userSettings,
+                                dbHelper,
+                                refetchAllData,
+                                dispatchGradingTask
+                            }))
+                        }, e('div', { className: 'list-item-title' }, `${attempt.quizTitle} (${attempt.score}/${attempt.total})`)))
+                    ),
+                    activeLowerPaneTab === 'notes' && e(FileNotesEditor, {
+                        activeFile: activeEditorFile,
+                        fileActions: fileActions
+                    })
                 )
             ),
             
@@ -1577,22 +1562,15 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
         );
     };
 
-    // 뷰 2: 퀴즈 생성기 (v5 - 원문 제거)
+    // 뷰 2: 퀴즈 생성기 (v10.2 - Req 2 한글화)
     const QuizGeneratorView = ({ viewId }) => {
-      // (v5) 퀴즈 옵션 상태를 Context에서 가져옴
       const { quizOptions, setQuizOptions } = useContext(AppContext);
 
       const handleSubmit = (e) => { e.preventDefault(); };
       
-      const questionTypes = [
-          "MultipleChoice", "ShortAnswer", "TrueFalse", "FillInTheBlank",
-          "Essay", "CaseStudy", "Matching", "Sequencing", "CodeSnippet"
-      ];
-
       return e('form', { viewId, onSubmit: handleSubmit, className: 'flex flex-col h-full' },
         e('h3', { className: 'view-header' }, '퀴즈 옵션'),
         e('div', { className: 'view-content-scroll' },
-          // (v5) 원문 textarea 제거됨
           e('div', { className: 'grid grid-cols-2 gap-4' },
             e('div', { className: 'form-group' },
               e('label', { htmlFor: 'num-questions', className: 'form-label' }, '질문 수'),
@@ -1622,7 +1600,10 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
                 value: quizOptions.questionType, 
                 onChange: (ev) => setQuizOptions(o => ({...o, questionType: ev.target.value}))
               },
-              questionTypes.map(type => e('option', { key: type, value: type }, type))
+              // 📌 (v10.2) Req 2: 한글화 맵 적용
+              Object.entries(QUESTION_TYPE_MAP).map(([value, label]) => 
+                  e('option', { key: value, value: value }, label)
+              )
             )
           ),
           e('div', { className: 'form-group' },
@@ -1641,7 +1622,7 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
                 checked: quizOptions.includeSnippets, 
                 onChange: (ev) => setQuizOptions(o => ({...o, includeSnippets: ev.target.checked}))
               }),
-              '코드 스니펫 포함 (Include Code Snippets)'
+              '코드 스니펫 포함' // (v10.1) 한글화
             ),
             e('label', { className: 'form-checkbox-label' },
               e('input', {
@@ -1649,16 +1630,14 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
                 checked: quizOptions.provideAnswerKey, 
                 onChange: (ev) => setQuizOptions(o => ({...o, provideAnswerKey: ev.target.checked}))
               }),
-              '정답 키 제공 (Provide Answer Key)'
+              '정답 키 제공' // (v10.1) 한글화
             )
           )
         )
-        // (v5) 생성 버튼 제거됨
       );
     };
     
-    // 뷰 3: 퀴즈 기록 (v5 - 글로벌 풀이 기록만)
-    // 📌 [리팩토링]
+    // 뷰 3: 퀴즈 기록
     const QuizHistoryView = ({ viewId }) => {
       const { quizzes, attempts, setModalContent, userSettings, dbHelper, refetchAllData, dispatchGradingTask } = useContext(AppContext);
       
@@ -1667,7 +1646,6 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
               attempt, 
               quiz: quizzes.find(q => q.id === attempt.quizId),
               onClose: () => setModalContent(null),
-              /* 📌 의존성 주입 📌 */
               userSettings,
               dbHelper,
               refetchAllData,
@@ -1692,12 +1670,11 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
                 )
             )
           ))
-          // (v5) 생성된 퀴즈 목록 제거됨
         )
       );
     };
     
-    // 뷰 4: 작업 모니터 (v3)
+    // 뷰 4: 작업 모니터 (v10.2 - Req 2 한글화)
     const TaskMonitorView = ({ viewId }) => {
         const { taskQueue } = useContext(AppContext);
         
@@ -1707,7 +1684,6 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
                 taskQueue.length === 0 && e('p', { className: 'text-sm text-gray-400' }, '활성 작업이 없습니다.'),
                 taskQueue.map(task => e('div', { key: task.id, className: 'list-item' },
                     e('div', { className: 'list-item-title' }, 
-                      // 📌 (수정) 작업 유형에 따라 제목 분기
                       task.taskType === 'grade' 
                         ? `[채점] ${task.options.quizTitle}` 
                         : `[생성] ${task.options.sourceFileName}`
@@ -1716,7 +1692,8 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
                         e('span', { className: 'list-item-sub' }, 
                           task.taskType === 'grade'
                             ? `퀴즈 채점 작업`
-                            : `유형: ${task.options.questionType} (${task.options.numQuestions} 문제)`
+                            // 📌 (v10.2) Req 2: 한글화 맵 적용
+                            : `유형: ${QUESTION_TYPE_MAP[task.options.questionType] || task.options.questionType} (${task.options.numQuestions} 문제)`
                         ),
                         task.status === 'processing' && e('span', { className: 'list-item-badge' }, '처리 중...'),
                         task.status === 'success' && e('span', { className: 'list-item-badge success' }, '완료'),
@@ -1727,50 +1704,51 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
         );
     };
 
-    // 뷰 5: 메인 컨텐츠 에디터 (v5 - 헤더 추가)
-    // 📌 [리팩토링]
+    // 뷰 5: 메인 컨텐츠 에디터 (v10.2 - Req 1 버그 수정)
     const MainContentEditor = () => {
         const { 
             activeEditorFile, fileActions, 
             dispatchTask, quizOptions 
         } = useContext(AppContext);
         const [content, setContent] = useState("");
-        const [saveStatus, setSaveStatus] = useState('saved'); // 'saved', 'editing', 'saving'
+        const [saveStatus, setSaveStatus] = useState('saved');
         
-        // 파일 변경 시, content와 saveStatus를 리셋
+        const toast = useToast();
+        
         useEffect(() => {
             setContent(activeEditorFile?.content || "");
-            setSaveStatus('saved'); // 새 파일은 '저장됨' 상태로 시작
+            setSaveStatus('saved');
         }, [activeEditorFile]);
         
         const debouncedContent = useDebounce(content, 1000);
         
-        // 디바운스 저장 로직에 상태 변경 추가
+        // 📌 (v10.2) Req 1: 저장 로직 버그 수정
         useEffect(() => {
             if (activeEditorFile && debouncedContent !== activeEditorFile.content) {
-                setSaveStatus('saving'); // 저장 시작
+                setSaveStatus('saving');
                 fileActions.updateContent(activeEditorFile.id, debouncedContent)
                     .then(() => {
-                        setSaveStatus('saved'); // 저장 완료
+                        setSaveStatus('saved');
+                    })
+                    .catch((err) => {
+                         console.error("저장 실패:", err);
+                         toast.show("❌ 파일 저장 실패.", 'error');
+                         setSaveStatus('editing');
                     });
             } else if (saveStatus === 'editing' && activeEditorFile && debouncedContent === activeEditorFile.content) {
-                // 사용자가 입력을 멈췄으나 변경 사항이 없는 경우 (예: 썼다 지움)
-                setSaveStatus('saved');
-            } else if (activeEditorFile && debouncedContent === activeEditorFile.content) {
-                // refetch 이후 이 조건이 true가 되어 상태를 'saved'로 돌림
                 setSaveStatus('saved');
             }
-        }, [debouncedContent, activeEditorFile, fileActions]); // 📌 saveStatus 의존성 제거
+        // 📌 (v10.2) Req 1: 의존성 배열에서 'saveStatus' 제거 (경쟁 상태 방지)
+        }, [debouncedContent, activeEditorFile, fileActions, toast]);
 
-        // 퀴즈 생성 핸들러 (요구사항 2)
         const handleGenerateQuiz = () => {
             if (!activeEditorFile) return;
             if (!content.trim()) {
-                alert("파일에 원문이 없습니다.");
+                toast.show("❌ 파일에 원문이 없습니다.", 'error');
                 return;
             }
             dispatchTask({
-                taskType: 'generate', // 📌 (신규) 작업 유형 명시
+                taskType: 'generate',
                 sourceText: content, 
                 options: {
                     ...quizOptions,
@@ -1780,7 +1758,6 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
             });
         };
         
-        // 저장 상태 메시지 맵
         const statusMessages = {
           'saved': '저장됨',
           'editing': '수정 중...',
@@ -1792,32 +1769,28 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
         }
 
         return e('div', { className: 'flex flex-col h-full' },
-            // (v5) 에디터 헤더
             e('div', { className: 'main-editor-header' },
                 e('span', { className: 'main-editor-title' }, activeEditorFile.name),
                 e('button', { 
                     className: 'main-editor-action-btn',
                     onClick: handleGenerateQuiz,
-                    disabled: saveStatus !== 'saved' // 저장 중에 버튼 비활성화 (선택적)
+                    disabled: saveStatus !== 'saved'
                 }, '✨ 퀴즈 생성')
             ),
-            // 텍스트 에디터
             e('textarea', {
                 key: activeEditorFile.id,
                 className: 'main-editor',
                 value: content,
-                // onChange에 상태 변경 추가
                 onChange: (ev) => {
                     setContent(ev.target.value);
                     setSaveStatus('editing');
                 }
             }),
-            // 신규 푸터 추가
             e('div', { className: 'main-editor-footer' }, statusMessages[saveStatus])
         );
     };
     
-    // 뷰 6: 설정 모달 (v4 - 프롬프트 탭 추가)
+    // 뷰 6: 설정 모달 (v10.2 - Req 2 한글화)
     const SettingsModal = ({ onClose }) => {
         const { userSettings, saveSettings } = useContext(AppContext);
         const [activeTab, setActiveTab] = useState('Quiz Defaults');
@@ -1825,15 +1798,14 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
         const [apiKeys, setApiKeys] = useState([]);
         const [newApiKey, setNewApiKey] = useState("");
         const [quizSystemPrompt, setQuizSystemPrompt] = useState("");
-        const [gradingSystemPrompt, setGradingSystemPrompt] = useState(""); // 📌 (신규)
+        const [gradingSystemPrompt, setGradingSystemPrompt] = useState("");
         const [defaultSettings, setDefaultSettings] = useState({});
         
-        // 설정 로드
         useEffect(() => {
             if (userSettings) {
                 setApiKeys(userSettings.apiKeys || DEFAULT_SETTINGS.apiKeys);
                 setQuizSystemPrompt(userSettings.quizSystemPrompt || DEFAULT_SETTINGS.quizSystemPrompt);
-                setGradingSystemPrompt(userSettings.gradingSystemPrompt || DEFAULT_SETTINGS.gradingSystemPrompt); // 📌 (신규)
+                setGradingSystemPrompt(userSettings.gradingSystemPrompt || DEFAULT_SETTINGS.gradingSystemPrompt);
                 setDefaultSettings({
                     defaultDifficulty: userSettings.defaultDifficulty || DEFAULT_SETTINGS.defaultDifficulty,
                     defaultQuestionType: userSettings.defaultQuestionType || DEFAULT_SETTINGS.defaultQuestionType,
@@ -1859,11 +1831,11 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
 
         const handleSave = () => {
             saveSettings({
-                ...userSettings, // 이전 설정 유지
+                ...userSettings,
                 apiKeys,
                 ...defaultSettings,
                 quizSystemPrompt,
-                gradingSystemPrompt // 📌 (신규)
+                gradingSystemPrompt
             });
             onClose();
         };
@@ -1914,10 +1886,10 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
                                 value: defaultSettings.defaultQuestionType, 
                                 onChange: (ev) => handleDefaultChange('defaultQuestionType', ev.target.value)
                             },
-                                e('option', { value: 'MultipleChoice' }, 'MultipleChoice'),
-                                e('option', { value: 'ShortAnswer' }, 'ShortAnswer'),
-                                e('option', { value: 'TrueFalse' }, 'TrueFalse'),
-                                e('option', { value: 'FillInTheBlank' }, 'FillInTheBlank')
+                                // 📌 (v10.2) Req 2: 한글화 맵 적용
+                                Object.entries(QUESTION_TYPE_MAP).map(([value, label]) => 
+                                    e('option', { key: value, value: value }, label)
+                                )
                             )
                         )
                     ),
@@ -1931,7 +1903,6 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
                     )
                 );
             }
-            // (v4) 프롬프트 설정 탭
             if (activeTab === 'Prompts') {
                 return e('div', { className: 'flex flex-col h-full' },
                     e('h3', { className: 'text-lg font-semibold mb-4' }, 'Quiz System Prompt'),
@@ -1942,7 +1913,6 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
                         value: quizSystemPrompt,
                         onChange: (e) => setQuizSystemPrompt(e.target.value)
                     }),
-                    /* 📌 (신규) AI 채점 프롬프트 📌 */
                     e('h3', { className: 'text-lg font-semibold mb-4 mt-6' }, 'Grading System Prompt'),
                     e('p', { className: 'text-xs text-gray-500 mb-4' }, '변수: (UserQuery에서 자동 주입됨)'),
                     e('textarea', {
@@ -1987,71 +1957,145 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
         );
     };
     
-    // 뷰 7: 퀴즈 풀이 모달 (v6 - 다형성 렌더링)
-    // 📌 (수정 9) QuizTaker의 handleSubmit 수정
+    // (v10) 파일 메모 에디터
+    const FileNotesEditor = ({ activeFile, fileActions }) => {
+        const [notes, setNotes] = useState("");
+        useEffect(() => {
+            setNotes(activeFile?.metadata?.notes || "");
+        }, [activeFile]);
+        const debouncedNotes = useDebounce(notes, 1000);
+        useEffect(() => {
+            if (activeFile && debouncedNotes !== (activeFile.metadata?.notes || "")) {
+                fileActions.updateMetadata(activeFile.id, { notes: debouncedNotes });
+            }
+        }, [debouncedNotes, activeFile, fileActions]);
+        return e('div', { className: 'h-full flex flex-col' },
+            e('textarea', {
+                key: activeFile.id,
+                className: 'main-editor !p-4',
+                style: { height: '100%' },
+                value: notes,
+                onChange: (ev) => setNotes(ev.target.value),
+                placeholder: '이 파일에 대한 요약, 메모 또는 메타데이터를 입력하세요...'
+            })
+        );
+    };
+
+
+    // (v10) 검색 뷰
+    const SearchView = ({ viewId }) => {
+        const { files, setActiveEditorFile, handleActivityChange } = useContext(AppContext);
+        const [searchTerm, setSearchTerm] = useState("");
+        const [results, setResults] = useState([]);
+        const debouncedSearchTerm = useDebounce(searchTerm, 300);
+        useEffect(() => {
+            if (!debouncedSearchTerm || debouncedSearchTerm.length < 2) {
+                setResults([]);
+                return;
+            }
+            const lowerTerm = debouncedSearchTerm.toLowerCase();
+            const searchResults = files.filter(f => {
+                if (f.type === 'folder') return false;
+                const inName = f.name.toLowerCase().includes(lowerTerm);
+                const inContent = f.content && f.content.toLowerCase().includes(lowerTerm);
+                const inNotes = f.metadata?.notes && f.metadata.notes.toLowerCase().includes(lowerTerm);
+                return inName || inContent || inNotes;
+            });
+            setResults(searchResults);
+        }, [debouncedSearchTerm, files]);
+        const handleResultClick = (file) => {
+            setActiveEditorFile(file);
+            if(handleActivityChange) {
+                handleActivityChange('files', true);
+            }
+        };
+        return e('div', { viewId, className: 'flex flex-col h-full' },
+            e('h3', { className: 'view-header' }, '전체 검색'),
+            e('div', { className: 'view-content-full p-4' },
+                e('div', { className: 'form-group' },
+                    e('input', {
+                        type: 'text',
+                        className: 'form-input',
+                        placeholder: '파일 이름, 내용, 메모 검색...',
+                        value: searchTerm,
+                        onChange: (e) => setSearchTerm(e.target.value),
+                        autoFocus: true
+                    })
+                ),
+                e('div', { className: 'mt-4' },
+                    results.length === 0 && debouncedSearchTerm.length > 1 &&
+                        e('p', { className: 'text-sm text-gray-400' }, '검색 결과가 없습니다.'),
+                    results.map(file => e('div', {
+                        key: file.id,
+                        className: 'list-item',
+                        onClick: () => handleResultClick(file)
+                    },
+                        e('div', { className: 'list-item-title' }, file.name)
+                    ))
+                )
+            )
+        );
+    };
+    
+    // 📌 (v10.2) 신규: 사용자 뷰 (Req 2)
+    const UserView = ({ viewId }) => {
+        return e('div', { viewId, className: 'flex flex-col h-full' },
+            e('h3', { className: 'view-header' }, '사용자 프로필'),
+            e('div', { className: 'view-content-scroll' },
+                e('p', { className: 'text-sm text-gray-400' }, '사용자 프로필 기능은 현재 준비 중입니다.')
+            )
+        );
+    };
+    
+    // 뷰 8: 퀴즈 풀이 모달 (v10.2 - 한글화)
     const QuizTaker = ({ quiz, onClose, onQuizSubmit }) => {
         const [questions, setQuestions] = useState([]);
         const [currentAnswers, setCurrentAnswers] = useState({});
-        
         useEffect(() => {
             try {
                 const parsedQuestions = JSON.parse(quiz.questions);
                 setQuestions(parsedQuestions);
             } catch (e) { console.error("퀴즈 질문 파싱 오류:", e); }
         }, [quiz]);
-
-        // 📌 (v6) 다형성 핸들러 (값 또는 인덱스 저장)
         const handleAnswerChange = (qIndex, value) => {
             setCurrentAnswers(prev => ({ ...prev, [qIndex]: value }));
         };
-
         const handleSubmit = () => {
             let score = 0;
             const userAnswers = questions.map((q, qIndex) => {
-                let isCorrect = false; // 📌 (수정) 기본값을 false로
+                let isCorrect = false;
                 const selectedAnswer = currentAnswers[qIndex];
-
-                // 📌 (v6) 다형성 채점
                 switch (q.questionType) {
                     case 'MultipleChoice':
                         isCorrect = (selectedAnswer === q.correctAnswerIndex);
-                        if (isCorrect) score++; // 📌 (수정) 객관식만 즉시 점수 반영
+                        if (isCorrect) score++;
                         break;
-                    case 'ShortAnswer':
-                    case 'Essay':
-                    case 'CaseStudy':
                     default: 
-                        // 📌 (수정) 주관식은 즉시 채점 안 함
-                        isCorrect = null; // '채점 대기' 상태
+                        isCorrect = null;
                         break;
                 }
-                
                 return {
                     questionType: q.questionType,
                     questionText: q.questionText,
                     options: q.options,
-                    selectedAnswer: selectedAnswer, // (v6)
-                    correctAnswerIndex: q.correctAnswerIndex, // (v6)
-                    gradingCriteria: q.gradingCriteria, // 📌 (신규) 채점 기준 포함
-                    isCorrect: isCorrect // 📌 (수정) 객관식: true/false, 주관식: null
+                    selectedAnswer: selectedAnswer,
+                    correctAnswerIndex: q.correctAnswerIndex,
+                    gradingCriteria: q.gradingCriteria,
+                    isCorrect: isCorrect
                 };
             });
-
             const result = {
                 id: crypto.randomUUID(),
                 quizId: quiz.id,
-                fileId: quiz.fileId, // (v5)
+                fileId: quiz.fileId,
                 quizTitle: quiz.title,
-                score: score, // 📌 (수정) 객관식 점수만 우선 반영
-                total: questions.length, // 📌 (수정) total은 전체 문제 수 유지
-                answers: JSON.stringify(userAnswers), // 상세 결과 저장
+                score: score,
+                total: questions.length,
+                answers: JSON.stringify(userAnswers),
                 completedAt: new Date().toISOString()
             };
-            
             onQuizSubmit(result);
         };
-        
-        // 📌 (v6) 다형성 질문 렌더러
         const renderQuestion = (q, qIndex) => {
             switch (q.questionType) {
                 case 'MultipleChoice':
@@ -2066,10 +2110,6 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
                             option
                         ))
                     );
-                case 'ShortAnswer':
-                case 'FillInTheBlank':
-                case 'Essay':
-                case 'CaseStudy':
                 default:
                     return e('div', { className: 'form-group' },
                         e('input', {
@@ -2081,7 +2121,6 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
                     );
             }
         };
-        
         return e('div', { className: 'modal-overlay', onClick: onClose },
             e('div', { className: 'modal-container', style: { maxWidth: '800px' }, onClick: (e) => e.stopPropagation() },
                 e('div', { className: 'modal-header' },
@@ -2094,42 +2133,31 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
                     ))
                 ),
                 e('div', { className: 'modal-footer' },
-                    e('button', { className: 'modal-button-secondary', onClick: onClose }, 'Cancel'),
-                    e('button', { className: 'modal-button-primary', onClick: handleSubmit }, 'Submit Quiz')
+                    e('button', { className: 'modal-button-secondary', onClick: onClose }, '취소'),
+                    e('button', { className: 'modal-button-primary', onClick: handleSubmit }, '퀴즈 제출')
                 )
             )
         );
     };
     
-    // 뷰 8: 퀴즈 결과 모달 (v6 - 다형성 렌더링)
-    // 📌 (수정 10) QuizResult 전면 수정 (비동기 작업 위임)
+    // 뷰 9: 퀴즈 결과 모달
     const QuizResult = ({ attempt, quiz, onClose, dispatchGradingTask }) => {
         const { setModalContent } = useContext(AppContext);
-        const toast = useToast(); // 📌 [리팩토링] toast 훅 직접 사용
+        const toast = useToast();
         const [results, setResults] = useState([]);
-        
         useEffect(() => {
             try { setResults(JSON.parse(attempt.answers)); }
             catch(e) { console.error("결과 파싱 오류", e); }
         }, [attempt]);
-        
-        /* 📌 (신규) AI 전체 채점 실행 함수 (작업 위임) 📌 */
         const handleGradeAllSubjective = async () => {
-            // 1. 작업 위임
             dispatchGradingTask(attempt);
-            // 2. 토스트 알림
             toast.show("AI 채점을 시작합니다. (작업 모니터 📊)", 'info');
-            // 3. 모달 즉시 닫기
             onClose();
         };
-
         const retryIncorrect = () => {
-            alert("오답 다시 풀기 기능은 구현 중입니다.");
+            toast.show("오답 다시 풀기 기능은 구현 중입니다.", 'info');
         };
-        
-        // 📌 (v6) 다형성 결과 렌더러 (전면 수정)
         const renderResultAnswer = (res, index) => {
-            // 1. AI 채점 대기 중 (주관식)
             if (res.isCorrect === null) {
                 return e(React.Fragment, null,
                     e('p', { className: 'result-answer yours' }, 
@@ -2141,8 +2169,6 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
                     e('p', { className: 'text-sm text-yellow-400 mt-2' }, 'AI 채점 대기 중...')
                 );
             }
-            
-            // 2. 채점 완료 (객관식 또는 주관식)
             let answerContent;
             switch(res.questionType) {
                 case 'MultipleChoice':
@@ -2155,7 +2181,7 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
                         )
                     );
                     break;
-                default: // ShortAnswer 등
+                default:
                     answerContent = e(React.Fragment, null,
                         e('p', { className: 'result-answer correct' }, 
                             `채점 기준: ${res.gradingCriteria || 'N/A'}`
@@ -2166,45 +2192,37 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
                     );
                     break;
             }
-
             return e(React.Fragment, null, 
                 answerContent,
-                /* 📌 (신규) AI 첨삭 피드백 표시 📌 */
                 res.feedback && e('div', { className: 'mt-2 p-2 bg-gray-800 rounded' },
                     e('p', { className: 'text-xs font-semibold text-blue-300' }, 'AI 첨삭:'),
                     e('p', { className: 'text-sm' }, res.feedback)
                 )
             );
         };
-        
-        // 📌 (신규) 채점할 주관식 문제가 있는지 확인
         const hasSubjectiveToGrade = useMemo(() => {
             return results.some(r => r.isCorrect === null);
         }, [results]);
-
         return e('div', { className: 'modal-overlay', onClick: onClose },
             e('div', { className: 'modal-container', onClick: (e) => e.stopPropagation() },
                 e('div', { className: 'modal-header' },
                     e('h2', null, '퀴즈 결과: ' + attempt.quizTitle),
                     e('button', { className: 'modal-close-btn', onClick: onClose }, '×')
                 ),
-                /* 📌 수정: style={{ display: 'block' }} 추가 📌 */
                 e('div', { className: 'modal-body quiz-result-body', style: { display: 'block' } },
                     e('div', { className: 'quiz-result-score mb-6' }, 
                         `점수: ${attempt.score} / ${attempt.total}`
                     ),
                     results.map((res, index) => e('div', { 
                         key: index, 
-                        // 📌 (수정) 채점 대기(null)는 중립색(회색)으로 표시
                         className: `result-question ${res.isCorrect === true ? 'result-question-correct' : (res.isCorrect === false ? 'result-question-incorrect' : 'bg-gray-700')}`
                     },
                         e('p', { className: 'result-question-text' }, `${index + 1}. ${res.questionText}`),
-                        renderResultAnswer(res, index) // 📌 (수정) index 전달
+                        renderResultAnswer(res, index)
                     ))
                 ),
                 e('div', { className: 'modal-footer' },
                     e('button', { className: 'modal-button-secondary', onClick: retryIncorrect }, '틀린 문제 다시 풀기'),
-                    /* 📌 (신규) 전체 AI 채점 버튼 (로직 변경) 📌 */
                     hasSubjectiveToGrade && e('button', { 
                         className: 'modal-button-primary', 
                         onClick: handleGradeAllSubjective,
@@ -2216,43 +2234,50 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
     };
 
 
-    // --- 5. 메인 앱 컴포넌트 (v6 - 버그 수정) ---
+    // --- 5. 메인 앱 컴포넌트 (v10.2) ---
     const App = () => {
-      // (v4) DB 헬퍼
-      const dbHelper = useMemo(() => new IdbHelper('AIQuizAppDB', 1, DB_STORES_CONFIG), []); // (v5) 스키마 주입
-      
-      // 📌 [리팩토링] toast 훅 직접 사용
+      const dbHelper = useMemo(() => new IdbHelper('AIQuizAppDB', 1, DB_STORES_CONFIG), []);
       const toast = useToast(); 
-      
-      // 전역 상태
       const [isLoading, setIsLoading] = useState(true);
       const [userSettings, setUserSettings] = useState(DEFAULT_SETTINGS);
       const [modalContent, setModalContent] = useState(null);
-      
-      // UI 상태
       const [activeViewId, setActiveViewId] = useState('files');
       const [isSidebarVisible, setIsSidebarVisible] = useState(true);
       const [activeEditorFile, setActiveEditorFile] = useState(null);
       const [editingNodeId, setEditingNodeId] = useState(null);
       
-      // (v5) 퀴즈 옵션 상태 (글로벌)
-      const [quizOptions, setQuizOptions] = useState({
-          numQuestions: 10,
-          difficulty: "Medium",
-          questionType: "MultipleChoice",
-          includeSnippets: false,
-          provideAnswerKey: true,
-          customInstructions: ""
-      });
+      const QUIZ_OPTIONS_STORAGE_KEY = 'aiQuiz_quizOptions_v10';
+      const getInitialQuizOptions = (settings) => {
+          try {
+              const savedOptions = localStorage.getItem(QUIZ_OPTIONS_STORAGE_KEY);
+              if (savedOptions) {
+                  return JSON.parse(savedOptions);
+              }
+          } catch (e) { console.error("Failed to parse saved quiz options", e); }
+          return {
+              numQuestions: settings.defaultNumQuestions || 10,
+              difficulty: settings.defaultDifficulty || "Medium",
+              questionType: settings.defaultQuestionType || "MultipleChoice",
+              includeSnippets: false,
+              provideAnswerKey: true,
+              customInstructions: ""
+          };
+      };
+      const [quizOptions, _setQuizOptions] = useState(() => getInitialQuizOptions(DEFAULT_SETTINGS));
+      const setQuizOptions = useCallback((updater) => {
+          _setQuizOptions(prev => {
+              const newState = typeof updater === 'function' ? updater(prev) : updater;
+              localStorage.setItem(QUIZ_OPTIONS_STORAGE_KEY, JSON.stringify(newState));
+              return newState;
+          });
+      }, []);
       
-      // 데이터 상태
       const quizWorker = useMemo(() => new Worker(workerUrl), []);
       const [taskQueue, setTaskQueue] = useState([]);
       const [files, setFiles] = useState([]);
       const [quizzes, setQuizzes] = useState([]);
       const [attempts, setAttempts] = useState([]);
 
-      // (v4) 데이터 로드 및 새로고침
       const refetchAllData = useCallback(async () => {
           if (!dbHelper.db) return;
           try {
@@ -2264,53 +2289,36 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
               ]);
               setFiles(filesData);
               setQuizzes(quizzesData);
-              setAttempts(attemptsData); // 📌 (확인)
-              
+              setAttempts(attemptsData);
               const newSettings = settingsData || DEFAULT_SETTINGS;
               setUserSettings(newSettings);
-              
-              // (v5) 퀴즈 옵션 상태를 유저 설정으로 초기화
-              setQuizOptions(prev => ({
-                  ...prev,
-                  numQuestions: newSettings.defaultNumQuestions || prev.numQuestions,
-                  difficulty: newSettings.defaultDifficulty || prev.difficulty,
-                  questionType: newSettings.defaultQuestionType || prev.questionType,
-              }));
-              
+              _setQuizOptions(getInitialQuizOptions(newSettings));
           } catch (e) {
               console.error("데이터 로드 실패:", e);
           }
       }, [dbHelper]);
       
-      // 📌 [버그 수정] fileTree와 fileActions를 생성하는 hook을 다시 추가합니다.
       const { fileTree, fileActions } = useFileSystem(files, dbHelper, refetchAllData);
 
-      // 1. (v4) DB 초기화
       useEffect(() => {
         dbHelper.init().then(() => {
             refetchAllData().then(() => setIsLoading(false));
         });
       }, [dbHelper, refetchAllData]);
       
-      
-      // 📌 (수정) Web Worker 리스너 (AI 채점 결과 처리)
       useEffect(() => {
         quizWorker.onmessage = (e) => {
           const { status, taskId, taskType, quizData, updatedAttempt, error, options } = e.data; 
-          
           setTaskQueue(prev => prev.map(task => 
               task.id === taskId ? { ...task, status, error } : task
           ));
-          
           if (status === 'success') {
             if (taskType === 'grade' && updatedAttempt) {
-                // --- AI 채점 완료 ---
                 dbHelper.put('quizAttempts', updatedAttempt).then(() => {
                     refetchAllData();
                     if (toast) toast.show('✅ AI 채점이 완료되었습니다.', 'success');
                 });
             } else if (taskType === 'generate' && quizData) {
-                // --- AI 퀴즈 생성 완료 (기존) ---
                 const newQuiz = {
                     id: crypto.randomUUID(),
                     title: quizData.title,
@@ -2333,80 +2341,65 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
           }
         };
         return () => { quizWorker.onmessage = null; };
-      }, [quizWorker, dbHelper, refetchAllData, toast]); // 📌 toast 의존성 추가
+      }, [quizWorker, dbHelper, refetchAllData, toast]);
       
-      // --- 핸들러 ---
-      
-      // 설정 저장
       const handleSaveSettings = useCallback(async (newSettings) => {
           const settingsToSave = { ...newSettings, id: 'userConfig' };
           await dbHelper.put('settings', settingsToSave);
           setUserSettings(settingsToSave);
-          // (v5) 저장 시 퀴즈 옵션 상태도 업데이트
-          setQuizOptions(prev => ({
-              ...prev,
-              numQuestions: settingsToSave.defaultNumQuestions || prev.numQuestions,
-              difficulty: settingsToSave.defaultDifficulty || prev.difficulty,
-              questionType: settingsToSave.defaultQuestionType || prev.questionType,
-          }));
+          const currentOptions = localStorage.getItem(QUIZ_OPTIONS_STORAGE_KEY);
+          if (!currentOptions) {
+             _setQuizOptions(getInitialQuizOptions(settingsToSave));
+          }
       }, [dbHelper]);
 
-      // 사이드바 토글
-      const handleActivityChange = (id) => {
+      const handleActivityChange = (id, forceVisible = false) => {
           if (id === 'settings') {
               setModalContent(e(SettingsModal, { onClose: () => setModalContent(null) }));
               return;
           }
-          if (id === activeViewId && isSidebarVisible) setIsSidebarVisible(false);
+          if (id === activeViewId && isSidebarVisible && !forceVisible) setIsSidebarVisible(false);
           else { setIsSidebarVisible(true); setActiveViewId(id); }
       };
       
-      // 퀴즈 생성 작업 디스패치
       const dispatchTask = useCallback((taskData) => {
           const taskId = crypto.randomUUID();
-          const newTask = { ...taskData, id: taskId, status: 'processing', taskType: 'generate' }; // 📌 taskType 명시
+          const newTask = { ...taskData, id: taskId, status: 'processing', taskType: 'generate' };
           setTaskQueue(prev => [newTask, ...prev]);
-          // (v4) 워커에 기본 설정(프롬프트 포함) 함께 전달
           quizWorker.postMessage({ ...newTask, settings: userSettings, DEFAULT_SETTINGS });
-          handleActivityChange('tasks'); // 작업 모니터 탭으로 이동
+          handleActivityChange('tasks');
           if (toast) toast.show('✨ 퀴즈 생성을 시작합니다.', 'info');
-      }, [quizWorker, userSettings, toast]); // 📌 toast 의존성 추가
+      }, [quizWorker, userSettings, toast]);
       
-      /* 📌 (신규) AI 채점 작업 디스패치 📌 */
       const dispatchGradingTask = useCallback((attempt) => {
           const taskId = crypto.randomUUID();
           const newTask = { 
               id: taskId, 
               status: 'processing', 
-              taskType: 'grade', // 📌 작업 유형: 채점
-              options: { quizTitle: attempt.quizTitle } // 모니터 표시용
+              taskType: 'grade',
+              options: { quizTitle: attempt.quizTitle }
           };
           setTaskQueue(prev => [newTask, ...prev]);
-          // 워커에 채점 작업 전송
           quizWorker.postMessage({ ...newTask, attempt, settings: userSettings, DEFAULT_SETTINGS });
-          handleActivityChange('tasks'); // 작업 모니터 탭으로 이동
+          handleActivityChange('tasks');
       }, [quizWorker, userSettings]);
 
-      // 퀴즈 제출
       const handleQuizSubmit = async (result) => {
           try {
               await dbHelper.add('quizAttempts', result);
-              await refetchAllData(); // 📌 await 추가
-              
+              await refetchAllData();
               setModalContent(e(QuizResult, {
                   attempt: result,
                   quiz: quizzes.find(q => q.id === result.quizId),
                   onClose: () => setModalContent(null),
-                  /* 📌 (신규) AI 채점 의존성 주입 📌 */
                   userSettings,
                   dbHelper,
                   refetchAllData,
-                  dispatchGradingTask // 📌 신규
+                  dispatchGradingTask
               }));
           } catch (err) { console.error("퀴즈 제출 오류:", err); }
       };
 
-      // 📌 [리팩토링] 컨텍스트 값
       const contextValue = {
           dbHelper,
           refetchAllData,
@@ -2417,25 +2410,27 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
           attempts,
           taskQueue,
           dispatchTask,
-          dispatchGradingTask, // 📌 신규
-          fileTree, // 📌 [버그 수정]
-          fileActions, // 📌 [버그 수정]
+          dispatchGradingTask,
+          fileTree,
+          fileActions,
           activeEditorFile,
           setActiveEditorFile,
           setModalContent,
           editingNodeId,
           setEditingNodeId,
           quizOptions, 
-          setQuizOptions, 
+          setQuizOptions,
           handleQuizSubmit,
-          toast // 📌 [리팩토링] toast 주입
+          toast,
+          handleActivityChange
       };
 
-      // 사이드바 아이템
+      // 📌 (v10.2) Req 1: 사이드바 아이템 정의 (v10.1과 동일)
       const sidebarItems = [
         { id: 'files', label: '파일 탐색기', icon: '📄' },
-        { id: 'quiz-generator', label: '퀴즈 생성 옵션', icon: '✨' }, // (v5) 이름 변경
-        { id: 'history', label: '전체 풀이 기록', icon: '📚' }, // (v5) 이름 변경
+        { id: 'search', label: '검색', icon: '🔍' },
+        { id: 'quiz-generator', label: '퀴즈 생성 옵션', icon: '✨' },
+        { id: 'history', label: '전체 풀이 기록', icon: '📚' },
         { id: 'tasks', label: '작업 모니터', icon: '📊' },
         { id: 'user', label: '사용자', icon: '👤', isBottom: true },
         { id: 'settings', label: '설정', icon: '⚙️', isBottom: true },
@@ -2455,16 +2450,18 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
           },
             // 뷰 컨텐츠 (Children)
             e(FileManagerView, { viewId: 'files' }),
+            e(SearchView, { viewId: 'search' }),
             e(QuizGeneratorView, { viewId: 'quiz-generator' }),
             e(QuizHistoryView, { viewId: 'history' }),
-            e(TaskMonitorView, { viewId: 'tasks' })
+            e(TaskMonitorView, { viewId: 'tasks' }),
+            // 📌 (v10.2) Req 2: 사용자 뷰 추가
+            e(UserView, { viewId: 'user' })
           ),
           
           e('div', { className: 'main-content' }, 
             e(MainContentEditor, null)
           ),
           
-          // 모달 컨텐츠 (설정, 퀴즈 풀이, 퀴즈 결과)
           modalContent
         )
       );
@@ -2472,7 +2469,6 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
 
     // --- 6. 앱 마운트 ---
     const root = createRoot(document.getElementById('root'));
-    // 📌 (신규) 앱을 ToastProvider로 감싸기
     root.render(e(ToastProvider, null, e(App)));
     
   </script>
