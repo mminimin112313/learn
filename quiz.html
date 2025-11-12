@@ -3,14 +3,86 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <!-- (v10.2) 타이틀 업데이트 -->
-  <title>AI 퀴즈 VSCode (v10.2 - 사이드바 패치)</title>
+  <!-- (v11.1) 타이틀 업데이트: Google Auth Integration -->
+  <title>AI 퀴즈 VSCode (v11.1 - Google Auth)</title>
 
-  <!-- 1. 의존성 로드: React, Tailwind, JSZip -->
+  <!-- 1. 의존성 로드: React, Tailwind, JSZip, Firebase -->
   <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  
+  <!-- 
+    (v11.1) Firebase SDK 추가 (Google Auth 포함)
+  -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { 
+      getAuth, 
+      signInAnonymously, 
+      signInWithCustomToken, 
+      onAuthStateChanged,
+      GoogleAuthProvider,  // (v11.1) Google Auth Provider 추가
+      signInWithPopup,     // (v11.1) 팝업 로그인 추가
+      signOut              // (v11.1) 로그아웃 추가
+    } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { 
+      getFirestore, 
+      doc, 
+      getDoc, 
+      getDocs,
+      addDoc, 
+      setDoc, 
+      updateDoc, 
+      deleteDoc, 
+      onSnapshot, 
+      collection, 
+      query, 
+      where, 
+      writeBatch,
+      setLogLevel
+    } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    // 전역 변수로 Firebase 모듈 할당
+    window.firebase = {
+      app: { initializeApp },
+      auth: { 
+        getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged,
+        GoogleAuthProvider, signInWithPopup, signOut // (v11.1) 추가
+      },
+      firestore: { 
+        getFirestore, doc, getDoc, getDocs, addDoc, setDoc, updateDoc, deleteDoc, 
+        onSnapshot, collection, query, where, writeBatch, setLogLevel
+      }
+    };
+  </script>
+
+  <script>
+    // 1. Firebase 프로젝트 설정 (Firebase 콘솔에서 복사)
+    // 이 정보는 공개되어도 안전합니다. (보안은 '보안 규칙'으로 강제)
+    const firebaseConfig = {
+  apiKey: "AIzaSyBR_9ivOtQRIW_KIQRYBxJ_nFtYL7GYZwg",
+  authDomain: "quiz-436ac.firebaseapp.com",
+  projectId: "quiz-436ac",
+  storageBucket: "quiz-436ac.firebasestorage.app",
+  messagingSenderId: "131117093431",
+  appId: "1:131117093431:web:56e1beff4c63d35b5b25b2"
+};
+
+    
+    // 2. 앱 ID (데이터 분리용)
+    const appId = "my-unique-app-id"; // (예: "ai-quiz-project")
+
+    // 3. (선택) 커스텀 인증 토큰 (서버에서 발급받아야 함)
+    // const initialAuthToken = "eyJhbGciOi...YOUR_CUSTOM_TOKEN";
+
+    // --- 앱에서 사용할 전역 변수로 설정 ---
+    window.__firebase_config = JSON.stringify(firebaseConfig);
+    window.__app_id = appId;
+    // if (initialAuthToken) {
+    //   window.__initial_auth_token = initialAuthToken;
+    // }
+  </script>
   
   <!-- 2. 스타일 (v10.1과 동일) -->
   <style>
@@ -523,122 +595,34 @@
       useCallback, 
       useMemo,
       createContext,
-      useContext
+      useContext,
+      useRef // (v11.1) 추가
     } = React;
     const { createRoot } = ReactDOM;
     const e = React.createElement;
+
+    // (v11.1) Firebase 모듈 전역 접근 (Google Auth 포함)
+    const { app, auth, firestore } = window.firebase;
+    const { initializeApp } = app;
+    const { 
+        getAuth, 
+        signInAnonymously, 
+        signInWithCustomToken, 
+        onAuthStateChanged,
+        GoogleAuthProvider, 
+        signInWithPopup, 
+        signOut
+    } = auth;
+    const { 
+        getFirestore, doc, getDoc, getDocs, addDoc, setDoc, updateDoc, deleteDoc, 
+        onSnapshot, collection, query, where, writeBatch, setLogLevel
+    } = firestore;
 
     const ToastContext = createContext(null);
     const useToast = () => useContext(ToastContext);
     
     const AppContext = createContext(null);
     
-    // --- 0. IndexedDB 헬퍼 (v10.1과 동일) ---
-    class IdbHelper {
-        constructor(dbName, version, stores) {
-            this.dbName = dbName;
-            this.version = version;
-            this.stores = stores;
-            this.db = null;
-        }
-        init() {
-            return new Promise((resolve, reject) => {
-                const request = indexedDB.open(this.dbName, this.version);
-                request.onerror = (event) => reject("IndexedDB 오류: " + request.error);
-                request.onsuccess = (event) => {
-                    this.db = event.target.result;
-                    resolve(this);
-                };
-                request.onupgradeneeded = (event) => {
-                    const db = event.target.result;
-                    this.stores.forEach(storeConfig => {
-                        let store;
-                        if (!db.objectStoreNames.contains(storeConfig.name)) {
-                            store = db.createObjectStore(storeConfig.name, { keyPath: storeConfig.keyPath });
-                        } else {
-                            store = event.target.transaction.objectStore(storeConfig.name);
-                        }
-                        (storeConfig.indexes || []).forEach(idx => {
-                            if (!store.indexNames.contains(idx.name)) {
-                                store.createIndex(idx.name, idx.keyPath, { unique: false });
-                            }
-                        });
-                    });
-                };
-            });
-        }
-        get(storeName, key) {
-            return new Promise((resolve, reject) => {
-                const tx = this.db.transaction(storeName, 'readonly');
-                const store = tx.objectStore(storeName);
-                const request = store.get(key);
-                request.onsuccess = () => resolve(request.result);
-                request.onerror = () => reject(request.error);
-            });
-        }
-        getAll(storeName) {
-            return new Promise((resolve, reject) => {
-                const tx = this.db.transaction(storeName, 'readonly');
-                const store = tx.objectStore(storeName);
-                const request = store.getAll();
-                request.onsuccess = () => resolve(request.result);
-                request.onerror = () => reject(request.error);
-            });
-        }
-        query(storeName, indexName, value) {
-            return new Promise((resolve, reject) => {
-                const tx = this.db.transaction(storeName, 'readonly');
-                const store = tx.objectStore(storeName);
-                const index = store.index(indexName);
-                const request = index.getAll(value);
-                request.onsuccess = () => resolve(request.result);
-                request.onerror = () => reject(request.error);
-            });
-        }
-        put(storeName, item) {
-             return new Promise((resolve, reject) => {
-                const tx = this.db.transaction(storeName, 'readwrite');
-                const store = tx.objectStore(storeName);
-                const request = store.put(item);
-                request.onsuccess = () => resolve(request.result);
-                request.onerror = () => reject(request.error);
-            });
-        }
-        add(storeName, item) {
-             return new Promise((resolve, reject) => {
-                const tx = this.db.transaction(storeName, 'readwrite');
-                const store = tx.objectStore(storeName);
-                const request = store.add(item);
-                request.onsuccess = () => resolve(request.result);
-                request.onerror = () => reject(request.error);
-            });
-        }
-        delete(storeName, key) {
-            return new Promise((resolve, reject) => {
-                const tx = this.db.transaction(storeName, 'readwrite');
-                const store = tx.objectStore(storeName);
-                const request = store.delete(key);
-                request.onsuccess = () => resolve();
-                request.onerror = () => reject(request.error);
-            });
-        }
-        clear(storeName) {
-            return new Promise((resolve, reject) => {
-                const tx = this.db.transaction(storeName, 'readwrite');
-                const store = tx.objectStore(storeName);
-                const request = store.clear();
-                request.onsuccess = () => resolve();
-                request.onerror = () => reject(request.error);
-            });
-        }
-    }
-    
-    const DB_STORES_CONFIG = [
-        { name: 'files', keyPath: 'id', indexes: [{ name: 'by_parentId', keyPath: 'parentId' }] },
-        { name: 'quizzes', keyPath: 'id', indexes: [{ name: 'by_fileId', keyPath: 'fileId' }] },
-        { name: 'quizAttempts', keyPath: 'id', indexes: [{ name: 'by_fileId', keyPath: 'fileId' }, { name: 'by_quizId', keyPath: 'quizId' }] },
-        { name: 'settings', keyPath: 'id' }
-    ];
 
     // --- 1. AI Gemini API 호출 (v10.1과 동일) ---
 
@@ -653,7 +637,7 @@
             properties: {
               questionType: { type: "STRING" },
               questionText: { type: "STRING" },
-              options: { type: "ARRAY", items: { type: "STRING" }, nullable: true },
+              options: { type: "ARRAY", items: { "type": "STRING" }, nullable: true },
               correctAnswerIndex: { type: "NUMBER", nullable: true },
               gradingCriteria: { type: "STRING", nullable: true },
             },
@@ -706,7 +690,7 @@
           throw new ApiError('API 키가 설정되지 않았습니다. [설정(⚙️) > API Keys]에서 유효한 키를 추가하십시오.', 401); 
       }
 
-      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+      const apiUrl = `https://generativelace.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
       
       let systemPrompt = settings.quizSystemPrompt || DEFAULT_SETTINGS.quizSystemPrompt;
       
@@ -763,7 +747,7 @@ ${sourceText}
         throw new ApiError('API 키가 설정되지 않았습니다. [설정(⚙️) > API Keys]에서 유효한 키를 추가하십시오.', 401);
       }
       
-      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+      const apiUrl = `https://generativelace.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
       
       const systemPrompt = settings.gradingSystemPrompt || DEFAULT_SETTINGS.gradingSystemPrompt;
       
@@ -897,7 +881,7 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
     const workerUrl = URL.createObjectURL(workerBlob);
     
     
-    // --- 3. 기본 설정 및 훅 (v10.2) ---
+    // --- 3. 기본 설정 및 훅 (v11.1) ---
 
     const DEFAULT_SETTINGS = {
         apiKeys: [{ key: "", rpm: 60 }],
@@ -922,7 +906,6 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
 - Adhere strictly to the JSON output schema.`
     };
 
-    // 📌 (v10.1) Req 2: 질문 유형 한글화 맵
     const QUESTION_TYPE_MAP = {
       "MultipleChoice": "객관식 (선택형)",
       "ShortAnswer": "주관식 (단답형)",
@@ -935,30 +918,48 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
       "CodeSnippet": "코드 분석"
     };
 
-    // (v10) IndexedDB 기반 파일 시스템 훅
-    const useFileSystem = (files, dbHelper, refetch) => {
+    // (v11.0) Firebase Firestore 기반 파일 시스템 훅
+    // 근거: Axiom of SOLID Architecture - 데이터 로직을 훅으로 분리
+    const useFileSystem = (files, db, userId, appId) => {
         
+        const getCollectionRef = (collectionName) => {
+            return collection(db, `artifacts/${appId}/users/${userId}/${collectionName}`);
+        };
+
         const fileActions = useMemo(() => {
-          if (!dbHelper) return {};
+          // (v11.1) userId가 null이면 fileActions는 빈 객체를 반환
+          if (!db || !userId) return {};
 
           const recursiveDelete = async (parentId) => {
-              const allFiles = await dbHelper.getAll('files');
-              const children = allFiles.filter(f => f.parentId === parentId);
-              for (const child of children) {
+              // Firestore에서 parentId로 자식 쿼리
+              const childrenQuery = query(getCollectionRef('files'), where("parentId", "==", parentId));
+              const querySnapshot = await getDocs(childrenQuery);
+              
+              const batch = writeBatch(db);
+              
+              for (const docSnap of querySnapshot.docs) {
+                  const child = { id: docSnap.id, ...docSnap.data() };
                   if (child.type === 'folder') {
+                      // 재귀적으로 자식 폴더 삭제
                       await recursiveDelete(child.id);
                   }
-                  await dbHelper.delete('files', child.id);
+                  // 현재 파일/폴더를 배치에 추가
+                  batch.delete(doc(db, `artifacts/${appId}/users/${userId}/files`, child.id));
               }
+              // batch 커밋은 recursiveDelete를 호출한 곳에서 수행
+              // 여기서는 자식 삭제만 담당
+              await batch.commit();
           };
           
           const move = async (fileId, newParentId) => {
               if (fileId === newParentId) return;
               
-              const file = await dbHelper.get('files', fileId);
-              if(file && file.parentId !== newParentId) { 
-                  await dbHelper.put('files', { ...file, parentId: newParentId });
-                  refetch();
+              const fileRef = doc(db, `artifacts/${appId}/users/${userId}/files`, fileId);
+              const fileDoc = await getDoc(fileRef);
+
+              if(fileDoc.exists() && fileDoc.data().parentId !== newParentId) { 
+                  await updateDoc(fileRef, { parentId: newParentId });
+                  // onSnapshot이 자동으로 refetch 수행
               }
           };
 
@@ -966,49 +967,48 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
             create: async (parentId, type, name, content = '') => {
               const docName = name || (type === 'folder' ? 'New Folder' : 'new-file.txt');
               const newFile = {
-                id: crypto.randomUUID(),
+                // id는 Firestore가 자동 생성
                 name: docName,
                 type,
                 parentId,
                 content: type === 'file' ? content : null,
                 metadata: { notes: '' }, 
-                createdAt: new Date().toISOString()
+                createdAt: new Date().toISOString(),
+                userId: userId // (v11.0) 데이터 소유권 명시
               };
-              await dbHelper.add('files', newFile);
-              refetch();
-              return newFile;
+              const docRef = await addDoc(getCollectionRef('files'), newFile);
+              return { ...newFile, id: docRef.id };
             },
             rename: async (fileId, newName) => {
-              const file = await dbHelper.get('files', fileId);
-              if(file) await dbHelper.put('files', { ...file, name: newName });
-              refetch();
+              const fileRef = doc(db, `artifacts/${appId}/users/${userId}/files`, fileId);
+              await updateDoc(fileRef, { name: newName });
             },
             remove: async (fileId, type) => {
               if (type === 'folder') {
+                  // 폴더의 모든 하위 항목 재귀적 삭제
                   await recursiveDelete(fileId);
               }
-              await dbHelper.delete('files', fileId);
-              refetch();
+              // 자기 자신 삭제
+              const fileRef = doc(db, `artifacts/${appId}/users/${userId}/files`, fileId);
+              await deleteDoc(fileRef);
             },
             updateContent: async (fileId, newContent) => {
-              const file = await dbHelper.get('files', fileId);
-              if(file) await dbHelper.put('files', { ...file, content: newContent });
-              await refetch();
+              const fileRef = doc(db, `artifacts/${appId}/users/${userId}/files`, fileId);
+              await updateDoc(fileRef, { content: newContent });
             },
             move: move,
             updateMetadata: async (fileId, newMetadata) => {
-                const file = await dbHelper.get('files', fileId);
-                if (file) {
-                    const oldMetadata = file.metadata || { notes: '' };
-                    await dbHelper.put('files', {
-                        ...file,
+                const fileRef = doc(db, `artifacts/${appId}/users/${userId}/files`, fileId);
+                const fileDoc = await getDoc(fileRef);
+                if (fileDoc.exists()) {
+                    const oldMetadata = fileDoc.data().metadata || { notes: '' };
+                    await updateDoc(fileRef, {
                         metadata: { ...oldMetadata, ...newMetadata }
                     });
                 }
-                await refetch();
             }
           };
-        }, [dbHelper, refetch]);
+        }, [db, userId, appId]);
 
         const fileTree = useMemo(() => {
           const map = {};
@@ -1022,6 +1022,16 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
             } else if (map[node.parentId]) {
               map[node.parentId].children.push(node);
             }
+          });
+          // 이름순으로 정렬 (폴더 우선)
+          const sortFn = (a, b) => {
+              if (a.type === 'folder' && b.type !== 'folder') return -1;
+              if (a.type !== 'folder' && b.type === 'folder') return 1;
+              return a.name.localeCompare(b.name);
+          };
+          roots.sort(sortFn);
+          Object.values(map).forEach(node => {
+              if(node.children) node.children.sort(sortFn);
           });
           return roots;
         }, [files]);
@@ -1073,10 +1083,9 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
       e('div', { className: 'spinner' })
     );
 
-    // 셸: 📌 (v10.2) Req 1: 사이드바 필터링 버그 수정
+    // 셸
     const ReactVscodeSidebar = ({ items = [], onActiveChange, activeId, isVisible, children }) => {
       const activityBarTop = e('div', null,
-        // 📌 (v10.2) 'isBottom'이 명시적으로 true가 *아닌* 모든 항목
         items.filter(item => item.isBottom !== true).map((item) => e('button', {
           key: item.id, className: 'vsc-activity-item',
           onClick: () => onActiveChange(item.id),
@@ -1084,7 +1093,6 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
         }, item.icon))
       );
       const activityBarBottom = e('div', null,
-        // 📌 (v10.2) 'isBottom'이 명시적으로 true인 항목
         items.filter(item => item.isBottom === true).map((item) => e('button', {
           key: item.id, className: 'vsc-activity-item',
           onClick: () => onActiveChange(item.id),
@@ -1106,7 +1114,7 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
       );
     };
     
-    // (v10) 컨텍스트 메뉴 컴포넌트
+    // 컨텍스트 메뉴
     const ContextMenu = ({ menuData, handlers, onClose }) => {
         if (!menuData.visible) return null;
         const { node } = menuData;
@@ -1148,11 +1156,11 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
         );
     };
 
-    // (v10) 파일 관리자
+    // (v11.1) 파일 관리자 (Google Auth)
     const FileManagerView = ({ viewId }) => {
         const { 
             files, fileTree, fileActions, setActiveEditorFile, activeEditorFile,
-            dbHelper, refetchAllData, setEditingNodeId,
+            db, userId, appId, setEditingNodeId,
             quizzes, attempts, setModalContent,
             handleQuizSubmit,
             userSettings,
@@ -1176,18 +1184,23 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
         [attempts, activeEditorFile]);
         
         
-        /* 파일 업로드/프로젝트 임포트/익스포트 핸들러 (v10.1과 동일) */
+        /* (v11.0) 파일 업로드/프로젝트 임포트/익스포트 핸들러 (Firebase) */
         const handleFileUpload = useCallback(async (event) => {
+            if (!userId) { // (v11.1) 로그인 확인
+                toast.show('❌ 로그인이 필요합니다.', 'error');
+                return;
+            }
             const files = event.target.files;
             if (!files.length) return;
             toast.show('파일 업로드 시작...', 'info');
+            
             for (const file of files) {
                 const fileName = file.name;
                 const fileExt = fileName.split('.').pop().toLowerCase();
                 if (['txt', 'md'].includes(fileExt)) {
                     const reader = new FileReader();
-                    reader.onload = (e) => {
-                        fileActions.create('root', 'file', fileName, e.target.result);
+                    reader.onload = async (e) => {
+                        await fileActions.create('root', 'file', fileName, e.target.result);
                     };
                     reader.readAsText(file);
                 } else if (fileExt === 'zip') {
@@ -1196,8 +1209,10 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
                         try {
                             const zip = await JSZip.loadAsync(e.target.result);
                             const zipRootFolder = await fileActions.create('root', 'folder', fileName.replace(/\.zip$/i, ''));
+                            
                             const createdFolderIds = new Map();
                             createdFolderIds.set('root', zipRootFolder.id);
+                            
                             const allFolderPaths = new Set();
                             Object.keys(zip.files).forEach(p => {
                                 if (zip.files[p].dir) {
@@ -1213,9 +1228,11 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
                                     }
                                 }
                             });
+                            
                             const sortedFolderPaths = Array.from(allFolderPaths)
                                 .filter(p => p && !p.startsWith('__MACOSX/'))
                                 .sort((a, b) => a.split('/').length - b.split('/').length);
+                                
                             for (const folderPath of sortedFolderPaths) {
                                 const parts = folderPath.replace(/\/$/, '').split('/');
                                 const folderName = parts[parts.length - 1];
@@ -1226,6 +1243,7 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
                                     createdFolderIds.set(folderPath, newFolder.id);
                                 }
                             }
+                            
                             for (const [relativePath, zipEntry] of Object.entries(zip.files)) {
                                 if (!zipEntry.dir && !zipEntry.name.startsWith('__MACOSX/') && zipEntry.name) {
                                     const parts = zipEntry.name.split('/');
@@ -1246,29 +1264,67 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
                     reader.readAsArrayBuffer(file);
                 }
             }
-            setTimeout(() => {
-                refetchAllData();
-                toast.show('✅ 파일 업로드 완료.', 'success');
-            }, 1500);
+            
+            toast.show('✅ 파일 업로드 완료.', 'success');
             event.target.value = null;
-        }, [fileActions, refetchAllData, toast]);
+        }, [fileActions, toast, userId]);
+        
+        const getCollectionRef = (collectionName) => {
+            return collection(db, `artifacts/${appId}/users/${userId}/${collectionName}`);
+        };
+
         const handleImportProject = useCallback((event) => {
+            if (!userId) { // (v11.1) 로그인 확인
+                toast.show('❌ 로그인이 필요합니다.', 'error');
+                return;
+            }
             const file = event.target.files[0];
             if (!file) return;
             const reader = new FileReader();
             reader.onload = async (e) => {
-                if (!window.confirm("현재 프로젝트를 덮어쓰시겠습니까?")) return;
+                if (!window.confirm("현재 프로젝트를 덮어쓰시겠습니까? 모든 현재 데이터가 삭제됩니다.")) return;
+                
                 try {
+                    toast.show('가져오기 시작... (데이터 삭제 중)', 'info');
                     const data = JSON.parse(e.target.result);
-                    await dbHelper.clear('files');
-                    await dbHelper.clear('quizzes');
-                    await dbHelper.clear('quizAttempts');
-                    for (const file of data.files || []) await dbHelper.put('files', file);
-                    for (const quiz of data.quizzes || []) await dbHelper.put('quizzes', quiz);
-                    for (const attempt of data.attempts || []) await dbHelper.put('attempts', attempt);
-                    if (data.settings) await dbHelper.put('settings', data.settings);
-                    refetchAllData();
+                    
+                    // 1. Clear all existing data for this user
+                    const collections = ['files', 'quizzes', 'quizAttempts'];
+                    for (const collName of collections) {
+                        const collRef = getCollectionRef(collName);
+                        const qSnapshot = await getDocs(collRef);
+                        const batch = writeBatch(db);
+                        qSnapshot.docs.forEach(docSnap => batch.delete(docSnap.ref));
+                        await batch.commit();
+                    }
+                    
+                    toast.show('데이터 삭제 완료. 가져오기 진행 중...', 'info');
+
+                    // 2. Import new data
+                    const importBatch = writeBatch(db);
+                    (data.files || []).forEach(file => {
+                        const docRef = doc(getCollectionRef('files'), file.id);
+                        importBatch.set(docRef, { ...file, userId });
+                    });
+                    (data.quizzes || []).forEach(quiz => {
+                        const docRef = doc(getCollectionRef('quizzes'), quiz.id);
+                        importBatch.set(docRef, { ...quiz, userId });
+                    });
+                    (data.attempts || []).forEach(attempt => {
+                        const docRef = doc(getCollectionRef('quizAttempts'), attempt.id);
+                        importBatch.set(docRef, { ...attempt, userId });
+                    });
+                    
+                    await importBatch.commit();
+                    
+                    // 3. Import settings
+                    if (data.settings) {
+                        const settingsRef = doc(db, `artifacts/${appId}/users/${userId}/settings/userConfig`);
+                        await setDoc(settingsRef, data.settings);
+                    }
+                    
                     toast.show('✅ 프로젝트를 성공적으로 가져왔습니다.', 'success');
+                    // onSnapshot이 자동으로 UI를 업데이트합니다.
                 } catch (err) {
                     console.error("Import failed:", err);
                     toast.show(`❌ 가져오기 실패: ${err.message}`, 'error');
@@ -1276,15 +1332,28 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
             };
             reader.readAsText(file);
             event.target.value = null;
-        }, [dbHelper, refetchAllData, toast]);
+        }, [db, userId, appId, toast]);
+        
         const handleExportProject = useCallback(async () => {
+            if (!userId) { // (v11.1) 로그인 확인
+                toast.show('❌ 로그인이 필요합니다.', 'error');
+                return;
+            }
             try {
+                const [filesSnap, quizzesSnap, attemptsSnap, settingsDoc] = await Promise.all([
+                    getDocs(getCollectionRef('files')),
+                    getDocs(getCollectionRef('quizzes')),
+                    getDocs(getCollectionRef('quizAttempts')),
+                    getDoc(doc(db, `artifacts/${appId}/users/${userId}/settings/userConfig`))
+                ]);
+                
                 const data = {
-                    files: await dbHelper.getAll('files'),
-                    quizzes: await dbHelper.getAll('quizzes'),
-                    attempts: await dbHelper.getAll('quizAttempts'),
-                    settings: await dbHelper.get('settings', 'userConfig')
+                    files: filesSnap.docs.map(d => ({ id: d.id, ...d.data() })),
+                    quizzes: quizzesSnap.docs.map(d => ({ id: d.id, ...d.data() })),
+                    attempts: attemptsSnap.docs.map(d => ({ id: d.id, ...d.data() })),
+                    settings: settingsDoc.exists() ? settingsDoc.data() : null
                 };
+                
                 const json = JSON.stringify(data, null, 2);
                 const blob = new Blob([json], { type: 'application/json' });
                 const url = URL.createObjectURL(blob);
@@ -1298,7 +1367,8 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
                 console.error("Export failed:", err);
                 toast.show(`❌ 내보내기 실패: ${err.message}`, 'error');
             }
-        }, [dbHelper, toast]);
+        }, [db, userId, appId, toast]);
+        
         useEffect(() => {
             const handleClick = () => setContextMenu({ visible: false });
             window.addEventListener('click', handleClick);
@@ -1314,12 +1384,13 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
         }, [handleFileUpload, handleImportProject]);
         
         const handleContextMenu = (e, node) => {
+            if (!userId) return; // (v11.1) 로그인하지 않으면 컨텍스트 메뉴 없음
             e.preventDefault();
             e.stopPropagation();
             setContextMenu({ visible: true, x: e.clientX, y: e.clientY, node: node });
         };
         
-        // (v10.1과 동일) FileNode
+        // FileNode
         const FileNode = ({ node, depth, onContextMenu }) => {
             const { activeEditorFile, editingNodeId, setEditingNodeId, fileActions } = useContext(AppContext);
             const [isOpen, setIsOpen] = useState(true);
@@ -1334,10 +1405,10 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
                 if (node.type === 'folder') setIsOpen(!isOpen);
                 else setActiveEditorFile(files.find(f => f.id === node.id));
             };
-            const handleRenameSubmit = (e) => {
+            const handleRenameSubmit = async (e) => {
                 e.stopPropagation(); e.preventDefault();
                 if (editName.trim() && editName.trim() !== node.name) {
-                    fileActions.rename(node.id, editName.trim());
+                    await fileActions.rename(node.id, editName.trim());
                 }
                 setEditingNodeId(null);
             };
@@ -1359,13 +1430,13 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
                 e.preventDefault(); e.stopPropagation();
                 setIsDragOver(false);
             };
-            const handleDrop = (e) => {
+            const handleDrop = async (e) => {
                 e.preventDefault(); e.stopPropagation();
                 setIsDragOver(false);
                 if (node.type === 'folder') {
                     const fileId = e.dataTransfer.getData('fileId');
                     if (fileId && fileId !== node.id) {
-                        fileActions.move(fileId, node.id);
+                        await fileActions.move(fileId, node.id);
                     }
                 }
             };
@@ -1409,65 +1480,72 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
             );
         };
         
-        // (v10.1과 동일) contextMenuHandlers
+        // (v11.0) contextMenuHandlers (Firebase)
         const contextMenuHandlers = useMemo(() => {
+            if (!userId) return {}; // (v11.1) 로그인하지 않으면 핸들러 없음
             const { node } = contextMenu;
             const parentId = (node && node.type === 'folder') ? node.id : (node ? node.parentId : 'root');
             
             return {
                 onRename: () => { if (node) setEditingNodeId(node.id); },
-                onDelete: () => {
-                    if (node && window.confirm(`'${node.name}'을(를) 삭제하시겠습니까?`)) {
-                        fileActions.remove(node.id, node.type);
+                onDelete: async () => {
+                    if (node && window.confirm(`'${node.name}'을(를) 삭제하시겠습니까? (하위 항목 포함)`)) {
+                        await fileActions.remove(node.id, node.type);
                         if (activeEditorFile?.id === node.id) setActiveEditorFile(null);
                     }
                 },
                 onCreateFile: () => fileActions.create(parentId, 'file'),
                 onCreateFolder: () => fileActions.create(parentId, 'folder'),
-                onGenerateQuiz: () => {
+                onGenerateQuiz: async () => {
                     if (node && node.type === 'file') {
-                        dbHelper.get('files', node.id).then(file => {
-                            if (!file.content || !file.content.trim()) {
-                                toast.show('❌ 파일에 원문이 없습니다. 파일을 열어 내용을 추가하세요.', 'error');
-                                return;
+                        // (v11.0) Firestore에서 최신 파일 내용 가져오기
+                        const fileRef = doc(db, `artifacts/${appId}/users/${userId}/files`, node.id);
+                        const fileSnap = await getDoc(fileRef);
+                        const file = { id: fileSnap.id, ...fileSnap.data() };
+                        
+                        if (!file.content || !file.content.trim()) {
+                            toast.show('❌ 파일에 원문이 없습니다. 파일을 열어 내용을 추가하세요.', 'error');
+                            return;
+                        }
+                        if(activeEditorFile?.id !== file.id) {
+                            setActiveEditorFile(file);
+                        }
+                        dispatchTask({
+                            taskType: 'generate',
+                            sourceText: file.content,
+                            options: {
+                                ...quizOptions,
+                                fileId: file.id,
+                                sourceFileName: file.name
                             }
-                            if(activeEditorFile?.id !== file.id) {
-                                setActiveEditorFile(file);
-                            }
-                            dispatchTask({
-                                taskType: 'generate',
-                                sourceText: file.content,
-                                options: {
-                                    ...quizOptions,
-                                    fileId: file.id,
-                                    sourceFileName: file.name
-                                }
-                            });
                         });
                     }
                 }
             };
-        }, [contextMenu, fileActions, setEditingNodeId, activeEditorFile, dbHelper, dispatchTask, quizOptions, toast, setActiveEditorFile]);
+        }, [contextMenu, fileActions, setEditingNodeId, activeEditorFile, db, userId, appId, dispatchTask, quizOptions, toast, setActiveEditorFile]);
         
-        // (v10.1과 동일) 루트 DnD 핸들러
+        // 루트 DnD 핸들러
         const handleRootDragOver = (e) => {
+            if (!userId) return; // (v11.1)
             e.preventDefault();
             e.stopPropagation();
             setIsRootDragOver(true);
             e.dataTransfer.dropEffect = 'move';
         };
         const handleRootDragLeave = (e) => {
+            if (!userId) return; // (v11.1)
             e.preventDefault();
             e.stopPropagation();
             setIsRootDragOver(false);
         };
-        const handleRootDrop = (e) => {
+        const handleRootDrop = async (e) => {
+            if (!userId) return; // (v11.1)
             e.preventDefault();
             e.stopPropagation();
             setIsRootDragOver(false);
             const fileId = e.dataTransfer.getData('fileId');
             if (fileId) {
-                fileActions.move(fileId, 'root');
+                await fileActions.move(fileId, 'root');
             }
         };
 
@@ -1480,7 +1558,8 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
             e('div', { className: 'vsc-view-pane' },
                 e('div', { className: 'view-header' },
                     e('h3', { className: 'border-b-0 p-0 m-0' }, '파일 탐색기'),
-                    e('div', { className: 'flex gap-1' },
+                    // (v11.1) 로그인 상태일 때만 버튼 활성화
+                    userId && e('div', { className: 'flex gap-1' },
                         e('button', { title: "새 폴더", className: 'view-header-icon', onClick: () => contextMenuHandlers.onCreateFolder() }, '📁+'),
                         e('button', { title: "파일 업로드", className: 'view-header-icon', onClick: () => document.getElementById('file-upload-input').click() }, '⬆️'),
                         e('button', { title: "내보내기", className: 'view-header-icon', onClick: handleExportProject }, '💾'),
@@ -1494,7 +1573,9 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
                     onDrop: handleRootDrop,
                     'data-drag-over': isRootDragOver
                 }, 
-                    e('div', { className: 'file-tree-list' },
+                    !userId && e('p', { className: 'p-4 text-sm text-gray-400 text-center' }, 'Google 계정(👤)으로 로그인하여 파일 탐색기를 활성화하세요.'),
+                    userId && fileTree.length === 0 && e('p', { className: 'p-4 text-sm text-gray-400 text-center' }, '파일이 없습니다. 새 파일/폴더를 만들거나 업로드하세요.'),
+                    userId && e('div', { className: 'file-tree-list' },
                         fileTree.map(node => e(FileNode, { 
                             key: node.id, 
                             node: node, 
@@ -1506,7 +1587,7 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
             ),
             
             // 하단: 파일 상세 (탭 뷰)
-            activeEditorFile && e('div', { className: 'vsc-view-pane' },
+            userId && activeEditorFile && e('div', { className: 'vsc-view-pane' },
                 e('div', { className: 'vsc-view-pane-header flex justify-between' }, 
                     e('div', { className: 'flex' },
                         e('button', {
@@ -1541,8 +1622,6 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
                                 quiz: quizzes.find(q => q.id === attempt.quizId), 
                                 onClose: () => setModalContent(null),
                                 userSettings,
-                                dbHelper,
-                                refetchAllData,
                                 dispatchGradingTask
                             }))
                         }, e('div', { className: 'list-item-title' }, `${attempt.quizTitle} (${attempt.score}/${attempt.total})`)))
@@ -1562,7 +1641,7 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
         );
     };
 
-    // 뷰 2: 퀴즈 생성기 (v10.2 - Req 2 한글화)
+    // 뷰 2: 퀴즈 생성기
     const QuizGeneratorView = ({ viewId }) => {
       const { quizOptions, setQuizOptions } = useContext(AppContext);
 
@@ -1600,7 +1679,6 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
                 value: quizOptions.questionType, 
                 onChange: (ev) => setQuizOptions(o => ({...o, questionType: ev.target.value}))
               },
-              // 📌 (v10.2) Req 2: 한글화 맵 적용
               Object.entries(QUESTION_TYPE_MAP).map(([value, label]) => 
                   e('option', { key: value, value: value }, label)
               )
@@ -1622,7 +1700,7 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
                 checked: quizOptions.includeSnippets, 
                 onChange: (ev) => setQuizOptions(o => ({...o, includeSnippets: ev.target.checked}))
               }),
-              '코드 스니펫 포함' // (v10.1) 한글화
+              '코드 스니펫 포함'
             ),
             e('label', { className: 'form-checkbox-label' },
               e('input', {
@@ -1630,7 +1708,7 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
                 checked: quizOptions.provideAnswerKey, 
                 onChange: (ev) => setQuizOptions(o => ({...o, provideAnswerKey: ev.target.checked}))
               }),
-              '정답 키 제공' // (v10.1) 한글화
+              '정답 키 제공'
             )
           )
         )
@@ -1639,7 +1717,7 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
     
     // 뷰 3: 퀴즈 기록
     const QuizHistoryView = ({ viewId }) => {
-      const { quizzes, attempts, setModalContent, userSettings, dbHelper, refetchAllData, dispatchGradingTask } = useContext(AppContext);
+      const { quizzes, attempts, setModalContent, userSettings, dispatchGradingTask, userId } = useContext(AppContext);
       
       const showAttemptResult = (attempt) => {
           setModalContent(e(QuizResult, { 
@@ -1647,8 +1725,6 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
               quiz: quizzes.find(q => q.id === attempt.quizId),
               onClose: () => setModalContent(null),
               userSettings,
-              dbHelper,
-              refetchAllData,
               dispatchGradingTask
           }));
       };
@@ -1656,8 +1732,10 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
       return e('div', { viewId, className: 'flex flex-col h-full' },
         e('h3', { className: 'view-header' }, '전체 풀이 기록'),
         e('div', { className: 'view-content-scroll' },
-          attempts.length === 0 && e('p', { className: 'text-sm text-gray-400' }, '풀이 기록이 없습니다.'),
-          attempts.map(attempt => e('div', { 
+          !userId && e('p', { className: 'p-4 text-sm text-gray-400 text-center' }, '로그인(👤)하여 풀이 기록을 확인하세요.'),
+          userId && attempts.length === 0 && e('p', { className: 'text-sm text-gray-400' }, '풀이 기록이 없습니다.'),
+          userId && [...attempts].sort((a, b) => new Date(b.completedAt) - new Date(a.completedAt))
+          .map(attempt => e('div', { 
               key: attempt.id, 
               className: 'list-item',
               onClick: () => showAttemptResult(attempt)
@@ -1674,15 +1752,16 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
       );
     };
     
-    // 뷰 4: 작업 모니터 (v10.2 - Req 2 한글화)
+    // 뷰 4: 작업 모니터
     const TaskMonitorView = ({ viewId }) => {
-        const { taskQueue } = useContext(AppContext);
+        const { taskQueue, userId } = useContext(AppContext);
         
         return e('div', { viewId, className: 'flex flex-col h-full' },
             e('h3', { className: 'view-header' }, '작업 모니터'),
             e('div', { className: 'view-content-scroll' },
-                taskQueue.length === 0 && e('p', { className: 'text-sm text-gray-400' }, '활성 작업이 없습니다.'),
-                taskQueue.map(task => e('div', { key: task.id, className: 'list-item' },
+                !userId && e('p', { className: 'p-4 text-sm text-gray-400 text-center' }, '로그인(👤)하여 작업을 확인하세요.'),
+                userId && taskQueue.length === 0 && e('p', { className: 'text-sm text-gray-400' }, '활성 작업이 없습니다.'),
+                userId && taskQueue.map(task => e('div', { key: task.id, className: 'list-item' },
                     e('div', { className: 'list-item-title' }, 
                       task.taskType === 'grade' 
                         ? `[채점] ${task.options.quizTitle}` 
@@ -1692,7 +1771,6 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
                         e('span', { className: 'list-item-sub' }, 
                           task.taskType === 'grade'
                             ? `퀴즈 채점 작업`
-                            // 📌 (v10.2) Req 2: 한글화 맵 적용
                             : `유형: ${QUESTION_TYPE_MAP[task.options.questionType] || task.options.questionType} (${task.options.numQuestions} 문제)`
                         ),
                         task.status === 'processing' && e('span', { className: 'list-item-badge' }, '처리 중...'),
@@ -1704,27 +1782,35 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
         );
     };
 
-    // 뷰 5: 메인 컨텐츠 에디터 (v10.2 - Req 1 버그 수정)
+    // (v11.1) 메인 컨텐츠 에디터 (Google Auth)
     const MainContentEditor = () => {
         const { 
             activeEditorFile, fileActions, 
-            dispatchTask, quizOptions 
+            dispatchTask, quizOptions,
+            userId,             // (v11.1) 로그인 상태 확인용
+            handleGoogleSignIn  // (v11.1) 로그인 함수
         } = useContext(AppContext);
+        
         const [content, setContent] = useState("");
         const [saveStatus, setSaveStatus] = useState('saved');
         
         const toast = useToast();
         
         useEffect(() => {
-            setContent(activeEditorFile?.content || "");
-            setSaveStatus('saved');
+            if (activeEditorFile) {
+                setContent(activeEditorFile.content || "");
+                setSaveStatus('saved');
+            } else {
+                setContent("");
+                setSaveStatus('saved');
+            }
         }, [activeEditorFile]);
         
         const debouncedContent = useDebounce(content, 1000);
         
-        // 📌 (v10.2) Req 1: 저장 로직 버그 수정
         useEffect(() => {
-            if (activeEditorFile && debouncedContent !== activeEditorFile.content) {
+            // (v11.1) fileActions가 비어있을 수 있으므로 확인
+            if (saveStatus === 'editing' && activeEditorFile && fileActions.updateContent && debouncedContent !== activeEditorFile.content) {
                 setSaveStatus('saving');
                 fileActions.updateContent(activeEditorFile.id, debouncedContent)
                     .then(() => {
@@ -1733,13 +1819,12 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
                     .catch((err) => {
                          console.error("저장 실패:", err);
                          toast.show("❌ 파일 저장 실패.", 'error');
-                         setSaveStatus('editing');
+                         setSaveStatus('editing'); 
                     });
             } else if (saveStatus === 'editing' && activeEditorFile && debouncedContent === activeEditorFile.content) {
                 setSaveStatus('saved');
             }
-        // 📌 (v10.2) Req 1: 의존성 배열에서 'saveStatus' 제거 (경쟁 상태 방지)
-        }, [debouncedContent, activeEditorFile, fileActions, toast]);
+        }, [debouncedContent, activeEditorFile, fileActions, toast, saveStatus]);
 
         const handleGenerateQuiz = () => {
             if (!activeEditorFile) return;
@@ -1763,6 +1848,17 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
           'editing': '수정 중...',
           'saving': '저장 중...'
         };
+        
+        // (v11.1) 로그인 상태가 아니면 로그인 버튼 표시
+        if (!userId) {
+            return e('div', { className: 'main-editor-placeholder flex-col' },
+                e('p', { className: 'mb-4' }, 'Google 계정(👤)으로 로그인하여 작업을 시작하세요.'),
+                e('button', {
+                    className: 'form-button !w-auto px-6',
+                    onClick: handleGoogleSignIn
+                }, 'Google 계정으로 로그인')
+            );
+        }
 
         if (!activeEditorFile) {
             return e('div', { className: 'main-editor-placeholder' }, '파일 탐색기(📄)에서 파일을 선택하세요.');
@@ -1774,7 +1870,7 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
                 e('button', { 
                     className: 'main-editor-action-btn',
                     onClick: handleGenerateQuiz,
-                    disabled: saveStatus !== 'saved'
+                    disabled: saveStatus !== 'saved' || !content.trim()
                 }, '✨ 퀴즈 생성')
             ),
             e('textarea', {
@@ -1790,7 +1886,7 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
         );
     };
     
-    // 뷰 6: 설정 모달 (v10.2 - Req 2 한글화)
+    // 뷰 6: 설정 모달
     const SettingsModal = ({ onClose }) => {
         const { userSettings, saveSettings } = useContext(AppContext);
         const [activeTab, setActiveTab] = useState('Quiz Defaults');
@@ -1831,11 +1927,12 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
 
         const handleSave = () => {
             saveSettings({
-                ...userSettings,
+                // (v11.0) userSettings에서 id를 제외하고 저장
                 apiKeys,
                 ...defaultSettings,
                 quizSystemPrompt,
-                gradingSystemPrompt
+                gradingSystemPrompt,
+                modelName: userSettings.modelName || "gemini-2.5-flash-preview-09-2025"
             });
             onClose();
         };
@@ -1886,7 +1983,6 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
                                 value: defaultSettings.defaultQuestionType, 
                                 onChange: (ev) => handleDefaultChange('defaultQuestionType', ev.target.value)
                             },
-                                // 📌 (v10.2) Req 2: 한글화 맵 적용
                                 Object.entries(QUESTION_TYPE_MAP).map(([value, label]) => 
                                     e('option', { key: value, value: value }, label)
                                 )
@@ -1957,18 +2053,21 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
         );
     };
     
-    // (v10) 파일 메모 에디터
+    // (v11.0) 파일 메모 에디터 (Firebase)
     const FileNotesEditor = ({ activeFile, fileActions }) => {
         const [notes, setNotes] = useState("");
         useEffect(() => {
             setNotes(activeFile?.metadata?.notes || "");
         }, [activeFile]);
+        
         const debouncedNotes = useDebounce(notes, 1000);
+        
         useEffect(() => {
-            if (activeFile && debouncedNotes !== (activeFile.metadata?.notes || "")) {
+            if (activeFile && fileActions.updateMetadata && debouncedNotes === notes && debouncedNotes !== (activeFile.metadata?.notes || "")) {
                 fileActions.updateMetadata(activeFile.id, { notes: debouncedNotes });
             }
-        }, [debouncedNotes, activeFile, fileActions]);
+        }, [debouncedNotes, notes, activeFile, fileActions]);
+        
         return e('div', { className: 'h-full flex flex-col' },
             e('textarea', {
                 key: activeFile.id,
@@ -1984,12 +2083,13 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
 
     // (v10) 검색 뷰
     const SearchView = ({ viewId }) => {
-        const { files, setActiveEditorFile, handleActivityChange } = useContext(AppContext);
+        const { files, setActiveEditorFile, handleActivityChange, userId } = useContext(AppContext);
         const [searchTerm, setSearchTerm] = useState("");
         const [results, setResults] = useState([]);
         const debouncedSearchTerm = useDebounce(searchTerm, 300);
+        
         useEffect(() => {
-            if (!debouncedSearchTerm || debouncedSearchTerm.length < 2) {
+            if (!debouncedSearchTerm || debouncedSearchTerm.length < 2 || !userId) {
                 setResults([]);
                 return;
             }
@@ -2002,13 +2102,15 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
                 return inName || inContent || inNotes;
             });
             setResults(searchResults);
-        }, [debouncedSearchTerm, files]);
+        }, [debouncedSearchTerm, files, userId]);
+        
         const handleResultClick = (file) => {
             setActiveEditorFile(file);
             if(handleActivityChange) {
                 handleActivityChange('files', true);
             }
         };
+        
         return e('div', { viewId, className: 'flex flex-col h-full' },
             e('h3', { className: 'view-header' }, '전체 검색'),
             e('div', { className: 'view-content-full p-4' },
@@ -2019,13 +2121,15 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
                         placeholder: '파일 이름, 내용, 메모 검색...',
                         value: searchTerm,
                         onChange: (e) => setSearchTerm(e.target.value),
-                        autoFocus: true
+                        autoFocus: true,
+                        disabled: !userId // (v11.1)
                     })
                 ),
                 e('div', { className: 'mt-4' },
-                    results.length === 0 && debouncedSearchTerm.length > 1 &&
+                    !userId && e('p', { className: 'text-sm text-gray-400 text-center' }, '로그인(👤)하여 검색하세요.'),
+                    userId && results.length === 0 && debouncedSearchTerm.length > 1 &&
                         e('p', { className: 'text-sm text-gray-400' }, '검색 결과가 없습니다.'),
-                    results.map(file => e('div', {
+                    userId && results.map(file => e('div', {
                         key: file.id,
                         className: 'list-item',
                         onClick: () => handleResultClick(file)
@@ -2037,17 +2141,42 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
         );
     };
     
-    // 📌 (v10.2) 신규: 사용자 뷰 (Req 2)
+    // (v11.1) 사용자 뷰 (Google Auth)
     const UserView = ({ viewId }) => {
+        const { userInfo, handleGoogleSignIn, handleSignOut } = useContext(AppContext);
+
+        if (userInfo) {
+            return e('div', { viewId, className: 'flex flex-col h-full' },
+                e('h3', { className: 'view-header' }, '사용자 프로필'),
+                e('div', { className: 'view-content-scroll flex flex-col items-center' },
+                    e('img', { 
+                        src: userInfo.photoURL || 'https://placehold.co/80x80/3c3c3c/cccccc?text=User',
+                        className: 'w-20 h-20 rounded-full mt-4 mb-2 border-2 border-gray-500',
+                        alt: 'User profile picture'
+                    }),
+                    e('p', { className: 'text-lg font-semibold text-white text-center' }, userInfo.displayName || 'User'),
+                    e('p', { className: 'text-xs text-gray-400 mb-4 break-all px-2 text-center' }, userInfo.uid),
+                    e('button', { 
+                        className: 'form-button !w-auto px-6 !bg-red-600 hover:!bg-red-700',
+                        onClick: handleSignOut 
+                    }, '로그아웃')
+                )
+            );
+        }
+
         return e('div', { viewId, className: 'flex flex-col h-full' },
-            e('h3', { className: 'view-header' }, '사용자 프로필'),
-            e('div', { className: 'view-content-scroll' },
-                e('p', { className: 'text-sm text-gray-400' }, '사용자 프로필 기능은 현재 준비 중입니다.')
+            e('h3', { className: 'view-header' }, '로그인'),
+            e('div', { className: 'view-content-scroll flex flex-col items-center justify-center' },
+                e('p', { className: 'text-sm text-gray-400 mb-4 text-center' }, 'Google 계정으로 로그인하여<br/>작업물을 클라우드에 저장하세요.'),
+                e('button', { 
+                    className: 'form-button !w-auto px-6',
+                    onClick: handleGoogleSignIn 
+                }, 'Google 계정으로 로그인')
             )
         );
     };
     
-    // 뷰 8: 퀴즈 풀이 모달 (v10.2 - 한글화)
+    // 뷰 8: 퀴즈 풀이 모달
     const QuizTaker = ({ quiz, onClose, onQuizSubmit }) => {
         const [questions, setQuestions] = useState([]);
         const [currentAnswers, setCurrentAnswers] = useState({});
@@ -2085,7 +2214,7 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
                 };
             });
             const result = {
-                id: crypto.randomUUID(),
+                // (v11.0) id는 Firestore에서 자동 생성되므로 제거
                 quizId: quiz.id,
                 fileId: quiz.fileId,
                 quizTitle: quiz.title,
@@ -2112,9 +2241,9 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
                     );
                 default:
                     return e('div', { className: 'form-group' },
-                        e('input', {
-                            type: 'text',
+                        e('textarea', { // input에서 textarea로 변경
                             className: 'form-input',
+                            rows: 3,
                             value: currentAnswers[qIndex] || "",
                             onChange: (ev) => handleAnswerChange(qIndex, ev.target.value)
                         })
@@ -2149,14 +2278,17 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
             try { setResults(JSON.parse(attempt.answers)); }
             catch(e) { console.error("결과 파싱 오류", e); }
         }, [attempt]);
+        
         const handleGradeAllSubjective = async () => {
             dispatchGradingTask(attempt);
             toast.show("AI 채점을 시작합니다. (작업 모니터 📊)", 'info');
             onClose();
         };
+        
         const retryIncorrect = () => {
             toast.show("오답 다시 풀기 기능은 구현 중입니다.", 'info');
         };
+        
         const renderResultAnswer = (res, index) => {
             if (res.isCorrect === null) {
                 return e(React.Fragment, null,
@@ -2234,9 +2366,8 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
     };
 
 
-    // --- 5. 메인 앱 컴포넌트 (v10.2) ---
+    // --- 5. 메인 앱 컴포넌트 (v11.1 - Google Auth) ---
     const App = () => {
-      const dbHelper = useMemo(() => new IdbHelper('AIQuizAppDB', 1, DB_STORES_CONFIG), []);
       const toast = useToast(); 
       const [isLoading, setIsLoading] = useState(true);
       const [userSettings, setUserSettings] = useState(DEFAULT_SETTINGS);
@@ -2245,6 +2376,16 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
       const [isSidebarVisible, setIsSidebarVisible] = useState(true);
       const [activeEditorFile, setActiveEditorFile] = useState(null);
       const [editingNodeId, setEditingNodeId] = useState(null);
+      
+      // (v11.0) Firebase 상태
+      const [db, setDb] = useState(null);
+      const [auth, setAuth] = useState(null);
+      const [userId, setUserId] = useState(null);
+      const [appId, setAppId] = useState('default-app-id');
+      
+      // (v11.1) 사용자 정보 상태 (프로필 사진, 이름 등)
+      const [userInfo, setUserInfo] = useState(null);
+      const authAttempted = useRef(false); // (v11.1) 커스텀 토큰 재시도 방지
       
       const QUIZ_OPTIONS_STORAGE_KEY = 'aiQuiz_quizOptions_v10';
       const getInitialQuizOptions = (settings) => {
@@ -2278,49 +2419,163 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
       const [quizzes, setQuizzes] = useState([]);
       const [attempts, setAttempts] = useState([]);
 
-      const refetchAllData = useCallback(async () => {
-          if (!dbHelper.db) return;
-          try {
-              const [filesData, quizzesData, attemptsData, settingsData] = await Promise.all([
-                  dbHelper.getAll('files'),
-                  dbHelper.getAll('quizzes'),
-                  dbHelper.getAll('quizAttempts'),
-                  dbHelper.get('settings', 'userConfig')
-              ]);
-              setFiles(filesData);
-              setQuizzes(quizzesData);
-              setAttempts(attemptsData);
-              const newSettings = settingsData || DEFAULT_SETTINGS;
-              setUserSettings(newSettings);
-              _setQuizOptions(getInitialQuizOptions(newSettings));
-          } catch (e) {
-              console.error("데이터 로드 실패:", e);
-          }
-      }, [dbHelper]);
-      
-      const { fileTree, fileActions } = useFileSystem(files, dbHelper, refetchAllData);
-
+      // (v11.1) Firebase 초기화 및 인증 로직 수정
       useEffect(() => {
-        dbHelper.init().then(() => {
-            refetchAllData().then(() => setIsLoading(false));
-        });
-      }, [dbHelper, refetchAllData]);
+        const currentAppId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfigStr = typeof __firebase_config !== 'undefined' ? __firebase_config : null;
+        
+        if (!firebaseConfigStr) {
+            console.error("Firebase config is missing.");
+            toast.show("❌ Firebase 설정 오류", "error");
+            setIsLoading(false);
+            return;
+        }
+        
+        try {
+            const firebaseConfig = JSON.parse(firebaseConfigStr);
+            const fbApp = initializeApp(firebaseConfig);
+            const fbAuth = getAuth(fbApp);
+            const fbDb = getFirestore(fbApp);
+            
+            setLogLevel('Debug'); // Firestore 로깅
+            
+            setDb(fbDb);
+            setAuth(fbAuth);
+            setAppId(currentAppId);
+
+            onAuthStateChanged(fbAuth, async (user) => {
+                if (user) {
+                    // 로그인 성공
+                    console.log("Firebase Auth: User signed in.", user.uid, user.displayName);
+                    setUserId(user.uid);
+                    setUserInfo({ // (v11.1) 전체 사용자 정보 저장
+                        uid: user.uid,
+                        displayName: user.displayName,
+                        email: user.email,
+                        photoURL: user.photoURL
+                    });
+                    setIsLoading(false);
+                } else {
+                    // 로그아웃 상태
+                    console.log("Firebase Auth: No user.");
+                    setUserId(null);
+                    setUserInfo(null);
+                    
+                    // (v11.1) 커스텀 토큰이 있으면 1회 시도, 없으면 그냥 로그아웃 상태로 로딩 완료
+                    if (typeof __initial_auth_token !== 'undefined' && !authAttempted.current) {
+                        authAttempted.current = true; // 중복 시도 방지
+                        try {
+                            console.log("Firebase Auth: Attempting custom token sign-in...");
+                            await signInWithCustomToken(fbAuth, __initial_auth_token);
+                            // 성공하면 onAuthStateChanged가 'user'와 함께 다시 호출됨
+                        } catch (authError) {
+                            console.error("Firebase Auth: Custom token sign-in failed", authError);
+                            toast.show(`❌ 토큰 인증 실패: ${authError.message}`, "error");
+                            setIsLoading(false); // 토큰 실패 시에도 로딩 완료
+                        }
+                    } else {
+                        // 커스텀 토큰이 없거나 이미 시도했으면, 로그아웃 상태로 로딩 완료
+                        setIsLoading(false);
+                    }
+                }
+            });
+        } catch (e) {
+            console.error("Firebase initialization failed:", e);
+            toast.show(`❌ Firebase 초기화 실패: ${e.message}`, "error");
+            setIsLoading(false);
+        }
+      }, [toast]); // (v11.1) 의존성 배열에서 toast 제거 (함수가 아니므로) -> 아님, 훅이므로 유지
       
+      // (v11.0) Firestore 실시간 리스너
+      useEffect(() => {
+        // (v11.1) userId가 null이면(로그아웃) 리스너를 설정하지 않고, 기존 데이터 클린업
+        if (!db || !userId) {
+            setFiles([]);
+            setQuizzes([]);
+            setAttempts([]);
+            setTaskQueue([]);
+            setActiveEditorFile(null);
+            return; // 리스너 설정 중단
+        }
+
+        console.log(`Setting up snapshots for user: ${userId}, app: ${appId}`);
+
+        const getCollectionRef = (collName) => collection(db, `artifacts/${appId}/users/${userId}/${collName}`);
+
+        // 1. Files listener
+        const filesQuery = query(getCollectionRef('files'));
+        const filesUnsub = onSnapshot(filesQuery, (querySnapshot) => {
+            const filesData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            setFiles(filesData);
+            console.log("Snapshot: Files updated", filesData.length);
+        }, (error) => console.error("Snapshot Error (Files):", error));
+        
+        // 2. Quizzes listener
+        const quizzesQuery = query(getCollectionRef('quizzes'));
+        const quizzesUnsub = onSnapshot(quizzesQuery, (querySnapshot) => {
+            const quizzesData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            setQuizzes(quizzesData);
+            console.log("Snapshot: Quizzes updated", quizzesData.length);
+        }, (error) => console.error("Snapshot Error (Quizzes):", error));
+
+        // 3. Attempts listener
+        const attemptsQuery = query(getCollectionRef('quizAttempts'));
+        const attemptsUnsub = onSnapshot(attemptsQuery, (querySnapshot) => {
+            const attemptsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            setAttempts(attemptsData);
+            console.log("Snapshot: Attempts updated", attemptsData.length);
+        }, (error) => console.error("Snapshot Error (Attempts):", error));
+
+        // 4. Settings listener
+        const settingsRef = doc(db, `artifacts/${appId}/users/${userId}/settings/userConfig`);
+        const settingsUnsub = onSnapshot(settingsRef, (docSnap) => {
+            if (docSnap.exists()) {
+                const settingsData = docSnap.data();
+                setUserSettings(settingsData);
+                _setQuizOptions(getInitialQuizOptions(settingsData)); 
+                console.log("Snapshot: Settings updated");
+            } else {
+                setUserSettings(DEFAULT_SETTINGS);
+                _setQuizOptions(getInitialQuizOptions(DEFAULT_SETTINGS));
+                console.log("Snapshot: No settings found, using default.");
+            }
+        }, (error) => console.error("Snapshot Error (Settings):", error));
+
+        // Cleanup function
+        return () => {
+            console.log("Cleaning up snapshots...");
+            filesUnsub();
+            quizzesUnsub();
+            attemptsUnsub();
+            settingsUnsub();
+        };
+      }, [db, userId, appId]);
+      
+      const { fileTree, fileActions } = useFileSystem(files, db, userId, appId);
+      
+      // Worker (퀴즈 생성/채점) 콜백
       useEffect(() => {
         quizWorker.onmessage = (e) => {
+          if (!userId) return; // (v11.1) 로그아웃 상태면 메시지 무시
+          
           const { status, taskId, taskType, quizData, updatedAttempt, error, options } = e.data; 
+          
           setTaskQueue(prev => prev.map(task => 
               task.id === taskId ? { ...task, status, error } : task
           ));
+          
           if (status === 'success') {
             if (taskType === 'grade' && updatedAttempt) {
-                dbHelper.put('quizAttempts', updatedAttempt).then(() => {
-                    refetchAllData();
-                    if (toast) toast.show('✅ AI 채점이 완료되었습니다.', 'success');
-                });
+                // (v11.0) Firestore에 채점 결과 업데이트
+                const attemptRef = doc(db, `artifacts/${appId}/users/${userId}/quizAttempts`, updatedAttempt.id);
+                updateDoc(attemptRef, updatedAttempt)
+                    .then(() => toast.show('✅ AI 채점이 완료되었습니다.', 'success'))
+                    .catch(err => toast.show(`❌ 채점 결과 저장 실패: ${err.message}`, 'error'));
+                
             } else if (taskType === 'generate' && quizData) {
+                // (v11.0) Firestore에 새 퀴즈 추가
                 const newQuiz = {
-                    id: crypto.randomUUID(),
+                    // id는 Firestore가 자동 생성
                     title: quizData.title,
                     sourceText: "N/A", 
                     fileId: options.fileId, 
@@ -2328,12 +2583,12 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
                     questions: JSON.stringify(quizData.questions),
                     createdAt: new Date().toISOString(),
                     questionCount: quizData.questions.length,
-                    options: options
+                    options: options,
+                    userId: userId
                 };
-                dbHelper.add('quizzes', newQuiz).then(() => {
-                    refetchAllData();
-                    if (toast) toast.show('✨ 퀴즈 생성이 완료되었습니다.', 'success');
-                });
+                addDoc(collection(db, `artifacts/${appId}/users/${userId}/quizzes`), newQuiz)
+                    .then(() => toast.show('✨ 퀴즈 생성이 완료되었습니다.', 'success'))
+                    .catch(err => toast.show(`❌ 퀴즈 저장 실패: ${err.message}`, 'error'));
             }
           } else if (status === 'error') {
               console.error(`Task ${taskId} (${taskType}) failed: ${error}`);
@@ -2341,20 +2596,32 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
           }
         };
         return () => { quizWorker.onmessage = null; };
-      }, [quizWorker, dbHelper, refetchAllData, toast]);
+      }, [quizWorker, db, userId, appId, toast]);
       
+      // (v11.0) 설정 저장 (Firestore)
       const handleSaveSettings = useCallback(async (newSettings) => {
-          const settingsToSave = { ...newSettings, id: 'userConfig' };
-          await dbHelper.put('settings', settingsToSave);
-          setUserSettings(settingsToSave);
-          const currentOptions = localStorage.getItem(QUIZ_OPTIONS_STORAGE_KEY);
-          if (!currentOptions) {
-             _setQuizOptions(getInitialQuizOptions(settingsToSave));
+          if (!db || !userId) {
+              toast.show('❌ 로그인이 필요합니다.', 'error');
+              return;
           }
-      }, [dbHelper]);
+          const settingsRef = doc(db, `artifacts/${appId}/users/${userId}/settings/userConfig`);
+          try {
+              await setDoc(settingsRef, newSettings, { merge: true });
+              toast.show('✅ 설정이 저장되었습니다.', 'success');
+              // onSnapshot이 자동으로 userSettings를 업데이트
+          } catch (e) {
+              console.error("설정 저장 실패:", e);
+              toast.show(`❌ 설정 저장 실패: ${e.message}`, 'error');
+          }
+      }, [db, userId, appId, toast]);
 
       const handleActivityChange = (id, forceVisible = false) => {
           if (id === 'settings') {
+              if (!userId) { // (v11.1) 로그인 확인
+                  toast.show('설정을 보려면 먼저 로그인(👤)하세요.', 'info');
+                  handleActivityChange('user');
+                  return;
+              }
               setModalContent(e(SettingsModal, { onClose: () => setModalContent(null) }));
               return;
           }
@@ -2363,15 +2630,23 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
       };
       
       const dispatchTask = useCallback((taskData) => {
+          if (!userId) { // (v11.1) 로그인 확인
+              toast.show('❌ 로그인이 필요합니다.', 'error');
+              return;
+          }
           const taskId = crypto.randomUUID();
           const newTask = { ...taskData, id: taskId, status: 'processing', taskType: 'generate' };
           setTaskQueue(prev => [newTask, ...prev]);
           quizWorker.postMessage({ ...newTask, settings: userSettings, DEFAULT_SETTINGS });
           handleActivityChange('tasks');
           if (toast) toast.show('✨ 퀴즈 생성을 시작합니다.', 'info');
-      }, [quizWorker, userSettings, toast]);
+      }, [quizWorker, userSettings, toast, userId]);
       
       const dispatchGradingTask = useCallback((attempt) => {
+          if (!userId) { // (v11.1) 로그인 확인
+              toast.show('❌ 로그인이 필요합니다.', 'error');
+              return;
+          }
           const taskId = crypto.randomUUID();
           const newTask = { 
               id: taskId, 
@@ -2382,27 +2657,67 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
           setTaskQueue(prev => [newTask, ...prev]);
           quizWorker.postMessage({ ...newTask, attempt, settings: userSettings, DEFAULT_SETTINGS });
           handleActivityChange('tasks');
-      }, [quizWorker, userSettings]);
+      }, [quizWorker, userSettings, userId]);
 
+      // (v11.0) 퀴즈 제출 (Firestore)
       const handleQuizSubmit = async (result) => {
+          if (!db || !userId) {
+              toast.show('❌ 로그인이 필요합니다.', 'error');
+              return;
+          }
+          
           try {
-              await dbHelper.add('quizAttempts', result);
-              await refetchAllData();
+              const attemptWithUser = { ...result, userId: userId };
+              const docRef = await addDoc(collection(db, `artifacts/${appId}/users/${userId}/quizAttempts`), attemptWithUser);
+              
+              const newAttempt = { ...attemptWithUser, id: docRef.id };
+              
               setModalContent(e(QuizResult, {
-                  attempt: result,
-                  quiz: quizzes.find(q => q.id === result.quizId),
+                  attempt: newAttempt,
+                  quiz: quizzes.find(q => q.id === newAttempt.quizId),
                   onClose: () => setModalContent(null),
                   userSettings,
-                  dbHelper,
-                  refetchAllData,
                   dispatchGradingTask
               }));
-          } catch (err) { console.error("퀴즈 제출 오류:", err); }
+          } catch (err) { 
+              console.error("퀴즈 제출 오류:", err); 
+              toast.show(`❌ 퀴즈 제출 실패: ${err.message}`, 'error');
+          }
+      };
+      
+      // (v11.1) Google 로그인/로그아웃 함수
+      const handleGoogleSignIn = async () => {
+          if (!auth) return;
+          const provider = new GoogleAuthProvider();
+          try {
+              await signInWithPopup(auth, provider);
+              // onAuthStateChanged가 결과를 처리
+              toast.show('✅ 로그인 성공!', 'success');
+              handleActivityChange('files'); // 로그인 후 파일 뷰로 이동
+          } catch (error) {
+              console.error("Google Sign-In Error:", error);
+              toast.show(`❌ 로그인 실패: ${error.message}`, 'error');
+          }
+      };
+
+      const handleSignOut = async () => {
+          if (!auth) return;
+          try {
+              await signOut(auth);
+              // onAuthStateChanged가 결과를 처리 (userId=null)
+              toast.show('로그아웃되었습니다.', 'info');
+              setActiveEditorFile(null); // (v11.1) 로그아웃 시 활성 파일 닫기
+          } catch (error) {
+              console.error("Sign-Out Error:", error);
+              toast.show(`❌ 로그아웃 실패: ${error.message}`, 'error');
+          }
       };
 
       const contextValue = {
-          dbHelper,
-          refetchAllData,
+          db,
+          userId,
+          userInfo, // (v11.1)
+          appId,
           userSettings,
           saveSettings: handleSaveSettings,
           files,
@@ -2422,10 +2737,11 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
           setQuizOptions,
           handleQuizSubmit,
           toast,
-          handleActivityChange
+          handleActivityChange,
+          handleGoogleSignIn, // (v11.1)
+          handleSignOut       // (v11.1)
       };
 
-      // 📌 (v10.2) Req 1: 사이드바 아이템 정의 (v10.1과 동일)
       const sidebarItems = [
         { id: 'files', label: '파일 탐색기', icon: '📄' },
         { id: 'search', label: '검색', icon: '🔍' },
@@ -2437,7 +2753,10 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
       ];
       
       if (isLoading) {
-        return e('div', { className: 'flex items-center justify-center h-screen' }, e(Spinner));
+        return e('div', { className: 'flex items-center justify-center h-screen' }, 
+            e(Spinner),
+            e('p', { className: 'ml-4' }, 'Firebase 인증 확인 중...')
+        );
       }
 
       return e(AppContext.Provider, { value: contextValue },
@@ -2454,8 +2773,7 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
             e(QuizGeneratorView, { viewId: 'quiz-generator' }),
             e(QuizHistoryView, { viewId: 'history' }),
             e(TaskMonitorView, { viewId: 'tasks' }),
-            // 📌 (v10.2) Req 2: 사용자 뷰 추가
-            e(UserView, { viewId: 'user' })
+            e(UserView, { viewId: 'user' }) // (v11.1) 이 뷰가 이제 로그인/로그아웃 UI를 처리
           ),
           
           e('div', { className: 'main-content' }, 
