@@ -1,0 +1,2934 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI 퀴즈 VSCode (v9 - 고급 파일 임포트)</title>
+
+  <!-- 1. 의존성 로드: React, Tailwind -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- 📌 신규: 파일 처리 라이브러리 (ZIP, PDF, DOCX) 📌 -->
+  <!-- ZIP -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <!-- PDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+  <script>
+    // PDF.js 워커 설정
+    if (typeof pdfjsLib !== 'undefined') {
+      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+    }
+  </script>
+  <!-- DOCX -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+  
+  <!-- 2. 스타일: VSCode 다크 테마 및 신규 UI 스타일 -->
+  <style>
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+        Helvetica, Arial, sans-serif;
+      margin: 0;
+      background-color: #1e1e1e; /* VSCode 배경 */
+      color: #cccccc;
+      height: 100vh;
+      overflow: hidden;
+    }
+    
+    /* 스크롤바 스타일 */
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-track { background: #252526; }
+    ::-webkit-scrollbar-thumb { background: #4a4a4a; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #5a5a5a; }
+
+    /* * ReactVscodeSidebar 셸 스타일링
+     */
+    .vsc-sidebar-container {
+      display: flex;
+      flex-direction: row;
+      width: auto;
+      height: 100vh;
+    }
+    .vsc-activity-bar {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 8px 0;
+      background-color: #333333;
+      color: white;
+      flex-shrink: 0;
+      width: 52px;
+    }
+    .vsc-activity-item {
+      background-color: transparent;
+      border: none;
+      color: #b0b0b0;
+      padding: 12px;
+      margin: 2px 4px;
+      cursor: pointer;
+      font-size: 24px;
+      line-height: 1;
+      border-radius: 4px;
+      transition: background-color 0.2s, color 0.2s;
+    }
+    .vsc-activity-item:hover { background-color: #404040; }
+    .vsc-activity-item[data-active='true'] {
+      color: #ffffff;
+      background-color: #4a4a4a;
+    }
+    
+    .vsc-sidebar-view {
+      flex-grow: 1;
+      overflow-y: auto;
+      background-color: #252526;
+      color: #cccccc;
+      width: 300px;
+      min-width: 300px;
+      border-right: 1px solid #444;
+      transition: min-width 0.2s ease-out, width 0.2s ease-out;
+      overflow: hidden;
+    }
+    .vsc-sidebar-view[data-visible='false'] {
+      width: 0px;
+      min-width: 0px;
+      border-right: none;
+    }
+    .vsc-view-content {
+      height: 100%;
+      min-width: 300px;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    /* 뷰 컨텐츠 기본 패딩 */
+    .view-padding {
+        padding: 16px;
+    }
+    /* 뷰 컨텐츠 헤더 */
+    .view-header {
+      margin-top: 0;
+      color: #cccccc;
+      font-size: 1.1rem;
+      font-weight: 600;
+      padding: 12px 16px;
+      border-bottom: 1px solid #444;
+      flex-shrink: 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    /* 뷰 헤더 아이콘 버튼 */
+    .view-header-icon {
+        background: none; border: none; color: #b0b0b0; cursor: pointer;
+        padding: 4px; border-radius: 4px;
+    }
+    .view-header-icon:hover { background-color: #4a4a4a; color: white; }
+    
+    /* 뷰 컨텐츠 스크롤 영역 */
+    .view-content-scroll {
+        flex-grow: 1;
+        overflow-y: auto;
+        padding: 16px;
+    }
+    .view-content-full { /* 패딩 없는 꽉 찬 컨텐츠 (파일 탐색기용) */
+        flex-grow: 1;
+        overflow-y: auto;
+    }
+    
+    /* (v5) 분할 뷰 스타일 */
+    .vsc-view-panes {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+    }
+    .vsc-view-pane {
+        flex: 1;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+    }
+    .vsc-view-pane-header {
+        padding: 4px 12px;
+        background-color: #333;
+        font-size: 0.9rem;
+        font-weight: 500;
+        border-top: 1px solid #444;
+        border-bottom: 1px solid #444;
+    }
+    .vsc-view-pane-content {
+        flex: 1;
+        overflow-y: auto;
+        padding: 8px;
+    }
+    .vsc-view-pane-content.full {
+        padding: 0; /* 파일 트리용 */
+    }
+
+
+    /* * 메인 컨텐츠 영역 (파일 에디터)
+     */
+    .main-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    
+    /* (v5) 메인 에디터 헤더 */
+    .main-editor-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 12px;
+        background-color: #252526;
+        border-bottom: 1px solid #444;
+        flex-shrink: 0;
+    }
+    .main-editor-title {
+        font-size: 0.9rem;
+    }
+    .main-editor-action-btn {
+        background-color: #0e639c;
+        color: white;
+        padding: 4px 10px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.9rem;
+    }
+    .main-editor-action-btn:hover { background-color: #1177bb; }
+    .main-editor-action-btn:disabled { background-color: #555; cursor: not-allowed; }
+    
+    .main-editor {
+      flex-grow: 1;
+      background-color: #1e1e1e;
+      color: #d4d4d4;
+      border: none;
+      outline: none;
+      padding: 20px;
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 14px;
+      line-height: 1.5;
+      resize: none;
+    }
+    .main-editor-placeholder {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100%;
+      color: #6a6a6a;
+      font-size: 1.2rem;
+    }
+    
+    .main-editor-footer {
+        padding: 4px 12px;
+        background-color: #252526;
+        border-top: 1px solid #444;
+        flex-shrink: 0;
+        font-size: 0.8rem;
+        color: #a0a0a0;
+        text-align: right;
+        min-height: 26px; /* 텍스트 높이 확보 */
+    }
+    
+    /* * 폼 요소 스타일 (퀴즈 생성기, 설정)
+     */
+    .form-group { margin-bottom: 16px; }
+    .form-label {
+        display: block;
+        font-size: 0.9rem;
+        margin-bottom: 6px;
+        color: #a0a0a0;
+        font-weight: 500;
+    }
+    .form-input, .form-textarea, .form-select {
+      width: 100%;
+      padding: 8px;
+      box-sizing: border-box;
+      border: 1px solid #444;
+      background-color: #3c3c3c;
+      color: #cccccc;
+      border-radius: 4px;
+    }
+    .form-textarea {
+        font-family: 'Courier New', Courier, monospace;
+    }
+    .form-select {
+        appearance: none;
+        background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+        background-repeat: no-repeat;
+        background-position: right 0.5rem center;
+        background-size: 1.2em 1.2em;
+        padding-right: 2.5rem;
+    }
+    .form-checkbox-label {
+        display: flex;
+        align-items: center;
+        font-size: 0.9rem;
+        color: #cccccc;
+        cursor: pointer;
+    }
+    .form-checkbox {
+        width: 16px;
+        height: 16px;
+        margin-right: 8px;
+        background-color: #3c3c3c;
+        border: 1px solid #444;
+        border-radius: 3px;
+    }
+    .form-button {
+      background-color: #0e639c;
+      color: white;
+      width: 100%;
+      padding: 10px 12px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background-color 0.2s;
+      font-weight: 600;
+    }
+    .form-button:hover { background-color: #1177bb; }
+    .form-button:disabled { background-color: #555; cursor: not-allowed; }
+
+    /* * 퀴즈 기록/모니터링 목록
+     */
+    .list-item {
+      padding: 10px;
+      background-color: #3c3c3c;
+      border-radius: 4px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+    .list-item:hover { background-color: #4a4a4a; }
+    .list-item-title { font-weight: 600; }
+    .list-item-sub { font-size: 0.8rem; color: #a0a0a0; }
+    .list-item-badge {
+        font-size: 0.8rem;
+        padding: 2px 6px;
+        border-radius: 10px;
+        background-color: #4a90e2;
+        color: white;
+    }
+    .list-item-badge.success { background-color: #4CAF50; }
+    .list-item-badge.error { background-color: #f44336; }
+    
+    /* (v6) 퀴즈 풀이/결과 스타일 */
+    .quiz-question-card { margin-bottom: 1.5rem; }
+    .quiz-question-text { font-weight: 600; font-size: 1.1rem; margin-bottom: 0.75rem; }
+    .quiz-option-label {
+        display: block;
+        padding: 10px;
+        background-color: #3c3c3c;
+        border-radius: 4px;
+        margin-bottom: 8px;
+        cursor: pointer;
+    }
+    .quiz-option-label:hover { background-color: #4a4a4a; }
+    .quiz-option-label input { margin-right: 10px; }
+
+
+    /* * 모달 (설정, 퀴즈 결과)
+     */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background-color: rgba(0, 0, 0, 0.7);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 100;
+    }
+    .modal-container {
+      background-color: #2d2d2d;
+      color: #cccccc;
+      border-radius: 8px;
+      width: 90%;
+      max-width: 700px;
+      max-height: 80vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+    .modal-header {
+      padding: 16px 24px;
+      border-bottom: 1px solid #444;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .modal-header h2 { margin: 0; font-size: 1.2rem; }
+    .modal-close-btn {
+      background: none; border: none; color: #a0a0a0; font-size: 1.5rem;
+      cursor: pointer; padding: 0; line-height: 1;
+    }
+    .modal-body {
+      padding: 0;
+      overflow-y: auto;
+      display: flex;
+      flex-grow: 1;
+    }
+    .modal-footer {
+      padding: 16px 24px;
+      border-top: 1px solid #444;
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+    }
+    .modal-button {
+      padding: 8px 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: 500;
+      transition: background-color 0.2s;
+    }
+    .modal-button-primary {
+      background-color: #0e639c; color: white; border: none;
+    }
+    .modal-button-primary:hover { background-color: #1177bb; }
+    .modal-button-secondary {
+      background-color: #4a4a4a; color: #cccccc; border: none;
+    }
+    .modal-button-secondary:hover { background-color: #5a5a5a; }
+    
+    /* 설정 모달 내부 네비게이션 */
+    .settings-nav {
+      width: 200px;
+      flex-shrink: 0;
+      padding: 24px 0;
+      border-right: 1px solid #444;
+    }
+    .settings-nav-item {
+      padding: 10px 24px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      border-left: 3px solid transparent;
+    }
+    .settings-nav-item:hover { background-color: #3c3c3c; }
+    .settings-nav-item[data-active='true'] {
+      background-color: #3c3c3c;
+      border-left-color: #0e639c;
+      color: white;
+    }
+    .settings-content {
+      padding: 24px;
+      flex-grow: 1;
+      overflow-y: auto;
+      display: flex; /* 자식(textarea)이 100% 높이 차지하도록 */
+      flex-direction: column;
+    }
+    
+    /* API 키 목록 */
+    .api-key-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px;
+        background-color: #3c3c3c;
+        border-radius: 4px;
+        margin-bottom: 8px;
+    }
+    .api-key-delete-btn {
+        background: #f44336; color: white; border: none;
+        border-radius: 4px; padding: 4px 8px; font-size: 0.8rem;
+        cursor: pointer;
+    }
+
+    /* 퀴즈 결과 모달 */
+    .quiz-result-body { padding: 24px; }
+    .quiz-result-score { font-size: 2rem; font-weight: bold; text-align: center; }
+    .result-question {
+        padding: 12px;
+        border-radius: 4px;
+        margin-bottom: 8px;
+    }
+    .result-question-correct { background-color: #3a4a3a; }
+    .result-question-incorrect { background-color: #5a3a3a; }
+    /* AI 채점 대기 중 스타일 */
+    .bg-gray-700 { background-color: #3c3c3c; } 
+    .result-question-text { font-weight: 600; margin-bottom: 4px; }
+    .result-answer { font-size: 0.9rem; }
+    .result-answer.correct { color: #81c784; }
+    .result-answer.yours { color: #ffb74d; }
+    /* 📌 신규: AI 조언 */
+    .ai-advice-container {
+        margin-top: 24px;
+        padding: 16px;
+        background-color: #252526;
+        border-radius: 6px;
+    }
+    .ai-advice-header {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #4a90e2;
+        margin-bottom: 12px;
+    }
+    .ai-advice-body {
+        white-space: pre-wrap;
+        line-height: 1.6;
+    }
+
+
+    /* 파일 관리자 (vsc-view-content-full) */
+    .file-manager-container {
+        height: 100%;
+        font-size: 14px;
+    }
+    .file-tree-list { padding: 8px; }
+    .file-tree-node {
+        display: flex;
+        align-items: center;
+        padding: 4px 8px;
+        cursor: pointer;
+        border-radius: 4px;
+    }
+    .file-tree-node:hover { background-color: #3c3c3c; }
+    .file-tree-node[data-active='true'] { background-color: #094771; }
+    /* (v5) 드래그 오버 (폴더) */
+    .file-tree-node[data-drag-over='true'] {
+        background-color: #0e639c;
+    }
+    .file-tree-node-icon { margin-right: 6px; }
+    
+    /* (v4.1) 컨텍스트 메뉴 스타일 */
+    .context-menu {
+      position: fixed;
+      z-index: 1000;
+      background-color: #252526;
+      border: 1px solid #37373d;
+      border-radius: 4px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+      padding: 4px 0;
+      min-width: 150px;
+    }
+    .context-menu-item {
+      padding: 6px 12px;
+      font-size: 0.9rem;
+      cursor: pointer;
+    }
+    .context-menu-item:hover {
+      background-color: #094771;
+    }
+    .context-menu-item-delete {
+      color: #f48771;
+    }
+    .context-menu-divider {
+      border-top: 1px solid #37373d;
+      margin: 4px 0;
+    }
+    
+    /* 로딩 스피너 */
+    .spinner-overlay {
+      position: absolute; inset: 0;
+      background-color: rgba(0, 0, 0, 0.5);
+      display: flex; justify-content: center; align-items: center;
+      z-index: 50;
+    }
+    /* 스피너 스타일 재정의 (QuizResult용) */
+    .spinner-overlay.\!relative { position: relative; }
+    .spinner-overlay.\!h-10 { height: 2.5rem; }
+    .spinner-overlay.\!bg-transparent { background-color: transparent; }
+    .spinner {
+      border: 4px solid #f3f3f3; border-top: 4px solid #0e639c;
+      border-radius: 50%; width: 40px; height: 40px;
+      animation: spin 1s linear infinite;
+    }
+    .spinner.\!w-6 { width: 1.5rem; }
+    .spinner.\!h-6 { height: 1.5rem; }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    /* 📌 신규: 토스트 메시지 시스템 스타일 📌 */
+    .toast-container {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      z-index: 1001;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .toast-item {
+      padding: 12px 16px;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      font-weight: 500;
+      color: white;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      animation: toast-fade-in 0.3s ease-out;
+    }
+    .toast-item.success {
+      background-color: #4CAF50; /* Green */
+    }
+    .toast-item.error {
+      background-color: #f44336; /* Red */
+    }
+    .toast-item.info {
+      background-color: #0e639c; /* Blue */
+    }
+    @keyframes toast-fade-in {
+      from { transform: translateX(100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+
+    /* 📌 신규: 드래그 앤 드롭 오버레이 📌 */
+    .drag-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 999;
+      background-color: rgba(14, 99, 156, 0.7);
+      border: 4px dashed #fff;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 2rem;
+      font-weight: bold;
+      color: white;
+      pointer-events: none; /* 드롭 이벤트가 통과하도록 */
+    }
+
+  </style>
+</head>
+<body>
+  
+  <div id="root"></div>
+  <!-- 📌 (수정) multiple 및 accept 속성 추가 -->
+  <input type="file" id="file-upload-input" style="display: none" multiple accept=".txt,.md,.pdf,.docx,.zip" />
+  <input type="file" id="project-import-input" style="display: none" accept=".json" />
+
+
+  <!-- 3. React 애플리케이션 스크립트 -->
+  <script type="module">
+    const { 
+      useState, 
+      useEffect, 
+      useCallback, 
+      useMemo,
+      createContext,
+      useContext
+    } = React;
+    const { createRoot } = ReactDOM;
+    const e = React.createElement;
+
+    // 📌 신규: 토스트 컨텍스트
+    const ToastContext = createContext(null);
+    const useToast = () => useContext(ToastContext);
+    
+    // React 컨텍스트: 전역 상태 관리
+    const AppContext = createContext(null);
+    
+    // --- 0. IndexedDB 헬퍼 (v5 - 인덱스 추가) ---
+    class IdbHelper {
+        constructor(dbName, version, stores) {
+            this.dbName = dbName;
+            this.version = version;
+            this.stores = stores; // { name, keyPath, indexes: [{name, keyPath}] }[]
+            this.db = null;
+        }
+
+        init() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open(this.dbName, this.version);
+                request.onerror = (event) => reject("IndexedDB 오류: " + request.error);
+                request.onsuccess = (event) => {
+                    this.db = event.target.result;
+                    resolve(this);
+                };
+                request.onupgradeneeded = (event) => {
+                    const db = event.target.result;
+                    this.stores.forEach(storeConfig => {
+                        let store;
+                        if (!db.objectStoreNames.contains(storeConfig.name)) {
+                            store = db.createObjectStore(storeConfig.name, { keyPath: storeConfig.keyPath });
+                        } else {
+                            store = event.target.transaction.objectStore(storeConfig.name);
+                        }
+                        
+                        // (v5) 인덱스 생성
+                        (storeConfig.indexes || []).forEach(idx => {
+                            if (!store.indexNames.contains(idx.name)) {
+                                store.createIndex(idx.name, idx.keyPath, { unique: false });
+                            }
+                        });
+                    });
+                };
+            });
+        }
+
+        get(storeName, key) {
+            return new Promise((resolve, reject) => {
+                const tx = this.db.transaction(storeName, 'readonly');
+                const store = tx.objectStore(storeName);
+                const request = store.get(key);
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error);
+            });
+        }
+        
+        getAll(storeName) {
+            return new Promise((resolve, reject) => {
+                const tx = this.db.transaction(storeName, 'readonly');
+                const store = tx.objectStore(storeName);
+                const request = store.getAll();
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error);
+            });
+        }
+        
+        query(storeName, indexName, value) {
+            return new Promise((resolve, reject) => {
+                const tx = this.db.transaction(storeName, 'readonly');
+                const store = tx.objectStore(storeName);
+                const index = store.index(indexName);
+                const request = index.getAll(value);
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        put(storeName, item) {
+             return new Promise((resolve, reject) => {
+                const tx = this.db.transaction(storeName, 'readwrite');
+                const store = tx.objectStore(storeName);
+                const request = store.put(item);
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error);
+            });
+        }
+        
+        add(storeName, item) {
+             return new Promise((resolve, reject) => {
+                const tx = this.db.transaction(storeName, 'readwrite');
+                const store = tx.objectStore(storeName);
+                const request = store.add(item);
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error);
+            });
+        }
+        
+        delete(storeName, key) {
+            return new Promise((resolve, reject) => {
+                const tx = this.db.transaction(storeName, 'readwrite');
+                const store = tx.objectStore(storeName);
+                const request = store.delete(key);
+                request.onsuccess = () => resolve();
+                request.onerror = () => reject(request.error);
+            });
+        }
+        
+        clear(storeName) {
+            return new Promise((resolve, reject) => {
+                const tx = this.db.transaction(storeName, 'readwrite');
+                const store = tx.objectStore(storeName);
+                const request = store.clear();
+                request.onsuccess = () => resolve();
+                request.onerror = () => reject(request.error);
+            });
+        }
+    }
+    
+    // (v5) DB 스키마 정의
+    const DB_STORES_CONFIG = [
+        { name: 'files', keyPath: 'id', indexes: [{ name: 'by_parentId', keyPath: 'parentId' }] },
+        { name: 'quizzes', keyPath: 'id', indexes: [{ name: 'by_fileId', keyPath: 'fileId' }] },
+        { name: 'quizAttempts', keyPath: 'id', indexes: [{ name: 'by_fileId', keyPath: 'fileId' }, { name: 'by_quizId', keyPath: 'quizId' }] },
+        { name: 'settings', keyPath: 'id' }
+    ];
+
+    // --- 1. AI Gemini API 호출 (Rule R2.2.6) ---
+
+    // 📌 (수정 1) 퀴즈 생성을 위한 JSON 스키마 (채점 기준)
+    const QUIZ_SCHEMA = {
+      type: "OBJECT",
+      properties: {
+        title: { type: "STRING" },
+        questions: {
+          type: "ARRAY",
+          items: {
+            type: "OBJECT",
+            properties: {
+              questionType: { type: "STRING" }, // "MultipleChoice", "ShortAnswer"
+              questionText: { type: "STRING" },
+              // 객관식 전용
+              options: { type: "ARRAY", items: { type: "STRING" }, nullable: true },
+              correctAnswerIndex: { type: "NUMBER", nullable: true },
+              // 📌 (수정) 주관식/사례형 채점 기준
+              gradingCriteria: { type: "STRING", nullable: true },
+            },
+            required: ["questionType", "questionText"]
+          }
+        }
+      },
+      required: ["title", "questions"]
+    };
+    
+    /* 📌 (수정 2) AI 채점 결과 스키마 (부분 점수) 📌 */
+    const GRADING_SCHEMA = {
+      type: "OBJECT",
+      properties: {
+        score: { type: "NUMBER", description: "채점 기준에 따른 0.0에서 1.0 사이의 점수. 1.0이 만점." },
+        feedback: { type: "STRING", description: "사용자의 답변에 대해 점수 근거를 포함한 구체적인 첨삭 내용." }
+      },
+      required: ["score", "feedback"]
+    };
+    
+    /* 📌 (신규) AI 학습 조언 스키마 📌 */
+    const ANALYSIS_SCHEMA = {
+      type: "OBJECT",
+      properties: {
+        studyAdvice: { type: "STRING", description: "틀린 문제 목록을 기반으로 한 구체적인 학습 조언." }
+      },
+      required: ["studyAdvice"]
+    };
+
+    class ApiError extends Error {
+      constructor(message, status) { super(message); this.name = 'ApiError'; this.status = status; }
+    }
+    const fetchWithRetry = async (url, options, retries = 3, delay = 1000) => {
+      for (let i = 0; i < retries; i++) {
+        try {
+          const response = await fetch(url, options);
+          if (!response.ok) {
+            if (response.status === 429) throw new ApiError('Rate limit exceeded', response.status);
+            throw new ApiError(`HTTP error! status: ${response.status}`, response.status);
+          }
+          return response.json();
+        } catch (error) {
+          if (error.status === 429 && i < retries - 1) {
+            await new Promise(res => setTimeout(res, delay * Math.pow(2, i)));
+          } else { throw error; }
+        }
+      }
+      throw new Error('API call failed after all retries');
+    };
+    
+    // (v6) Gemini API 호출 함수 (다형성 스키마 사용)
+    const generateQuizWithAi = async (sourceText, options, settings) => {
+      const { numQuestions, difficulty, questionType, includeSnippets, provideAnswerKey, customInstructions } = options;
+      const apiKeys = settings?.apiKeys || [{ key: "", rpm: 60 }]; 
+      const keyIndex = Date.now() % apiKeys.length; 
+      const selectedKey = apiKeys[keyIndex];
+      const apiKey = selectedKey.key.trim() ? selectedKey.key.trim() : "";
+      const model = settings?.modelName || "gemini-2.5-flash-preview-09-2025";
+      
+      /* 📌 (수정 3) API 키 가드 클로즈 (확인) */
+      if (!apiKey) {
+          throw new ApiError('API 키가 설정되지 않았습니다. [설정(⚙️) > API Keys]에서 유효한 키를 추가하십시오.', 401); 
+      }
+
+      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+      
+      let systemPrompt = settings.quizSystemPrompt || DEFAULT_SETTINGS.quizSystemPrompt;
+      
+      systemPrompt = systemPrompt
+          .replace('{{DIFFICULTY}}', difficulty)
+          .replace('{{QUESTION_TYPE}}', questionType) // 📌 (v6) AI에게 유형 명시
+          .replace('{{INCLUDE_SNIPPETS}}', includeSnippets ? "Include relevant code snippets from the text if applicable." : "")
+          .replace('{{PROVIDE_ANSWER_KEY}}', provideAnswerKey ? "Ensure correct answers are provided." : "")
+          .replace('{{CUSTOM_INSTRUCTIONS}}', customInstructions ? `Additional Instructions: ${customInstructions}` : "")
+          .replace('{{NUM_QUESTIONS}}', numQuestions);
+          
+      const userQuery = `--- SOURCE TEXT ---
+${sourceText}
+--- END SOURCE TEXT ---
+`;
+
+      const payload = {
+        contents: [{ role: "user", parts: [{ text: userQuery }] }],
+        systemInstruction: { parts: [{ text: systemPrompt }] },
+        generationConfig: {
+          responseMimeType: "application/json",
+          responseSchema: QUIZ_SCHEMA, // 📌 (v6) 새 스키마
+          temperature: 0.3,
+        }
+      };
+
+      try {
+        const result = await fetchWithRetry(apiUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const candidate = result.candidates?.[0];
+        if (candidate && candidate.content?.parts?.[0]?.text) {
+          return JSON.parse(candidate.content.parts[0].text);
+        } else {
+          const errorReason = candidate?.finishReason || "Unknown error";
+          throw new Error(`AI가 유효한 퀴즈를 생성하지 못했습니다. (Reason: ${errorReason})`);
+        }
+      } catch (error) {
+        console.error("AI 퀴즈 생성 오류:", error);
+        throw new Error(`AI 퀴즈 생성 실패: ${error.message}`);
+      }
+    };
+    
+    /* 📌 (수정 4) AI 주관식 채점 API 함수 📌 */
+    const gradeAnswerWithAi = async (questionText, userAnswer, gradingCriteria, settings) => {
+      const apiKeys = settings?.apiKeys || [{ key: "", rpm: 60 }]; 
+      const keyIndex = Date.now() % apiKeys.length; 
+      const selectedKey = apiKeys[keyIndex];
+      const apiKey = selectedKey.key.trim() ? selectedKey.key.trim() : "";
+      const model = settings?.modelName || "gemini-2.5-flash-preview-09-2025";
+
+      if (!apiKey) {
+        throw new ApiError('API 키가 설정되지 않았습니다. [설정(⚙️) > API Keys]에서 유효한 키를 추가하십시오.', 401);
+      }
+      
+      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+      
+      const systemPrompt = settings.gradingSystemPrompt || DEFAULT_SETTINGS.gradingSystemPrompt;
+      
+      const userQuery = `--- QUESTION ---
+${questionText}
+
+--- GRADING CRITERIA (Rubric) ---
+${gradingCriteria}
+
+--- USER'S ANSWER ---
+${userAnswer}
+--- END OF DATA ---
+
+Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and provide feedback.
+`;
+
+      const payload = {
+        contents: [{ role: "user", parts: [{ text: userQuery }] }],
+        systemInstruction: { parts: [{ text: systemPrompt }] },
+        generationConfig: {
+          responseMimeType: "application/json",
+          responseSchema: GRADING_SCHEMA, // 📌 (수정) 부분 점수 스키마
+          temperature: 0.1
+        }
+      };
+
+      try {
+        const result = await fetchWithRetry(apiUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const candidate = result.candidates?.[0];
+        if (candidate && candidate.content?.parts?.[0]?.text) {
+          return JSON.parse(candidate.content.parts[0].text);
+        } else {
+          const errorReason = candidate?.finishReason || "Unknown error";
+          throw new Error(`AI가 채점을 생성하지 못했습니다. (Reason: ${errorReason})`);
+        }
+      } catch (error) {
+        console.error("AI 채점 오류:", error);
+        throw new Error(`AI 채점 실패: ${error.message}`);
+      }
+    };
+    
+    /* 📌 (신규) AI 학습 조언 API 함수 📌 */
+    const analyzeResultsWithAi = async (incorrectResults, settings) => {
+      const apiKeys = settings?.apiKeys || [{ key: "", rpm: 60 }]; 
+      const keyIndex = Date.now() % apiKeys.length; 
+      const selectedKey = apiKeys[keyIndex];
+      const apiKey = selectedKey.key.trim() ? selectedKey.key.trim() : "";
+      const model = settings?.modelName || "gemini-2.5-flash-preview-09-2025";
+
+      if (!apiKey) {
+        throw new ApiError('API 키가 설정되지 않았습니다. [설정(⚙️) > API Keys]에서 유효한 키를 추가하십시오.', 401);
+      }
+      
+      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+      const systemPrompt = settings.analysisSystemPrompt || DEFAULT_SETTINGS.analysisSystemPrompt;
+      
+      const analysisData = incorrectResults.map(r => ({
+          question: r.questionText,
+          yourAnswer: r.selectedAnswer,
+          feedback: r.feedback,
+          score: r.score_0_1,
+          gradingCriteria: r.gradingCriteria
+      }));
+
+      const userQuery = `--- INCORRECT/PARTIAL ANSWERS ---
+${JSON.stringify(analysisData, null, 2)}
+--- END OF DATA ---
+
+Please analyze this list of incorrect or partially correct answers and provide study advice in Korean.
+`;
+
+      const payload = {
+        contents: [{ role: "user", parts: [{ text: userQuery }] }],
+        systemInstruction: { parts: [{ text: systemPrompt }] },
+        generationConfig: {
+          responseMimeType: "application/json",
+          responseSchema: ANALYSIS_SCHEMA,
+          temperature: 0.5
+        }
+      };
+
+      try {
+        const result = await fetchWithRetry(apiUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const candidate = result.candidates?.[0];
+        if (candidate && candidate.content?.parts?.[0]?.text) {
+          return JSON.parse(candidate.content.parts[0].text);
+        } else {
+          const errorReason = candidate?.finishReason || "Unknown error";
+          throw new Error(`AI가 조언을 생성하지 못했습니다. (Reason: ${errorReason})`);
+        }
+      } catch (error) {
+        console.error("AI 조언 생성 오류:", error);
+        throw new Error(`AI 조언 생성 실패: ${error.message}`);
+      }
+    };
+
+
+    // --- 2. Web Worker (백그라운드 처리) ---
+    // 📌 (수정 5) Worker Script 전면 수정 (AI 부분 채점 로직)
+    const workerScript = `
+      /* 📌 1. 의존성 주입 (퀴즈 생성) 📌 */
+      const fetchWithRetry = ${fetchWithRetry.toString()};
+      ${ApiError.toString()}
+      const generateQuizWithAi = ${generateQuizWithAi.toString()};
+      const QUIZ_SCHEMA = ${JSON.stringify(QUIZ_SCHEMA)};
+      
+      /* 📌 2. 의존성 주입 (퀴즈 채점) 📌 */
+      const gradeAnswerWithAi = ${gradeAnswerWithAi.toString()};
+      const GRADING_SCHEMA = ${JSON.stringify(GRADING_SCHEMA)};
+
+      /* 📌 3. AI 전체 채점 로직 (100점 만점 기준) 📌 */
+      const handleAsyncGrading = async (attempt, settings, DEFAULT_SETTINGS) => {
+          const results = JSON.parse(attempt.answers);
+          
+          let newScore = 0; // 100점 만점 기준
+
+          const gradingPromises = results.map(async (originalResult) => {
+              // 1-1. 이미 채점된 문제 (객관식)는 점수를 누적하고 그대로 반환
+              if (originalResult.isCorrect !== null) {
+                  newScore += originalResult.points;
+                  return originalResult;
+              }
+              
+              // 1-2. 채점 대상 (주관식)
+              try {
+                  const gradeData = await gradeAnswerWithAi(
+                      originalResult.questionText,
+                      originalResult.selectedAnswer,
+                      originalResult.gradingCriteria,
+                      { ...DEFAULT_SETTINGS, ...settings } // 워커 스코프의 settings 사용
+                  );
+                  
+                  // 0.0 ~ 1.0 사이의 점수를 실제 배점(maxPoints)에 맞춰 변환
+                  const questionScore = (gradeData.score || 0) * originalResult.maxPoints;
+                  newScore += questionScore;
+                  
+                  return {
+                      ...originalResult,
+                      isCorrect: gradeData.score >= 0.8, // 80% 이상이면 '정답' 아이콘 표시
+                      score_0_1: gradeData.score,
+                      points: questionScore, // 획득 점수
+                      feedback: gradeData.feedback
+                  };
+              } catch (error) {
+                  console.error("AI 개별 채점 오류 (Worker):", error);
+                  return {
+                      ...originalResult,
+                      isCorrect: false, // 오류 시 오답
+                      score_0_1: 0.0,
+                      points: 0,
+                      feedback: \`AI 채점 실패: \${error.message}\`
+                  };
+              }
+          });
+
+          const newResults = await Promise.all(gradingPromises);
+          
+          const updatedAttempt = {
+              ...attempt,
+              score: newScore, // 📌 100점 만점으로 환산된 최종 점수
+              answers: JSON.stringify(newResults)
+          };
+          
+          return updatedAttempt;
+      };
+
+      /* 📌 4. 메인 워커 핸들러 (수정) 📌 */
+      self.onmessage = async (e) => {
+        const { id: taskId, taskType, sourceText, options, settings, DEFAULT_SETTINGS, attempt } = e.data;
+        
+        try {
+          if (taskType === 'grade') {
+            // --- AI 채점 작업 ---
+            const updatedAttempt = await handleAsyncGrading(attempt, settings, DEFAULT_SETTINGS);
+            self.postMessage({ 
+                status: 'success', 
+                taskId, 
+                taskType, 
+                updatedAttempt, // 채점 완료된 attempt 객체
+                options: { quizTitle: attempt.quizTitle } // 작업 모니터 표시용
+            });
+            
+          } else {
+            // --- AI 퀴즈 생성 작업 (기존) ---
+            const quizData = await generateQuizWithAi(sourceText, options, { ...DEFAULT_SETTINGS, ...settings });
+            self.postMessage({ 
+                status: 'success', 
+                taskId, 
+                taskType, 
+                quizData, 
+                options: e.data.options 
+            });
+          }
+        } catch (error) {
+          self.postMessage({ status: 'error', taskId, taskType, error: error.message });
+        }
+      };
+    `;
+    const workerBlob = new Blob([workerScript], { type: 'application/javascript' });
+    const workerUrl = URL.createObjectURL(workerBlob);
+    
+    
+    // --- 3. 기본 설정 및 훅 (v6 - 프롬프트 수정) ---
+
+    // 📌 (수정 6) 기본 프롬프트 템플릿 (부분 점수 및 조언)
+    const DEFAULT_SETTINGS = {
+        apiKeys: [{ key: "", rpm: 60 }],
+        defaultDifficulty: "Medium",
+        defaultQuestionType: "MultipleChoice",
+        defaultNumQuestions: 10,
+        quizSystemPrompt: `You are an expert quiz generation AI. You must generate a {{NUM_QUESTIONS}}-question quiz based *only* on the provided source text.
+- Difficulty: {{DIFFICULTY}}
+- Requested Question Type: {{QUESTION_TYPE}}
+- Adhere strictly to the provided JSON schema.
+- You MUST set 'questionType' for each question (e.g., "MultipleChoice" or "ShortAnswer", "Essay" etc.).
+- For "MultipleChoice" questions, provide 'options' (array) and 'correctAnswerIndex' (number).
+- 📌 (수정) For subjective questions (like "ShortAnswer", "Essay", "CaseStudy"), DO NOT provide 'correctAnswerIndex' or 'options'.
+- 📌 (수정) Instead, for subjective questions, you MUST provide detailed 'gradingCriteria' (string). This criteria is a rubric for another AI to use for grading. (예: "정확한 용어 'TDD' 언급 시 1점, '테스트 우선 작성'의 개념 설명 시 1점")
+- {{INCLUDE_SNIPPETS}}
+- {{PROVIDE_ANSWER_KEY}}
+- {{CUSTOM_INSTRUCTIONS}}`,
+        
+        /* 📌 (수정) AI 채점 프롬프트 (부분 점수) 📌 */
+        gradingSystemPrompt: `You are a fair and meticulous AI teaching assistant. Your task is to grade a user's answer based *only* on the provided grading criteria (rubric).
+- Evaluate the "USER'S ANSWER" strictly against the "GRADING CRITERIA".
+- 📌 You MUST return a 'score' between 0.0 (completely incorrect) and 1.0 (perfect). Partial credit (e.g., 0.5) is allowed.
+- Provide concise, constructive 'feedback' in Korean, explaining *why* that specific score was given based on the criteria.
+- Adhere strictly to the JSON output schema: {"score": number, "feedback": string}.`,
+        
+        /* 📌 (신규) AI 학습 조언 프롬프트 📌 */
+        analysisSystemPrompt: `You are a supportive and insightful AI study advisor.
+- You will receive a JSON list of a student's incorrect or partially correct answers, including their answer, the grading criteria, and the feedback they received.
+- Your task is to analyze these mistakes *holistically*.
+- Identify common themes, misunderstandings, or knowledge gaps.
+- Provide actionable, high-level study advice in Korean.
+- Start with an encouraging remark.
+- Use bullet points for clarity.
+- Do not just repeat the feedback for each question; synthesize the results into a cohesive study plan.
+- Adhere strictly to the JSON output schema: {"studyAdvice": string}.`
+    };
+
+    // (v5) IndexedDB 기반 파일 시스템 훅
+    const useFileSystem = (files, dbHelper, refetch) => {
+        
+        /* 📌 (신규) ZIP/D&D를 위한 폴더 생성 헬퍼 📌 */
+        const findOrCreateFolder = async (fullPath, rootParentId) => {
+          let currentParentId = rootParentId;
+          const folders = fullPath.split('/').filter(f => f.length > 0);
+          
+          for (const folderName of folders) {
+            // 📌 (수정) DB 대신 로컬 files 상태를 먼저 확인 (성능 최적화)
+            let existingFolder = files.find(
+              f => f.type === 'folder' && f.name === folderName && f.parentId === currentParentId
+            );
+            
+            if (existingFolder) {
+              currentParentId = existingFolder.id;
+            } else {
+              // 📌 (수정) DB에도 없으면 생성
+              const allFilesDB = await dbHelper.getAll('files');
+              existingFolder = allFilesDB.find(
+                f => f.type === 'folder' && f.name === folderName && f.parentId === currentParentId
+              );
+
+              if (existingFolder) {
+                  currentParentId = existingFolder.id;
+              } else {
+                  const newFolder = {
+                    id: crypto.randomUUID(),
+                    name: folderName,
+                    type: 'folder',
+                    parentId: currentParentId,
+                    content: null,
+                    createdAt: new Date().toISOString()
+                  };
+                  await dbHelper.add('files', newFolder);
+                  currentParentId = newFolder.id;
+                  // refetch(); // 잦은 refetch 방지. 상위 로직에서 한 번만 호출
+              }
+            }
+          }
+          return currentParentId; // 마지막 폴더 ID 반환
+        };
+
+        const fileActions = useMemo(() => {
+          if (!dbHelper) return {};
+
+          const recursiveDelete = async (parentId) => {
+              const allFiles = await dbHelper.getAll('files');
+              const children = allFiles.filter(f => f.parentId === parentId);
+              for (const child of children) {
+                  if (child.type === 'folder') {
+                      await recursiveDelete(child.id); // 자식 폴더 재귀 삭제
+                  }
+                  await dbHelper.delete('files', child.id); // 파일 또는 빈 폴더 삭제
+              }
+          };
+          
+          // (v5) DnD 이동 로직
+          const move = async (fileId, newParentId) => {
+              if (fileId === newParentId) return; // 자신에게 드롭 방지
+              
+              const file = await dbHelper.get('files', fileId);
+              if(file && file.parentId !== newParentId) { 
+                  await dbHelper.put('files', { ...file, parentId: newParentId });
+                  refetch();
+              }
+          };
+
+          return {
+            create: async (parentId, type, name, content = '') => {
+              const docName = name || (type === 'folder' ? 'New Folder' : 'new-file.txt');
+              const newFile = {
+                id: crypto.randomUUID(),
+                name: docName,
+                type,
+                parentId,
+                content: type === 'file' ? content : null,
+                createdAt: new Date().toISOString()
+              };
+              await dbHelper.add('files', newFile);
+              // refetch(); // 📌 (수정) 잦은 refetch 방지. 상위 로직(handleFileDrop)에서 일괄 호출
+              return newFile; // 📌 (수정) 생성된 객체 반환
+            },
+            rename: async (fileId, newName) => {
+              const file = await dbHelper.get('files', fileId);
+              if(file) await dbHelper.put('files', { ...file, name: newName });
+              refetch();
+            },
+            remove: async (fileId, type) => {
+              if (type === 'folder') {
+                  await recursiveDelete(fileId); // 하위 항목 모두 삭제
+              }
+              await dbHelper.delete('files', fileId); // 본인 삭제
+              refetch();
+            },
+            updateContent: async (fileId, newContent) => {
+              const file = await dbHelper.get('files', fileId);
+              if(file) await dbHelper.put('files', { ...file, content: newContent });
+              refetch(); // 📌 (수정 2) refetch() 추가
+            },
+            move: move, // (v5)
+            findOrCreateFolder // 📌 (신규) 헬퍼 노출
+          };
+        }, [dbHelper, refetch, files]); // 📌 files 의존성 추가
+
+        // 플랫 리스트를 트리 구조로 변환
+        const fileTree = useMemo(() => {
+          const map = {};
+          const roots = [];
+          files.forEach(file => {
+            map[file.id] = { ...file, children: [] };
+          });
+          Object.values(map).forEach(node => {
+            if (node.parentId === 'root') {
+              roots.push(node);
+            } else if (map[node.parentId]) {
+              map[node.parentId].children.push(node);
+            }
+          });
+          return roots;
+        }, [files]);
+
+        return { fileTree, fileActions };
+    };
+    
+    // Debounce 훅
+    const useDebounce = (value, delay) => {
+        const [debouncedValue, setDebouncedValue] = useState(value);
+        useEffect(() => {
+            const handler = setTimeout(() => { setDebouncedValue(value); }, delay);
+            return () => clearTimeout(handler);
+        }, [value, delay]);
+        return debouncedValue;
+    };
+
+
+    // --- 4. UI 컴포넌트 ---
+    
+    /* 📌 신규: 토스트 시스템 📌 */
+    const ToastProvider = ({ children }) => {
+        const [toasts, setToasts] = useState([]);
+
+        const show = useCallback((message, type = 'info') => {
+            const id = crypto.randomUUID();
+            setToasts(prev => [...prev, { id, message, type }]);
+            setTimeout(() => {
+                setToasts(prev => prev.filter(t => t.id !== id));
+            }, 3000);
+        }, []);
+
+        const value = useMemo(() => ({ show }), [show]);
+
+        return e(ToastContext.Provider, { value },
+            children,
+            e(ToastContainer, { toasts })
+        );
+    };
+
+    const ToastContainer = ({ toasts }) => {
+        return e('div', { className: 'toast-container' },
+            toasts.map(toast => e('div', { 
+                key: toast.id, 
+                className: `toast-item ${toast.type}` 
+            }, toast.message))
+        );
+    };
+
+
+    const Spinner = () => e(
+      'div', { className: 'spinner-overlay' },
+      e('div', { className: 'spinner' })
+    );
+
+    // 셸: VSCode 사이드바
+    const ReactVscodeSidebar = ({ items = [], onActiveChange, activeId, isVisible, children }) => {
+      const activityBarTop = e('div', null,
+        items.filter(item => !item.isBottom).map((item) => e('button', {
+          key: item.id, className: 'vsc-activity-item',
+          onClick: () => onActiveChange(item.id),
+          'data-active': isVisible && item.id === activeId, 'aria-label': item.label
+        }, item.icon))
+      );
+      const activityBarBottom = e('div', null,
+        items.filter(item => item.isBottom).map((item) => e('button', {
+          key: item.id, className: 'vsc-activity-item',
+          onClick: () => onActiveChange(item.id),
+          'data-active': isVisible && item.id === activeId, 'aria-label': item.label
+        }, item.icon))
+      );
+      const activeView = React.Children.toArray(children).find(
+        (child) => child.props.viewId === activeId
+      );
+      const sidebarView = e('div', { 
+          className: 'vsc-sidebar-view',
+          'data-visible': isVisible
+        },
+        isVisible && activeView ? e('div', { className: 'vsc-view-content', key: activeId }, activeView) : null
+      );
+      return e('div', { className: 'vsc-sidebar-container' }, 
+        e('div', { className: 'vsc-activity-bar' }, activityBarTop, activityBarBottom), 
+        sidebarView
+      );
+    };
+    
+    // (v4.1) 컨텍스트 메뉴 컴포넌트
+    const ContextMenu = ({ menuData, handlers, onClose }) => {
+        if (!menuData.visible) return null;
+        const { node } = menuData;
+        const isFolder = node?.type === 'folder';
+        const isRoot = !node;
+
+        const handleAction = (action) => {
+            onClose();
+            action();
+        };
+
+        const MenuItem = ({ label, onClick, disabled = false, isDelete = false }) => e(
+            'li', {
+                className: `context-menu-item ${isDelete ? 'context-menu-item-delete' : ''}`,
+                onClick: (e) => { e.stopPropagation(); if (!disabled) handleAction(onClick); }
+            }, label
+        );
+
+        return e('div', {
+            className: 'context-menu',
+            style: { top: menuData.y, left: menuData.x },
+            onClick: (e) => e.stopPropagation()
+        },
+            e('ul', { className: 'py-1' },
+                !isRoot && e(React.Fragment, null,
+                    e(MenuItem, { label: '이름 바꾸기', onClick: handlers.onRename }),
+                    e(MenuItem, { label: '삭제', onClick: handlers.onDelete, isDelete: true }),
+                    e('hr', { className: 'context-menu-divider' })
+                ),
+                (isRoot || isFolder) && e(React.Fragment, null,
+                    e(MenuItem, { label: '새 파일', onClick: handlers.onCreateFile }),
+                    e(MenuItem, { label: '새 폴더', onClick: handlers.onCreateFolder })
+                )
+            )
+        );
+    };
+
+    // 뷰 1: 파일 관리자 (v5 - 2분할 뷰, DnD)
+    const FileManagerView = ({ viewId }) => {
+        // 📌 (수정 7-1) AI 채점 의존성 주입
+        const { 
+            files, fileTree, fileActions, setActiveEditorFile, activeEditorFile,
+            dbHelper, refetchAllData, setEditingNodeId,
+            quizzes, attempts, setModalContent, // (v5)
+            handleQuizSubmit,
+            userSettings, // 📌 신규
+            dispatchGradingTask, // 📌 신규
+            initiateFileReads, // 📌 (패치)
+            processReadsAndStore // 📌 (패치)
+        } = useContext(AppContext);
+        
+        const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, node: null });
+        
+        // (v5) 파일 관련 퀴즈/기록 필터링
+        const fileQuizzes = useMemo(() => 
+            activeEditorFile ? quizzes.filter(q => q.fileId === activeEditorFile.id) : [],
+        [quizzes, activeEditorFile]);
+        
+        const fileAttempts = useMemo(() =>
+            activeEditorFile ? attempts.filter(a => a.fileId === activeEditorFile.id) : [],
+        [attempts, activeEditorFile]);
+        
+        
+        // 📌 (수정) 파일 Input 핸들러
+        const handleImportProject = useCallback((event) => {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                if (!window.confirm("현재 프로젝트를 덮어쓰시겠습니까?")) return;
+                try {
+                    const data = JSON.parse(e.target.result);
+                    await dbHelper.clear('files');
+                    await dbHelper.clear('quizzes');
+                    await dbHelper.clear('quizAttempts');
+                    
+                    for (const file of data.files || []) await dbHelper.put('files', file);
+                    for (const quiz of data.quizzes || []) await dbHelper.put('quizzes', quiz);
+                    for (const attempt of data.attempts || []) await dbHelper.put('attempts', attempt);
+                    if (data.settings) await dbHelper.put('settings', data.settings);
+                    
+                    refetchAllData(); // 전체 데이터 새로고침
+                } catch (err) {
+                    console.error("Import failed:", err);
+                    alert("가져오기 실패: " + err.message);
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = null; // 인풋 초기화
+        }, [dbHelper, refetchAllData]);
+
+        // 📌 (패치 6) useEffect (파일 업로드) 수정
+        useEffect(() => {
+            const handleClick = () => setContextMenu({ visible: false });
+            window.addEventListener('click', handleClick);
+            
+            const fileUploadInput = document.getElementById('file-upload-input');
+            const projectImportInput = document.getElementById('project-import-input');
+            
+            // 📌 (수정) 파일 Input 핸들러
+            const handleFileUploadEvent = (event) => {
+                const files = event.target.files;
+                if (!files || files.length === 0) return;
+                
+                // 컨텍스트 메뉴의 parentId 계산 로직 활용
+                const { node } = contextMenu; // 컨텍스트 메뉴가 열려있었다면 그 위치
+                const parentId = (node && node.type === 'folder') ? node.id : (node ? node.parentId : 'root');
+                
+                // 📌 (패치) 1. 동기적 읽기 시작
+                const pendingReads = initiateFileReads(files);
+                // 📌 (패치) 2. 비동기 처리 위임
+                processReadsAndStore(pendingReads, parentId);
+                
+                event.target.value = null; // 인풋 초기화
+            };
+
+            fileUploadInput.addEventListener('change', handleFileUploadEvent);
+            projectImportInput.addEventListener('change', handleImportProject);
+
+            return () => {
+                window.removeEventListener('click', handleClick);
+                fileUploadInput.removeEventListener('change', handleFileUploadEvent);
+                projectImportInput.removeEventListener('change', handleImportProject);
+            };
+        }, [contextMenu, initiateFileReads, processReadsAndStore, handleImportProject]); // 📌 (패치) 의존성 배열 수정
+        
+        const handleContextMenu = (e, node) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setContextMenu({ visible: true, x: e.clientX, y: e.clientY, node: node });
+        };
+        
+        const handleExportProject = async () => {
+            const data = {
+                files: await dbHelper.getAll('files'),
+                quizzes: await dbHelper.getAll('quizzes'),
+                attempts: await dbHelper.getAll('quizAttempts'),
+                settings: await dbHelper.get('settings', 'userConfig')
+            };
+            const json = JSON.stringify(data, null, 2);
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'ai-quiz-app-export.json';
+            a.click();
+            URL.revokeObjectURL(url);
+        };
+        
+        // (v5) FileNode 수정 (DnD)
+        const FileNode = ({ node, depth, onContextMenu }) => {
+            // 📌 (패치 7) useContext 변경
+            const { activeEditorFile, editingNodeId, setEditingNodeId, fileActions, initiateFileReads, processReadsAndStore } = useContext(AppContext);
+            
+            const [isOpen, setIsOpen] = useState(true);
+            const [editName, setEditName] = useState(node.name);
+            const [isDragOver, setIsDragOver] = useState(false); // (v5)
+            
+            const isEditing = editingNodeId === node.id;
+            
+            useEffect(() => {
+                if (isEditing) setEditName(node.name);
+            }, [isEditing, node.name]);
+            
+            const handleToggle = (e) => {
+                e.stopPropagation();
+                if (node.type === 'folder') setIsOpen(!isOpen);
+                else setActiveEditorFile(files.find(f => f.id === node.id));
+            };
+            
+            const handleRenameSubmit = (e) => {
+                e.stopPropagation(); e.preventDefault();
+                if (editName.trim() && editName.trim() !== node.name) {
+                    fileActions.rename(node.id, editName.trim());
+                }
+                setEditingNodeId(null);
+            };
+            
+            // 📌 (수정) D&D 핸들러
+            const handleDragStart = (e) => {
+                e.stopPropagation();
+                e.dataTransfer.setData('fileId', node.id);
+                e.dataTransfer.effectAllowed = 'move';
+            };
+            const handleDragOver = (e) => {
+                e.preventDefault(); e.stopPropagation();
+                setIsDragOver(true);
+                e.dataTransfer.dropEffect = 'move';
+            };
+            const handleDragLeave = (e) => {
+                e.preventDefault(); e.stopPropagation();
+                setIsDragOver(false);
+            };
+            // 📌 (패치 7) handleDrop 수정
+            const handleDrop = (e) => {
+                e.preventDefault();
+                e.stopPropagation(); // 📌 중요: window의 drop 핸들러 중복 실행 방지
+                setIsDragOver(false);
+                
+                const targetFolderId = (node.type === 'folder') ? node.id : node.parentId;
+                
+                const fileId = e.dataTransfer.getData('fileId');
+                if (fileId) {
+                    // 1. 내부 파일/폴더 이동
+                    if (fileId !== node.id) {
+                        fileActions.move(fileId, targetFolderId);
+                    }
+                } else if (e.dataTransfer.files.length > 0) {
+                    // 2. 📌 (수정) 외부 파일 드롭
+                    // 📌 (패치) 1. 동기적 읽기 시작
+                    const pendingReads = initiateFileReads(e.dataTransfer.files);
+                    // 📌 (패치) 2. 비동기 처리 위임
+                    processReadsAndStore(pendingReads, targetFolderId);
+                }
+            };
+
+            return e(React.Fragment, null,
+                e('div', { 
+                    className: 'file-tree-node',
+                    style: { paddingLeft: `${depth * 16 + 8}px` },
+                    onClick: handleToggle,
+                    onContextMenu: (e) => onContextMenu(e, node),
+                    'data-active': activeEditorFile?.id === node.id,
+                    draggable: true, 
+                    onDragStart: handleDragStart,
+                    onDragOver: handleDragOver,
+                    onDragLeave: handleDragLeave,
+                    onDrop: handleDrop, // 📌 수정된 핸들러
+                    'data-drag-over': isDragOver,
+                    'data-type': node.type // 📌 (신규) 드롭 타겟 식별용
+                  },
+                  e('span', { className: 'file-tree-node-icon' }, 
+                    node.type === 'folder' ? (isOpen ? '▼' : '►') : '📄'
+                  ),
+                  isEditing
+                    ? e('form', { onSubmit: handleRenameSubmit, className: 'flex-1 ml-1' },
+                        e('input', {
+                            key: node.id, type: 'text', value: editName,
+                            onChange: (ev) => setEditName(ev.target.value),
+                            onBlur: handleRenameSubmit,
+                            onClick: (e) => e.stopPropagation(), autoFocus: true,
+                            className: 'form-input !p-0 !text-sm'
+                        })
+                      )
+                    : e('span', { className: 'ml-1' }, node.name)
+                ),
+                isOpen && node.children && node.children.map(child => 
+                    e(FileNode, { 
+                        key: child.id, 
+                        node: child, 
+                        depth: depth + 1, 
+                        onContextMenu: onContextMenu
+                    })
+                )
+            );
+        };
+        
+        const contextMenuHandlers = useMemo(() => {
+            const { node } = contextMenu;
+            const parentId = (node && node.type === 'folder') ? node.id : (node ? node.parentId : 'root');
+            return {
+                onRename: () => { if (node) setEditingNodeId(node.id); },
+                onDelete: () => {
+                    if (node && window.confirm(`'${node.name}'을(를) 삭제하시겠습니까?`)) {
+                        fileActions.remove(node.id, node.type);
+                        if (activeEditorFile?.id === node.id) setActiveEditorFile(null); // (v5) 열린 파일 삭제 시 닫기
+                    }
+                },
+                onCreateFile: () => fileActions.create(parentId, 'file'),
+                onCreateFolder: () => fileActions.create(parentId, 'folder'),
+            };
+        }, [contextMenu, fileActions, setEditingNodeId, activeEditorFile]);
+        
+        return e('div', { 
+            viewId, 
+            className: 'flex flex-col h-full vsc-view-panes', // (v5) 2분할 뷰
+            onContextMenu: (e) => handleContextMenu(e, null)
+           },
+            // (v5) 상단: 파일 트리
+            e('div', { className: 'vsc-view-pane' },
+                e('div', { className: 'view-header' },
+                    e('h3', { className: 'border-b-0 p-0 m-0' }, '파일 탐색기'),
+                    e('div', { className: 'flex gap-1' },
+                        e('button', { title: "새 폴더", className: 'view-header-icon', onClick: () => fileActions.create('root', 'folder') }, '📁+'),
+                        e('button', { title: "파일 업로드", className: 'view-header-icon', onClick: () => document.getElementById('file-upload-input').click() }, '⬆️'),
+                        e('button', { title: "내보내기", className: 'view-header-icon', onClick: handleExportProject }, '💾'),
+                        e('button', { title: "가져오기", className: 'view-header-icon', onClick: () => document.getElementById('project-import-input').click() }, '📥')
+                    )
+                ),
+                e('div', { className: 'vsc-view-pane-content full' }, 
+                    e('div', { className: 'file-tree-list' },
+                        fileTree.map(node => e(FileNode, { 
+                            key: node.id, 
+                            node: node, 
+                            depth: 0, 
+                            onContextMenu: handleContextMenu
+                        }))
+                    )
+                )
+            ),
+            
+            // (v5) 하단: 파일 상세 (퀴즈/기록)
+            activeEditorFile && e('div', { className: 'vsc-view-pane' },
+                e('div', { className: 'vsc-view-pane-header' }, 
+                    `파일 상세: ${activeEditorFile.name}`
+                ),
+                e('div', { className: 'vsc-view-pane-content' },
+                    e('h4', { className: 'text-md font-semibold mt-0 mb-2' }, '생성된 퀴즈'),
+                    fileQuizzes.length === 0 && e('p', { className: 'text-sm text-gray-400' }, '이 파일로 생성된 퀴즈가 없습니다.'),
+                    fileQuizzes.map(quiz => e('div', { 
+                        key: quiz.id, className: 'list-item',
+                        onClick: () => setModalContent(e(QuizTaker, { 
+                            quiz, 
+                            onClose: () => setModalContent(null),
+                            onQuizSubmit: handleQuizSubmit // 📌 (수정 7) onQuizSubmit 전달
+                        }))
+                    }, e('div', { className: 'list-item-title' }, quiz.title))),
+                    
+                    e('h4', { className: 'text-md font-semibold mt-4 mb-2' }, '풀이 기록'),
+                    fileAttempts.length === 0 && e('p', { className: 'text-sm text-gray-400' }, '이 파일의 퀴즈 풀이 기록이 없습니다.'),
+                    fileAttempts.map(attempt => e('div', { 
+                        key: attempt.id, className: 'list-item',
+                        // 📌 (수정 7-2) AI 채점 의존성 주입
+                        onClick: () => setModalContent(e(QuizResult, { 
+                            attempt, 
+                            quiz: quizzes.find(q => q.id === attempt.quizId), 
+                            onClose: () => setModalContent(null),
+                            userSettings,
+                            dbHelper,
+                            refetchAllData,
+                            dispatchGradingTask // 📌 신규
+                        }))
+                    }, e('div', { className: 'list-item-title' }, `${attempt.quizTitle} (${attempt.score.toFixed(1)} / ${attempt.total})`))) // 📌 (수정) 100점 만점
+                )
+            ),
+            
+            e(ContextMenu, {
+                menuData: contextMenu,
+                onClose: () => setContextMenu({ visible: false }),
+                handlers: contextMenuHandlers
+            })
+        );
+    };
+
+    // 뷰 2: 퀴즈 생성기 (v5 - 원문 제거)
+    const QuizGeneratorView = ({ viewId }) => {
+      // (v5) 퀴즈 옵션 상태를 Context에서 가져옴
+      const { quizOptions, setQuizOptions } = useContext(AppContext);
+
+      const handleSubmit = (e) => { e.preventDefault(); };
+      
+      const questionTypes = [
+          "MultipleChoice", "ShortAnswer", "TrueFalse", "FillInTheBlank",
+          "Essay", "CaseStudy", "Matching", "Sequencing", "CodeSnippet"
+      ];
+
+      return e('form', { viewId, onSubmit: handleSubmit, className: 'flex flex-col h-full' },
+        e('h3', { className: 'view-header' }, '퀴즈 옵션'),
+        e('div', { className: 'view-content-scroll' },
+          // (v5) 원문 textarea 제거됨
+          e('div', { className: 'grid grid-cols-2 gap-4' },
+            e('div', { className: 'form-group' },
+              e('label', { htmlFor: 'num-questions', className: 'form-label' }, '질문 수'),
+              e('input', {
+                id: 'num-questions', type: 'number', className: 'form-input',
+                value: quizOptions.numQuestions, 
+                onChange: (ev) => setQuizOptions(o => ({...o, numQuestions: parseInt(ev.target.value, 10)}))
+              })
+            ),
+            e('div', { className: 'form-group' },
+              e('label', { htmlFor: 'difficulty', className: 'form-label' }, '난이도'),
+              e('select', { 
+                  id: 'difficulty', className: 'form-select',
+                  value: quizOptions.difficulty, 
+                  onChange: (ev) => setQuizOptions(o => ({...o, difficulty: ev.target.value}))
+                },
+                e('option', { value: 'Easy' }, '쉬움'),
+                e('option', { value: 'Medium' }, '보통'),
+                e('option', { value: 'Hard' }, '어려움')
+              )
+            )
+          ),
+          e('div', { className: 'form-group' },
+            e('label', { htmlFor: 'question-type', className: 'form-label' }, '질문 유형'),
+            e('select', {
+                id: 'question-type', className: 'form-select',
+                value: quizOptions.questionType, 
+                onChange: (ev) => setQuizOptions(o => ({...o, questionType: ev.target.value}))
+              },
+              questionTypes.map(type => e('option', { key: type, value: type }, type))
+            )
+          ),
+          e('div', { className: 'form-group' },
+            e('label', { className: 'form-label' }, '추가 지침 (선택 사항)'),
+            e('input', {
+              type: 'text', className: 'form-input',
+              value: quizOptions.customInstructions, 
+              onChange: (ev) => setQuizOptions(o => ({...o, customInstructions: ev.target.value})),
+              placeholder: '예: 코드 예제에 집중하세요'
+            })
+          ),
+          e('div', { className: 'form-group space-y-2' },
+            e('label', { className: 'form-checkbox-label' },
+              e('input', {
+                type: 'checkbox', className: 'form-checkbox',
+                checked: quizOptions.includeSnippets, 
+                onChange: (ev) => setQuizOptions(o => ({...o, includeSnippets: ev.target.checked}))
+              }),
+              '코드 스니펫 포함 (Include Code Snippets)'
+            ),
+            e('label', { className: 'form-checkbox-label' },
+              e('input', {
+                type: 'checkbox', className: 'form-checkbox',
+                checked: quizOptions.provideAnswerKey, 
+                onChange: (ev) => setQuizOptions(o => ({...o, provideAnswerKey: ev.target.checked}))
+              }),
+              '정답 키 제공 (Provide Answer Key)'
+            )
+          )
+        )
+        // (v5) 생성 버튼 제거됨
+      );
+    };
+    
+    // 뷰 3: 퀴즈 기록 (v5 - 글로벌 풀이 기록만)
+    const QuizHistoryView = ({ viewId }) => {
+      // 📌 (수정 8) AI 채점 의존성 주입
+      const { quizzes, attempts, setModalContent, userSettings, dbHelper, refetchAllData, dispatchGradingTask } = useContext(AppContext);
+      
+      const showAttemptResult = (attempt) => {
+          setModalContent(e(QuizResult, { 
+              attempt, 
+              quiz: quizzes.find(q => q.id === attempt.quizId),
+              onClose: () => setModalContent(null),
+              /* 📌 신규: 의존성 주입 📌 */
+              userSettings,
+              dbHelper,
+              refetchAllData,
+              dispatchGradingTask // 📌 신규
+          }));
+      };
+      
+      return e('div', { viewId, className: 'flex flex-col h-full' },
+        e('h3', { className: 'view-header' }, '전체 풀이 기록'),
+        e('div', { className: 'view-content-scroll' },
+          attempts.length === 0 && e('p', { className: 'text-sm text-gray-400' }, '풀이 기록이 없습니다.'),
+          attempts.map(attempt => e('div', { 
+              key: attempt.id, 
+              className: 'list-item',
+              onClick: () => showAttemptResult(attempt)
+            },
+            e('div', { className: 'list-item-title' }, attempt.quizTitle),
+            e('div', { className: 'flex justify-between' },
+                e('span', { className: 'list-item-sub' }, `점수: ${attempt.score.toFixed(1)} / ${attempt.total}`), // 📌 (수정) 100점 만점
+                e('span', { className: 'list-item-sub' }, 
+                    new Date(attempt.completedAt).toLocaleDateString()
+                )
+            )
+          ))
+          // (v5) 생성된 퀴즈 목록 제거됨
+        )
+      );
+    };
+    
+    // 뷰 4: 작업 모니터 (v3)
+    const TaskMonitorView = ({ viewId }) => {
+        const { taskQueue } = useContext(AppContext);
+        
+        return e('div', { viewId, className: 'flex flex-col h-full' },
+            e('h3', { className: 'view-header' }, '작업 모니터'),
+            e('div', { className: 'view-content-scroll' },
+                taskQueue.length === 0 && e('p', { className: 'text-sm text-gray-400' }, '활성 작업이 없습니다.'),
+                taskQueue.map(task => e('div', { key: task.id, className: 'list-item' },
+                    e('div', { className: 'list-item-title' }, 
+                      // 📌 (수정) 작업 유형에 따라 제목 분기
+                      task.taskType === 'grade' 
+                        ? `[채점] ${task.options.quizTitle}` 
+                        : `[생성] ${task.options.sourceFileName}`
+                    ),
+                    e('div', { className: 'flex justify-between items-center' },
+                        e('span', { className: 'list-item-sub' }, 
+                          task.taskType === 'grade'
+                            ? `퀴즈 채점 작업`
+                            : `유형: ${task.options.questionType} (${task.options.numQuestions} 문제)`
+                        ),
+                        task.status === 'processing' && e('span', { className: 'list-item-badge' }, '처리 중...'),
+                        task.status === 'success' && e('span', { className: 'list-item-badge success' }, '완료'),
+                        task.status === 'error' && e('span', { className: 'list-item-badge error' }, '오류')
+                    )
+                ))
+            )
+        );
+    };
+
+    // 뷰 5: 메인 컨텐츠 에디터 (v5 - 헤더 추가)
+    // 📌 (수정 3) MainContentEditor 전체 수정
+    const MainContentEditor = () => {
+        const { 
+            activeEditorFile, fileActions, 
+            dispatchTask, quizOptions // (v5)
+        } = useContext(AppContext);
+        const [content, setContent] = useState("");
+        const [saveStatus, setSaveStatus] = useState('saved'); // 'saved', 'editing', 'saving'
+        
+        // 파일 변경 시, content와 saveStatus를 리셋
+        useEffect(() => {
+            setContent(activeEditorFile?.content || "");
+            setSaveStatus('saved'); // 새 파일은 '저장됨' 상태로 시작
+        }, [activeEditorFile]);
+        
+        const debouncedContent = useDebounce(content, 1000);
+        
+        // 디바운스 저장 로직에 상태 변경 추가
+        useEffect(() => {
+            if (activeEditorFile && debouncedContent !== activeEditorFile.content) {
+                setSaveStatus('saving'); // 저장 시작
+                fileActions.updateContent(activeEditorFile.id, debouncedContent)
+                    .then(() => {
+                        // fileActions.updateContent가 refetch를 트리거하므로,
+                        // 이 .then()은 refetch 이후 실행될 else if 블록과
+                        // 중복되거나 레이스 컨디션을 일으킬 수 있습니다.
+                        // (수정 2)로 인해 이 .then()은 사실상 즉시 'saved'를 호출하게 됨
+                        setSaveStatus('saved'); // 저장 완료
+                    });
+            } else if (saveStatus === 'editing' && activeEditorFile && debouncedContent === activeEditorFile.content) {
+                // 사용자가 입력을 멈췄으나 변경 사항이 없는 경우 (예: 썼다 지움)
+                setSaveStatus('saved');
+            } else if (activeEditorFile && debouncedContent === activeEditorFile.content) {
+                // refetch 이후 이 조건이 true가 되어 상태를 'saved'로 돌림
+                setSaveStatus('saved');
+            }
+        }, [debouncedContent, activeEditorFile, fileActions]); // 📌 saveStatus 의존성 제거
+
+        // 퀴즈 생성 핸들러 (요구사항 2)
+        const handleGenerateQuiz = () => {
+            if (!activeEditorFile) return;
+            if (!content.trim()) { // ✨ 수정: 로컬 'content' 상태 사용
+                alert("파일에 원문이 없습니다.");
+                return;
+            }
+            dispatchTask({
+                taskType: 'generate', // 📌 (신규) 작업 유형 명시
+                sourceText: content, // ✨ 수정: 로컬 'content' 상태 사용
+                options: {
+                    ...quizOptions,
+                    fileId: activeEditorFile.id,
+                    sourceFileName: activeEditorFile.name
+                }
+            });
+        };
+        
+        // 저장 상태 메시지 맵
+        const statusMessages = {
+          'saved': '저장됨',
+          'editing': '수정 중...',
+          'saving': '저장 중...'
+        };
+
+        if (!activeEditorFile) {
+            return e('div', { className: 'main-editor-placeholder' }, '파일 탐색기(📄)에서 파일을 선택하세요.');
+        }
+
+        return e('div', { className: 'flex flex-col h-full' },
+            // (v5) 에디터 헤더
+            e('div', { className: 'main-editor-header' },
+                e('span', { className: 'main-editor-title' }, activeEditorFile.name),
+                e('button', { 
+                    className: 'main-editor-action-btn',
+                    onClick: handleGenerateQuiz,
+                    disabled: saveStatus !== 'saved' // 저장 중에 버튼 비활성화 (선택적)
+                }, '✨ 퀴즈 생성')
+            ),
+            // 텍스트 에디터
+            e('textarea', {
+                key: activeEditorFile.id,
+                className: 'main-editor',
+                value: content,
+                // onChange에 상태 변경 추가
+                onChange: (ev) => {
+                    setContent(ev.target.value);
+                    setSaveStatus('editing');
+                }
+            }),
+            // 신규 푸터 추가
+            e('div', { className: 'main-editor-footer' }, statusMessages[saveStatus])
+        );
+    };
+    
+    // 뷰 6: 설정 모달 (v4 - 프롬프트 탭 추가)
+    const SettingsModal = ({ onClose }) => {
+        const { userSettings, saveSettings } = useContext(AppContext);
+        const [activeTab, setActiveTab] = useState('Quiz Defaults');
+        
+        // (v5) 퀴즈 옵션은 이제 전역 상태이므로 여기서는 제거
+        const [apiKeys, setApiKeys] = useState([]);
+        const [newApiKey, setNewApiKey] = useState("");
+        const [quizSystemPrompt, setQuizSystemPrompt] = useState("");
+        const [gradingSystemPrompt, setGradingSystemPrompt] = useState(""); // 📌 (신규)
+        const [analysisSystemPrompt, setAnalysisSystemPrompt] = useState(""); // 📌 (신규)
+        const [defaultSettings, setDefaultSettings] = useState({}); // (v5)
+        
+        // 설정 로드
+        useEffect(() => {
+            if (userSettings) {
+                setApiKeys(userSettings.apiKeys || DEFAULT_SETTINGS.apiKeys);
+                setQuizSystemPrompt(userSettings.quizSystemPrompt || DEFAULT_SETTINGS.quizSystemPrompt);
+                setGradingSystemPrompt(userSettings.gradingSystemPrompt || DEFAULT_SETTINGS.gradingSystemPrompt); // 📌 (신규)
+                setAnalysisSystemPrompt(userSettings.analysisSystemPrompt || DEFAULT_SETTINGS.analysisSystemPrompt); // 📌 (신규)
+                // (v5)
+                setDefaultSettings({
+                    defaultDifficulty: userSettings.defaultDifficulty || DEFAULT_SETTINGS.defaultDifficulty,
+                    defaultQuestionType: userSettings.defaultQuestionType || DEFAULT_SETTINGS.defaultQuestionType,
+                    defaultNumQuestions: userSettings.defaultNumQuestions || DEFAULT_SETTINGS.defaultNumQuestions
+                });
+            }
+        }, [userSettings]);
+        
+        const handleAddApiKey = () => {
+            if (newApiKey.trim()) {
+                setApiKeys([...apiKeys, { key: newApiKey.trim(), rpm: 60 }]);
+                setNewApiKey("");
+            }
+        };
+        
+        const handleRemoveApiKey = (index) => {
+            setApiKeys(apiKeys.filter((_, i) => i !== index));
+        };
+        
+        const handleDefaultChange = (key, value) => {
+            setDefaultSettings(prev => ({...prev, [key]: value}));
+        };
+
+        const handleSave = () => {
+            saveSettings({
+                ...userSettings, // 이전 설정 유지
+                apiKeys,
+                ...defaultSettings, // (v5)
+                quizSystemPrompt,
+                gradingSystemPrompt, // 📌 (신규)
+                analysisSystemPrompt // 📌 (신규)
+            });
+            onClose();
+        };
+
+        const renderTabContent = () => {
+            if (activeTab === 'API Keys') {
+                return e('div', null,
+                    e('h3', { className: 'text-lg font-semibold mb-4' }, 'API Configuration'),
+                    e('div', { className: 'form-group' },
+                        e('label', { htmlFor: 'api-key-input', className: 'form-label' }, 'New API Key'),
+                        e('div', { className: 'flex gap-2' },
+                            e('input', { 
+                                id: 'api-key-input', type: 'password', className: 'form-input flex-grow',
+                                value: newApiKey, onChange: (ev) => setNewApiKey(ev.target.value)
+                            }),
+                            e('button', { type: 'button', onClick: handleAddApiKey, className: 'modal-button-secondary' }, 'Add')
+                        )
+                    ),
+                    e('div', { className: 'mt-6' },
+                        e('label', { className: 'form-label' }, 'Saved Keys'),
+                        apiKeys.map((key, index) => e('div', { key: index, className: 'api-key-item' },
+                            e('span', { className: 'font-mono' }, `**********${key.key.slice(-4)}`),
+                            e('button', { onClick: () => handleRemoveApiKey(index), className: 'api-key-delete-btn' }, 'Remove')
+                        ))
+                    )
+                );
+            }
+            if (activeTab === 'Quiz Defaults') {
+                return e('div', null,
+                    e('h3', { className: 'text-lg font-semibold mb-4' }, 'Default Quiz Generation'),
+                    e('div', { className: 'grid grid-cols-2 gap-4' },
+                        e('div', { className: 'form-group' },
+                            e('label', { htmlFor: 'def-difficulty', className: 'form-label' }, 'Default Difficulty'),
+                            e('select', { 
+                                id: 'def-difficulty', className: 'form-select',
+                                value: defaultSettings.defaultDifficulty, 
+                                onChange: (ev) => handleDefaultChange('defaultDifficulty', ev.target.value)
+                            },
+                                e('option', { value: 'Easy' }, '쉬움'),
+                                e('option', { value: 'Medium' }, '보통'),
+                                e('option', { value: 'Hard' }, '어려움')
+                            )
+                        ),
+                        e('div', { className: 'form-group' },
+                            e('label', { htmlFor: 'def-q-type', className: 'form-label' }, 'Default Question Type'),
+                            e('select', {
+                                id: 'def-q-type', className: 'form-select',
+                                value: defaultSettings.defaultQuestionType, 
+                                onChange: (ev) => handleDefaultChange('defaultQuestionType', ev.target.value)
+                            },
+                                e('option', { value: 'MultipleChoice' }, 'MultipleChoice'),
+                                e('option', { value: 'ShortAnswer' }, 'ShortAnswer'),
+                                e('option', { value: 'TrueFalse' }, 'TrueFalse'),
+                                e('option', { value: 'FillInTheBlank' }, 'FillInTheBlank')
+                            )
+                        )
+                    ),
+                    e('div', { className: 'form-group' },
+                        e('label', { htmlFor: 'def-num-q', className: 'form-label' }, 'Default Number of Questions'),
+                        e('input', {
+                            id: 'def-num-q', type: 'number', className: 'form-input',
+                            value: defaultSettings.defaultNumQuestions, 
+                            onChange: (ev) => handleDefaultChange('defaultNumQuestions', parseInt(ev.target.value, 10))
+                        })
+                    )
+                );
+            }
+            // (v4) 프롬프트 설정 탭
+            if (activeTab === 'Prompts') {
+                return e('div', { className: 'flex flex-col h-full' },
+                    e('h3', { className: 'text-lg font-semibold mb-4' }, 'Quiz System Prompt'),
+                    e('p', { className: 'text-xs text-gray-500 mb-4' }, '변수: {{DIFFICULTY}}, {{QUESTION_TYPE}}, {{NUM_QUESTIONS}}, {{CUSTOM_INSTRUCTIONS}} 등'),
+                    e('textarea', {
+                        className: 'form-textarea flex-grow h-full',
+                        style: { height: '150px' },
+                        value: quizSystemPrompt,
+                        onChange: (e) => setQuizSystemPrompt(e.target.value)
+                    }),
+                    /* 📌 (신규) AI 채점 프롬프트 📌 */
+                    e('h3', { className: 'text-lg font-semibold mb-4 mt-6' }, 'Grading System Prompt'),
+                    e('p', { className: 'text-xs text-gray-500 mb-4' }, '변수: (UserQuery에서 자동 주입됨)'),
+                    e('textarea', {
+                        className: 'form-textarea flex-grow h-full',
+                        style: { height: '150px' },
+                        value: gradingSystemPrompt,
+                        onChange: (e) => setGradingSystemPrompt(e.target.value)
+                    }),
+                    /* 📌 (신규) AI 조언 프롬프트 📌 */
+                    e('h3', { className: 'text-lg font-semibold mb-4 mt-6' }, 'Analysis System Prompt'),
+                    e('p', { className: 'text-xs text-gray-500 mb-4' }, '변수: (UserQuery에서 자동 주입됨)'),
+                    e('textarea', {
+                        className: 'form-textarea flex-grow h-full',
+                        style: { height: '150px' },
+                        value: analysisSystemPrompt,
+                        onChange: (e) => setAnalysisSystemPrompt(e.target.value)
+                    })
+                );
+            }
+            return null;
+        };
+        
+        return e('div', { className: 'modal-overlay', onClick: onClose },
+            e('div', { className: 'modal-container', onClick: (e) => e.stopPropagation() },
+                e('div', { className: 'modal-header' },
+                    e('h2', null, 'Settings'),
+                    e('button', { className: 'modal-close-btn', onClick: onClose }, '×')
+                ),
+                e('div', { className: 'modal-body' },
+                    e('nav', { className: 'settings-nav' },
+                        e('div', { 
+                            className: 'settings-nav-item', 'data-active': activeTab === 'Quiz Defaults',
+                            onClick: () => setActiveTab('Quiz Defaults')
+                        }, 'Quiz Defaults'),
+                        e('div', { 
+                            className: 'settings-nav-item', 'data-active': activeTab === 'API Keys',
+                            onClick: () => setActiveTab('API Keys')
+                        }, 'API Keys'),
+                        e('div', { 
+                            className: 'settings-nav-item', 'data-active': activeTab === 'Prompts',
+                            onClick: () => setActiveTab('Prompts')
+                        }, 'Prompts')
+                    ),
+                    e('div', { className: 'settings-content' }, renderTabContent())
+                ),
+                e('div', { className: 'modal-footer' },
+                    e('button', { className: 'modal-button-secondary', onClick: onClose }, 'Cancel'),
+                    e('button', { className: 'modal-button-primary', onClick: handleSave }, 'Save Changes')
+                )
+            )
+        );
+    };
+    
+    // 뷰 7: 퀴즈 풀이 모달 (v6 - 다형성 렌더링)
+    // 📌 (수정 9) QuizTaker의 handleSubmit 수정 (100점 만점)
+    const QuizTaker = ({ quiz, onClose, onQuizSubmit }) => {
+        const [questions, setQuestions] = useState([]);
+        const [currentAnswers, setCurrentAnswers] = useState({});
+        
+        useEffect(() => {
+            try {
+                const parsedQuestions = JSON.parse(quiz.questions);
+                setQuestions(parsedQuestions);
+            } catch (e) { console.error("퀴즈 질문 파싱 오류:", e); }
+        }, [quiz]);
+
+        // (v6) 다형성 핸들러 (값 또는 인덱스 저장)
+        const handleAnswerChange = (qIndex, value) => {
+            setCurrentAnswers(prev => ({ ...prev, [qIndex]: value }));
+        };
+
+        const handleSubmit = () => {
+            const pointsPerQuestion = 100 / questions.length;
+            let initialScore = 0;
+            
+            const userAnswers = questions.map((q, qIndex) => {
+                let isCorrect = false; 
+                const selectedAnswer = currentAnswers[qIndex];
+                let points = 0;
+                let score_0_1 = 0.0;
+
+                // 📌 (v6) 다형성 채점
+                switch (q.questionType) {
+                    case 'MultipleChoice':
+                        isCorrect = (selectedAnswer === q.correctAnswerIndex);
+                        if (isCorrect) {
+                            initialScore += pointsPerQuestion;
+                            points = pointsPerQuestion;
+                            score_0_1 = 1.0;
+                        }
+                        break;
+                    case 'ShortAnswer':
+                    case 'Essay':
+                    case 'CaseStudy':
+                    default: 
+                        isCorrect = null; // '채점 대기' 상태
+                        score_0_1 = null;
+                        points = 0;
+                        break;
+                }
+                
+                return {
+                    questionType: q.questionType,
+                    questionText: q.questionText,
+                    options: q.options,
+                    selectedAnswer: selectedAnswer,
+                    correctAnswerIndex: q.correctAnswerIndex, 
+                    gradingCriteria: q.gradingCriteria, 
+                    isCorrect: isCorrect,
+                    score_0_1: score_0_1, // 📌 0-1 스케일 점수
+                    points: points, // 📌 100점 만점 기준 획득 점수
+                    maxPoints: pointsPerQuestion // 📌 100점 만점 기준 문항 배점
+                };
+            });
+
+            const result = {
+                id: crypto.randomUUID(),
+                quizId: quiz.id,
+                fileId: quiz.fileId, // (v5)
+                quizTitle: quiz.title,
+                score: initialScore, // 📌 (수정) 객관식 점수만 우선 반영
+                total: 100, // 📌 (수정) 100점 만점
+                answers: JSON.stringify(userAnswers), // 상세 결과 저장
+                completedAt: new Date().toISOString()
+            };
+            
+            onQuizSubmit(result);
+        };
+        
+        // (v6) 다형성 질문 렌더러
+        const renderQuestion = (q, qIndex) => {
+            switch (q.questionType) {
+                case 'MultipleChoice':
+                    return e('div', { className: 'options-container' },
+                        (q.options || []).map((option, oIndex) => e('label', { key: oIndex, className: 'quiz-option-label' },
+                            e('input', {
+                                type: 'radio',
+                                name: `question-${qIndex}`,
+                                checked: currentAnswers[qIndex] === oIndex,
+                                onChange: () => handleAnswerChange(qIndex, oIndex)
+                            }),
+                            option
+                        ))
+                    );
+                case 'ShortAnswer':
+                case 'FillInTheBlank':
+                case 'Essay':
+                case 'CaseStudy':
+                default:
+                    // 📌 (수정) 주관식/에세이형을 위해 textarea로 변경
+                    const isLongAnswer = ['Essay', 'CaseStudy'].includes(q.questionType);
+                    return e('div', { className: 'form-group' },
+                        isLongAnswer
+                          ? e('textarea', {
+                              className: 'form-textarea',
+                              rows: 4,
+                              value: currentAnswers[qIndex] || "",
+                              onChange: (ev) => handleAnswerChange(qIndex, ev.target.value)
+                            })
+                          : e('input', {
+                              type: 'text',
+                              className: 'form-input',
+                              value: currentAnswers[qIndex] || "",
+                              onChange: (ev) => handleAnswerChange(qIndex, ev.target.value)
+                            })
+                    );
+            }
+        };
+        
+        return e('div', { className: 'modal-overlay', onClick: onClose },
+            e('div', { className: 'modal-container', style: { maxWidth: '800px' }, onClick: (e) => e.stopPropagation() },
+                e('div', { className: 'modal-header' },
+                    e('h2', null, quiz.title)
+                ),
+                e('div', { className: 'modal-body', style: { padding: '24px', display: 'block' } },
+                    questions.map((q, qIndex) => e('div', { key: qIndex, className: 'quiz-question-card' },
+                        e('p', { className: 'quiz-question-text' }, `${qIndex + 1}. ${q.questionText}`),
+                        renderQuestion(q, qIndex)
+                    ))
+                ),
+                e('div', { className: 'modal-footer' },
+                    e('button', { className: 'modal-button-secondary', onClick: onClose }, 'Cancel'),
+                    e('button', { className: 'modal-button-primary', onClick: handleSubmit }, 'Submit Quiz')
+                )
+            )
+        );
+    };
+    
+    // 뷰 8: 퀴즈 결과 모달 (v6 - 다형성 렌더링)
+    // 📌 (수정 10) QuizResult 전면 수정 (비동기 작업 위임 + AI 조언)
+    const QuizResult = ({ attempt, quiz, onClose, dispatchGradingTask, userSettings }) => {
+        const { setModalContent } = useContext(AppContext);
+        const toast = useToast(); // 📌 (신규) 토스트 훅 사용
+        const [results, setResults] = useState([]);
+        const [analysis, setAnalysis] = useState(null); // 📌 (신규) AI 조언
+        const [isAnalyzing, setIsAnalyzing] = useState(false); // 📌 (신규) AI 조언 로딩
+        
+        useEffect(() => {
+            try { setResults(JSON.parse(attempt.answers)); }
+            catch(e) { console.error("결과 파싱 오류", e); }
+        }, [attempt]);
+        
+        /* 📌 (신규) AI 전체 채점 실행 함수 (작업 위임) 📌 */
+        const handleGradeAllSubjective = async () => {
+            // 1. 작업 위임
+            dispatchGradingTask(attempt);
+            // 2. 토스트 알림
+            toast.show("AI 채점을 시작합니다. (작업 모니터 📊)", 'info');
+            // 3. 모달 즉시 닫기
+            onClose();
+        };
+        
+        /* 📌 (신규) AI 학습 조언 실행 함수 📌 */
+        const handleGetAdvice = async () => {
+            setIsAnalyzing(true);
+            setAnalysis(null);
+            try {
+                // 점수가 1.0 (만점)이 아닌 모든 문제 필터링
+                const incorrectOrPartial = results.filter(r => r.score_0_1 < 1.0);
+                if (incorrectOrPartial.length === 0) {
+                    setAnalysis("모든 문제를 완벽하게 맞혔습니다! 훌륭합니다.");
+                    return;
+                }
+                
+                const adviceData = await analyzeResultsWithAi(incorrectOrPartial, userSettings);
+                setAnalysis(adviceData.studyAdvice);
+                
+            } catch (err) {
+                console.error("AI 조언 생성 실패:", err);
+                toast.show(`❌ 조언 생성 실패: ${err.message}`, 'error');
+            } finally {
+                setIsAnalyzing(false);
+            }
+        };
+
+
+        const retryIncorrect = () => {
+            alert("오답 다시 풀기 기능은 구현 중입니다.");
+        };
+        
+        // 📌 다형성 결과 렌더러 (부분 점수 반영)
+        const renderResultAnswer = (res, index) => {
+            // 1. AI 채점 대기 중 (주관식)
+            if (res.isCorrect === null) {
+                return e(React.Fragment, null,
+                    e('p', { className: 'result-answer yours' }, 
+                        `제출한 답: ${res.selectedAnswer || 'N/A'}`
+                    ),
+                    e('p', { className: 'result-answer correct text-xs mt-2' }, 
+                        `[채점 기준] ${res.gradingCriteria || 'N/A'}`
+                    ),
+                    e('p', { className: 'text-sm text-yellow-400 mt-2' }, 'AI 채점 대기 중...')
+                );
+            }
+            
+            // 2. 채점 완료 (객관식 또는 주관식)
+            let answerContent;
+            switch(res.questionType) {
+                case 'MultipleChoice':
+                    answerContent = e(React.Fragment, null,
+                        e('p', { className: 'result-answer correct' }, 
+                            `정답: ${res.options[res.correctAnswerIndex]}`
+                        ),
+                        !res.isCorrect && e('p', { className: 'result-answer yours' }, 
+                            `선택한 답: ${res.options[res.selectedAnswer] || 'N/A'}`
+                        )
+                    );
+                    break;
+                default: // ShortAnswer 등
+                    answerContent = e(React.Fragment, null,
+                        e('p', { className: 'result-answer correct font-bold text-lg' }, 
+                            `점수: ${res.points.toFixed(1)} / ${res.maxPoints.toFixed(1)}`
+                        ),
+                        e('p', { className: 'result-answer yours mt-2' }, 
+                            `제출한 답: ${res.selectedAnswer || 'N/A'}`
+                        )
+                    );
+                    break;
+            }
+
+            return e(React.Fragment, null, 
+                answerContent,
+                /* 📌 AI 첨삭 피드백 표시 📌 */
+                res.feedback && e('div', { className: 'mt-2 p-2 bg-gray-800 rounded' },
+                    e('p', { className: 'text-xs font-semibold text-blue-300' }, 'AI 첨삭:'),
+                    e('p', { className: 'text-sm' }, res.feedback)
+                )
+            );
+        };
+        
+        // 📌 채점할 주관식 문제가 있는지 확인
+        const hasSubjectiveToGrade = useMemo(() => {
+            return results.some(r => r.isCorrect === null);
+        }, [results]);
+
+        return e('div', { className: 'modal-overlay', onClick: onClose },
+            e('div', { className: 'modal-container', onClick: (e) => e.stopPropagation() },
+                e('div', { className: 'modal-header' },
+                    e('h2', null, '퀴즈 결과: ' + attempt.quizTitle),
+                    e('button', { className: 'modal-close-btn', onClick: onClose }, '×')
+                ),
+                /* 📌 수정: style={{ display: 'block' }} 추가 📌 */
+                e('div', { className: 'modal-body quiz-result-body', style: { display: 'block' } },
+                    e('div', { className: 'quiz-result-score mb-6' }, 
+                        `점수: ${attempt.score.toFixed(1)} / ${attempt.total}` // 📌 100점 만점, 소수점
+                    ),
+                    results.map((res, index) => e('div', { 
+                        key: index, 
+                        // 📌 (수정) 채점 대기(null)는 중립색(회색)으로 표시
+                        className: `result-question ${res.isCorrect === true ? 'result-question-correct' : (res.isCorrect === false ? 'result-question-incorrect' : 'bg-gray-700')}`
+                    },
+                        e('p', { className: 'result-question-text' }, `${index + 1}. ${res.questionText}`),
+                        renderResultAnswer(res, index)
+                    )),
+                    
+                    /* 📌 (신규) AI 학습 조언 섹션 📌 */
+                    isAnalyzing && e('div', { className: 'spinner-overlay !relative !h-10 !bg-transparent mt-4' }, 
+                        e('div', { className: 'spinner !w-6 !h-6' })
+                    ),
+                    analysis && e('div', { className: 'ai-advice-container' },
+                        e('h3', { className: 'ai-advice-header' }, '🧠 AI 학습 조언'),
+                        e('p', { className: 'ai-advice-body' }, analysis)
+                    )
+                ),
+                e('div', { className: 'modal-footer' },
+                    e('button', { className: 'modal-button-secondary', onClick: retryIncorrect }, '틀린 문제 다시 풀기'),
+                    /* 📌 AI 채점 버튼 (비동기) 📌 */
+                    hasSubjectiveToGrade && e('button', { 
+                        className: 'modal-button-primary', 
+                        onClick: handleGradeAllSubjective,
+                    }, '✨ 전체 AI 채점'),
+                    /* 📌 (신규) AI 조언 버튼 📌 */
+                    !hasSubjectiveToGrade && !analysis && e('button', {
+                        className: 'modal-button-primary',
+                        onClick: handleGetAdvice,
+                        disabled: isAnalyzing
+                    }, '🧠 AI 학습 조언 받기'),
+                    e('button', { className: 'modal-button-primary', onClick: onClose }, '닫기')
+                )
+            )
+        );
+    };
+
+
+    // --- 5. 메인 앱 컴포넌트 (v6 - 버그 수정) ---
+    const App = () => {
+      // (v4) DB 헬퍼
+      const dbHelper = useMemo(() => new IdbHelper('AIQuizAppDB', 1, DB_STORES_CONFIG), []); // (v5) 스키마 주입
+      
+      // 📌 신규: 토스트 훅
+      const toast = useToast(); 
+      
+      // 전역 상태
+      const [isLoading, setIsLoading] = useState(true);
+      const [userSettings, setUserSettings] = useState(DEFAULT_SETTINGS);
+      const [modalContent, setModalContent] = useState(null);
+      
+      // UI 상태
+      const [activeViewId, setActiveViewId] = useState('files');
+      const [isSidebarVisible, setIsSidebarVisible] = useState(true);
+      const [activeEditorFile, setActiveEditorFile] = useState(null);
+      const [editingNodeId, setEditingNodeId] = useState(null);
+      const [isDragOverlayVisible, setIsDragOverlayVisible] = useState(false); // 📌 신규
+      
+      // (v5) 퀴즈 옵션 상태 (글로벌)
+      const [quizOptions, setQuizOptions] = useState({
+          numQuestions: 10,
+          difficulty: "Medium",
+          questionType: "MultipleChoice",
+          includeSnippets: false,
+          provideAnswerKey: true,
+          customInstructions: ""
+      });
+      
+      // 데이터 상태
+      const quizWorker = useMemo(() => new Worker(workerUrl), []);
+      const [taskQueue, setTaskQueue] = useState([]);
+      const [files, setFiles] = useState([]);
+      const [quizzes, setQuizzes] = useState([]);
+      const [attempts, setAttempts] = useState([]);
+
+      // (v4) 데이터 로드 및 새로고침
+      const refetchAllData = useCallback(async () => {
+          if (!dbHelper.db) return;
+          try {
+              const [filesData, quizzesData, attemptsData, settingsData] = await Promise.all([
+                  dbHelper.getAll('files'),
+                  dbHelper.getAll('quizzes'),
+                  dbHelper.getAll('quizAttempts'),
+                  dbHelper.get('settings', 'userConfig')
+              ]);
+              setFiles(filesData);
+              setQuizzes(quizzesData);
+              setAttempts(attemptsData); // 📌 (확인)
+              
+              const newSettings = settingsData || DEFAULT_SETTINGS;
+              setUserSettings(newSettings);
+              
+              // (v5) 퀴즈 옵션 상태를 유저 설정으로 초기화
+              setQuizOptions(prev => ({
+                  ...prev,
+                  numQuestions: newSettings.defaultNumQuestions || prev.numQuestions,
+                  difficulty: newSettings.defaultDifficulty || prev.difficulty,
+                  questionType: newSettings.defaultQuestionType || prev.questionType,
+              }));
+              
+          } catch (e) {
+              console.error("데이터 로드 실패:", e);
+          }
+      }, [dbHelper]);
+
+      // 1. (v4) DB 초기화
+      useEffect(() => {
+        dbHelper.init().then(() => {
+            refetchAllData().then(() => setIsLoading(false));
+        });
+      }, [dbHelper, refetchAllData]);
+      
+      
+      // 📌 (수정) Web Worker 리스너 (AI 채점 결과 처리)
+      useEffect(() => {
+        quizWorker.onmessage = (e) => {
+          const { status, taskId, taskType, quizData, updatedAttempt, error, options } = e.data; 
+          
+          setTaskQueue(prev => prev.map(task => 
+              task.id === taskId ? { ...task, status, error } : task
+          ));
+          
+          if (status === 'success') {
+            if (taskType === 'grade' && updatedAttempt) {
+                // --- AI 채점 완료 ---
+                dbHelper.put('quizAttempts', updatedAttempt).then(() => {
+                    refetchAllData();
+                    if (toast) toast.show('✅ AI 채점이 완료되었습니다.', 'success');
+                });
+            } else if (taskType === 'generate' && quizData) {
+                // --- AI 퀴즈 생성 완료 (기존) ---
+                const newQuiz = {
+                    id: crypto.randomUUID(),
+                    title: quizData.title,
+                    sourceText: "N/A", 
+                    fileId: options.fileId, 
+                    sourceFileName: options.sourceFileName,
+                    questions: JSON.stringify(quizData.questions),
+                    createdAt: new Date().toISOString(),
+                    questionCount: quizData.questions.length,
+                    options: options
+                };
+                dbHelper.add('quizzes', newQuiz).then(() => {
+                    refetchAllData();
+                    if (toast) toast.show('✨ 퀴즈 생성이 완료되었습니다.', 'success');
+                });
+            }
+          } else if (status === 'error') {
+              console.error(`Task ${taskId} (${taskType}) failed: ${error}`);
+              if (toast) toast.show(`❌ 작업 실패: ${error}`, 'error');
+          }
+        };
+        return () => { quizWorker.onmessage = null; };
+      }, [quizWorker, dbHelper, refetchAllData, toast]); // 📌 toast 의존성 추가
+      
+      // (v4) 파일 시스템 훅
+      const { fileTree, fileActions } = useFileSystem(files, dbHelper, refetchAllData);
+
+      /* 📌 (패치 1) 신규: 파일 읽기 동기 시작 헬퍼 📌 */
+      const initiateFileReads = (files) => {
+         return Array.from(files).map(file => {
+             const fileName = file.name;
+             const ext = fileName.split('.').pop().toLowerCase();
+             let contentPromise;
+
+             if (['zip', 'pdf', 'docx'].includes(ext)) {
+                 contentPromise = file.arrayBuffer(); // Read as buffer
+             } else if (['txt', 'md', 'js', 'css', 'html', 'json', 'xml', 'py', 'java', 'c', 'cpp', 'cs', 'go'].includes(ext)) {
+                 contentPromise = file.text(); // Read as text
+             } else {
+                 contentPromise = Promise.resolve(null); // For HWP etc.
+             }
+             
+             return { fileName, contentPromise, ext };
+         });
+      };
+
+      /* 📌 신규: 파일 처리 로직 (v9) */
+      
+      // (zip)
+      const processZip = async (fileName, fileContent, parentId) => {
+        toast.show(`압축 해제 중: ${fileName}`, 'info');
+        try {
+          const zip = await JSZip.loadAsync(fileContent); // 📌 (수정) JSZip (대문자)
+          
+          // 1. 모든 폴더 경로 추출 및 정렬 (암시적/명시적 경로 모두)
+          const allFolderPaths = new Set();
+          Object.keys(zip.files).forEach(p => {
+              if (zip.files[p].dir) {
+                  allFolderPaths.add(p);
+              } else {
+                  const parts = p.split('/');
+                  parts.pop(); // filename
+                  let currentPath = '';
+                  for (const part of parts) {
+                      if (!part) continue;
+                      currentPath += part + '/';
+                      allFolderPaths.add(currentPath);
+                  }
+              }
+          });
+
+          const sortedFolderPaths = Array.from(allFolderPaths)
+              .filter(p => p && !p.startsWith('__MACOSX/'))
+              .sort((a, b) => a.split('/').length - b.split('/').length);
+
+          // 2. 모든 폴더 순차적으로 생성
+          const createdFolderIds = new Map();
+          createdFolderIds.set('root', parentId); // Zip's root maps to the target parentId
+
+          for (const folderPath of sortedFolderPaths) {
+              const parts = folderPath.replace(/\/$/, '').split('/');
+              const folderName = parts[parts.length - 1];
+              const parentPath = parts.slice(0, -1).join('/') + (parts.length > 1 ? '/' : '');
+              const parentFolderId = createdFolderIds.get(parentPath || 'root');
+
+              if (parentFolderId && folderName && !createdFolderIds.has(folderPath)) {
+                  // 📌 (수정) fileActions.create가 refetch를 호출하므로, findOrCreateFolder 헬퍼 대신 직접 생성
+                  const newFolder = await dbHelper.add('files', {
+                      id: crypto.randomUUID(),
+                      name: folderName,
+                      type: 'folder',
+                      parentId: parentFolderId,
+                      content: null,
+                      createdAt: new Date().toISOString()
+                  });
+                  createdFolderIds.set(folderPath, newFolder);
+              }
+          }
+          await refetchAllData(); // 📌 폴더 생성 후 1차 동기화
+
+          // 3. 모든 파일 생성
+          for (const [relativePath, zipEntry] of Object.entries(zip.files)) {
+              if (!zipEntry.dir && !zipEntry.name.startsWith('__MACOSX/') && zipEntry.name) {
+                  const parts = zipEntry.name.split('/');
+                  const fileName = parts.pop();
+                  const parentPath = parts.join('/') + (parts.length > 0 ? '/' : '');
+                  const parentFolderId = createdFolderIds.get(parentPath || 'root');
+
+                  if (parentFolderId && fileName) {
+                      const content = await zipEntry.async("string");
+                      await fileActions.create(parentFolderId, 'file', fileName, content);
+                  }
+              }
+          }
+          toast.show(`✅ ${fileName} 가져오기 완료`, 'success');
+
+        } catch (err) {
+          console.error("ZIP 처리 오류:", err);
+          toast.show(`❌ ZIP 처리 실패: ${err.message}`, 'error');
+          refetchAllData(); // 📌 실패 시에도 동기화
+        }
+      };
+
+      // (pdf)
+      const processPdf = async (fileName, fileContent, parentId) => {
+        toast.show(`PDF 텍스트 추출 중: ${fileName}`, 'info');
+        try {
+          const arrayBuffer = fileContent;
+          const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+          let allText = "";
+          
+          for (let i = 1; i <= pdf.numPages; i++) {
+            const page = await pdf.getPage(i);
+            const textContent = await page.getTextContent();
+            allText += textContent.items.map(item => item.str).join(' ') + '\n\n';
+          }
+          
+          await fileActions.create(parentId, 'file', `${fileName}.txt`, allText);
+          toast.show(`✅ PDF 텍스트 추출 완료`, 'success');
+
+        } catch (err) {
+          console.error("PDF 처리 오류:", err);
+          toast.show(`❌ PDF 처리 실패: ${err.message}`, 'error');
+        }
+      };
+      
+      // (docx)
+      const processDocx = async (fileName, fileContent, parentId) => {
+        toast.show(`DOCX 텍스트 추출 중: ${fileName}`, 'info');
+        try {
+          const arrayBuffer = fileContent;
+          const result = await mammoth.extractRawText({ arrayBuffer });
+          await fileActions.create(parentId, 'file', `${fileName}.txt`, result.value);
+          toast.show(`✅ DOCX 텍스트 추출 완료`, 'success');
+        } catch (err) {
+          console.error("DOCX 처리 오류:", err);
+          toast.show(`❌ DOCX 처리 실패: ${err.message}`, 'error');
+        }
+      };
+
+      // (text)
+      const processText = async (fileName, fileContent, parentId) => {
+        try {
+          await fileActions.create(parentId, 'file', fileName, fileContent);
+        } catch (err) {
+          console.error("텍스트 파일 처리 오류:", err);
+          toast.show(`❌ ${fileName} 읽기 실패`, 'error');
+        }
+      };
+      
+      // (hwp/binary)
+      const processBinary = (fileName, parentId) => {
+        const message = fileName.endsWith('.hwp') 
+          ? "HWP 파일은 텍스트 추출을 지원하지 않습니다. 파일만 저장합니다."
+          : "텍스트가 아닌 파일입니다. 파일만 저장합니다.";
+        toast.show(message, 'info');
+        // 빈 파일로 생성
+        fileActions.create(parentId, 'file', fileName, `[${fileName}] - 텍스트를 읽을 수 없는 바이너리 파일입니다.`);
+      };
+
+      // 파일 처리 라우터
+      const processFile = (fileName, fileContent, parentId) => {
+        const ext = fileName.split('.').pop().toLowerCase();
+        switch (ext) {
+          case 'zip':
+            processZip(fileName, fileContent, parentId);
+            break;
+          case 'pdf':
+            processPdf(fileName, fileContent, parentId);
+            break;
+          case 'docx':
+            processDocx(fileName, fileContent, parentId);
+            break;
+          case 'txt':
+          case 'js':
+          case 'css':
+          case 'html':
+          case 'json':
+          case 'md':
+          case 'xml':
+          case 'py':
+          case 'java':
+          case 'c':
+          case 'cpp':
+          case 'cs':
+          case 'go':
+            processText(fileName, fileContent, parentId);
+            break;
+          default:
+            processBinary(fileName, parentId); // .hwp 등 기타
+            break;
+        }
+      };
+      
+      // 📌 (패치 2) 드롭 핸들러 -> 비동기 처리 함수로 변경
+      const processReadsAndStore = useCallback(async (pendingReads, parentId) => {
+          toast.show(`파일 ${pendingReads.length}개 처리 시작...`, 'info');
+
+          // 1. (수정) 이미 시작된 Promise들을 await
+          const readResults = await Promise.all(pendingReads.map(async (read) => {
+              try {
+                  const content = await read.contentPromise;
+                  return { ...read, content, parentId }; // parentId를 전달
+              } catch (err) {
+                  console.error(`Error reading file ${read.fileName}:`, err);
+                  toast.show(`❌ ${read.fileName} 읽기 실패: ${err.message}`, 'error');
+                  return null;
+              }
+          }));
+
+          // 2. (수정) 메모리에 로드된 컨텐츠를 순회하며 DB에 저장
+          for (const fileData of readResults) {
+              if (fileData) { // null이 아닌 (성공한) 파일만 처리
+                  // processFile은 App 스코프에 정의되어 있음
+                  processFile(fileData.fileName, fileData.content, fileData.parentId);
+              }
+          }
+          
+          // 📌 (수정) 일괄 refetch를 create 내부에서 하도록 변경했으므로, 여기서는 토스트만
+          setTimeout(() => {
+              refetchAllData(); // 📌 최종 동기화
+              toast.show('✅ 파일 가져오기 완료.', 'success');
+          }, 1500); // 📌 비동기 생성 작업이 완료될 시간을 줌
+
+      }, [fileActions, refetchAllData, toast]); // 📌 'processFile'은 스코프 함수이므로 의존성 불필요
+      
+      // (이벤트 리스너)
+      useEffect(() => {
+        const dragEnter = (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          // 📌 파일이 있을 때만 오버레이 표시
+          if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
+            setIsDragOverlayVisible(true);
+          }
+        };
+        const dragOver = (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+        };
+        const dragLeave = (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          // 뷰포트를 벗어나는 경우
+          if (!e.relatedTarget || e.relatedTarget.nodeName === "HTML") {
+            setIsDragOverlayVisible(false);
+          }
+        };
+        // 📌 (패치 3) window.drop 수정
+        const drop = (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setIsDragOverlayVisible(false);
+          
+          // FileNode 내부 드롭은 FileNode의 onDrop에서 처리됨 (이벤트 전파 중단)
+          // 여기는 window(최상위) 드롭, 즉 root에 드롭된 경우
+          // 📌 (수정) 1. 동기적으로 파일 읽기 시작
+          const pendingReads = initiateFileReads(e.dataTransfer.files);
+          // 📌 (수정) 2. 비동기 처리는 'fire and forget'
+          processReadsAndStore(pendingReads, 'root');
+        };
+
+        window.addEventListener('dragenter', dragEnter);
+        window.addEventListener('dragover', dragOver);
+        window.addEventListener('dragleave', dragLeave);
+        window.addEventListener('drop', drop);
+
+        return () => {
+          window.removeEventListener('dragenter', dragEnter);
+          window.removeEventListener('dragover', dragOver);
+          window.removeEventListener('dragleave', dragLeave);
+          window.removeEventListener('drop', drop);
+        };
+      }, [processReadsAndStore]); // 📌 (패치 4) 의존성 변경
+
+      // --- 핸들러 ---
+      
+      // 설정 저장
+      const handleSaveSettings = useCallback(async (newSettings) => {
+          const settingsToSave = { ...newSettings, id: 'userConfig' };
+          await dbHelper.put('settings', settingsToSave);
+          setUserSettings(settingsToSave);
+          // (v5) 저장 시 퀴즈 옵션 상태도 업데이트
+          setQuizOptions(prev => ({
+              ...prev,
+              numQuestions: settingsToSave.defaultNumQuestions || prev.numQuestions,
+              difficulty: settingsToSave.defaultDifficulty || prev.difficulty,
+              questionType: settingsToSave.defaultQuestionType || prev.questionType,
+          }));
+      }, [dbHelper]);
+
+      // 사이드바 토글
+      const handleActivityChange = (id) => {
+          if (id === 'settings') {
+              setModalContent(e(SettingsModal, { onClose: () => setModalContent(null) }));
+              return;
+          }
+          if (id === activeViewId && isSidebarVisible) setIsSidebarVisible(false);
+          else { setIsSidebarVisible(true); setActiveViewId(id); }
+      };
+      
+      // 퀴즈 생성 작업 디스패치
+      const dispatchTask = useCallback((taskData) => {
+          const taskId = crypto.randomUUID();
+          const newTask = { ...taskData, id: taskId, status: 'processing', taskType: 'generate' }; // 📌 taskType 명시
+          setTaskQueue(prev => [newTask, ...prev]);
+          // (v4) 워커에 기본 설정(프롬프트 포함) 함께 전달
+          quizWorker.postMessage({ ...newTask, settings: userSettings, DEFAULT_SETTINGS });
+          handleActivityChange('tasks'); // 작업 모니터 탭으로 이동
+          if (toast) toast.show('✨ 퀴즈 생성을 시작합니다.', 'info');
+      }, [quizWorker, userSettings, toast]); // 📌 toast 의존성 추가
+      
+      /* 📌 (신규) AI 채점 작업 디스패치 📌 */
+      const dispatchGradingTask = useCallback((attempt) => {
+          const taskId = crypto.randomUUID();
+          const newTask = { 
+              id: taskId, 
+              status: 'processing', 
+              taskType: 'grade', // 📌 작업 유형: 채점
+              options: { quizTitle: attempt.quizTitle } // 모니터 표시용
+          };
+          setTaskQueue(prev => [newTask, ...prev]);
+          // 워커에 채점 작업 전송
+          quizWorker.postMessage({ ...newTask, attempt, settings: userSettings, DEFAULT_SETTINGS });
+          handleActivityChange('tasks'); // 작업 모니터 탭으로 이동
+      }, [quizWorker, userSettings]); // 📌 toast 의존성 제거 (QuizResult에서 직접 호출)
+
+      // 퀴즈 제출
+      const handleQuizSubmit = async (result) => {
+          try {
+              await dbHelper.add('quizAttempts', result);
+              await refetchAllData(); // 📌 await 추가
+              
+              setModalContent(e(QuizResult, {
+                  attempt: result,
+                  quiz: quizzes.find(q => q.id === result.quizId),
+                  onClose: () => setModalContent(null),
+                  /* 📌 (신규) AI 채점 의존성 주입 📌 */
+                  userSettings,
+                  dbHelper,
+                  refetchAllData,
+                  dispatchGradingTask // 📌 신규
+              }));
+          } catch (err) { console.error("퀴즈 제출 오류:", err); }
+      };
+
+      // 📌 (패치 5) 컨텍스트 값
+      const contextValue = {
+          dbHelper,
+          refetchAllData,
+          userSettings,
+          saveSettings: handleSaveSettings,
+          files,
+          quizzes,
+          attempts,
+          taskQueue,
+          dispatchTask,
+          dispatchGradingTask, // 📌 신규
+          processReadsAndStore, // 📌 (패치)
+          initiateFileReads, // 📌 (패치)
+          fileTree,
+          fileActions,
+          activeEditorFile,
+          setActiveEditorFile,
+          setModalContent,
+          editingNodeId,
+          setEditingNodeId,
+          quizOptions, // (v5)
+          setQuizOptions, // (v5)
+          handleQuizSubmit,
+          toast // 📌 신규
+      };
+
+      // 사이드바 아이템
+      const sidebarItems = [
+        { id: 'files', label: '파일 탐색기', icon: '📄' },
+        { id: 'quiz-generator', label: '퀴즈 생성 옵션', icon: '✨' }, // (v5) 이름 변경
+        { id: 'history', label: '전체 풀이 기록', icon: '📚' }, // (v5) 이름 변경
+        { id: 'tasks', label: '작업 모니터', icon: '📊' },
+        { id: 'user', label: '사용자', icon: '👤', isBottom: true },
+        { id: 'settings', label: '설정', icon: '⚙️', isBottom: true },
+      ];
+      
+      if (isLoading) {
+        return e('div', { className: 'flex items-center justify-center h-screen' }, e(Spinner));
+      }
+
+      return e(AppContext.Provider, { value: contextValue },
+        e('div', { className: 'flex h-screen' },
+          e(ReactVscodeSidebar, {
+            items: sidebarItems,
+            onActiveChange: handleActivityChange,
+            activeId: activeViewId,
+            isVisible: isSidebarVisible
+          },
+            // 뷰 컨텐츠 (Children)
+            e(FileManagerView, { viewId: 'files' }),
+            e(QuizGeneratorView, { viewId: 'quiz-generator' }),
+            e(QuizHistoryView, { viewId: 'history' }),
+            e(TaskMonitorView, { viewId: 'tasks' })
+          ),
+          
+          e('div', { className: 'main-content' }, 
+            e(MainContentEditor, null)
+          ),
+          
+          // 모달 컨텐츠 (설정, 퀴즈 풀이, 퀴즈 결과)
+          modalContent,
+          
+          /* 📌 신규: 드래그 오버레이 📌 */
+          isDragOverlayVisible && e('div', { className: 'drag-overlay' }, '여기에 파일 놓기')
+        )
+      );
+    };
+
+    // --- 6. 앱 마운트 ---
+    const root = createRoot(document.getElementById('root'));
+    // 📌 (신규) 앱을 ToastProvider로 감싸기
+    root.render(e(ToastProvider, null, e(App)));
+    
+  </script>
+</body>
+</html>
