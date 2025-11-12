@@ -684,14 +684,13 @@
       const keyIndex = Date.now() % apiKeys.length; 
       const selectedKey = apiKeys[keyIndex];
       const apiKey = selectedKey.key.trim() ? selectedKey.key.trim() : "";
-      const model = settings?.modelName || "gemini-2.5-flash-preview-09-2025";
+      const model = settings?.modelName || DEFAULT_SETTINGS.modelName;
       
       if (!apiKey) {
           throw new ApiError('API 키가 설정되지 않았습니다. [설정(⚙️) > API Keys]에서 유효한 키를 추가하십시오.', 401); 
       }
 
-      const apiUrl = `https://generativelace.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-      
+      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;      
       let systemPrompt = settings.quizSystemPrompt || DEFAULT_SETTINGS.quizSystemPrompt;
       
       systemPrompt = systemPrompt
@@ -741,14 +740,13 @@ ${sourceText}
       const keyIndex = Date.now() % apiKeys.length; 
       const selectedKey = apiKeys[keyIndex];
       const apiKey = selectedKey.key.trim() ? selectedKey.key.trim() : "";
-      const model = settings?.modelName || "gemini-2.5-flash-preview-09-2025";
+      const model = settings?.modelName || DEFAULT_SETTINGS.modelName;
 
       if (!apiKey) {
         throw new ApiError('API 키가 설정되지 않았습니다. [설정(⚙️) > API Keys]에서 유효한 키를 추가하십시오.', 401);
       }
       
-      const apiUrl = `https://generativelace.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-      
+      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;      
       const systemPrompt = settings.gradingSystemPrompt || DEFAULT_SETTINGS.gradingSystemPrompt;
       
       const userQuery = `--- QUESTION ---
@@ -888,6 +886,7 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
         defaultDifficulty: "Medium",
         defaultQuestionType: "MultipleChoice",
         defaultNumQuestions: 10,
+        modelName: "gemini-2.5-flash",
         quizSystemPrompt: `You are an expert quiz generation AI. You must generate a {{NUM_QUESTIONS}}-question quiz based *only* on the provided source text.
 - Difficulty: {{DIFFICULTY}}
 - Requested Question Type: {{QUESTION_TYPE}}
@@ -1886,7 +1885,6 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
         );
     };
     
-    // 뷰 6: 설정 모달
     const SettingsModal = ({ onClose }) => {
         const { userSettings, saveSettings } = useContext(AppContext);
         const [activeTab, setActiveTab] = useState('Quiz Defaults');
@@ -1896,12 +1894,15 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
         const [quizSystemPrompt, setQuizSystemPrompt] = useState("");
         const [gradingSystemPrompt, setGradingSystemPrompt] = useState("");
         const [defaultSettings, setDefaultSettings] = useState({});
-        
+        const [modelName, setModelName] = useState(""); // 📌 1. modelName 상태 추가
+
         useEffect(() => {
             if (userSettings) {
                 setApiKeys(userSettings.apiKeys || DEFAULT_SETTINGS.apiKeys);
                 setQuizSystemPrompt(userSettings.quizSystemPrompt || DEFAULT_SETTINGS.quizSystemPrompt);
                 setGradingSystemPrompt(userSettings.gradingSystemPrompt || DEFAULT_SETTINGS.gradingSystemPrompt);
+                // 📌 2. modelName 로드
+                setModelName(userSettings.modelName || DEFAULT_SETTINGS.modelName); 
                 setDefaultSettings({
                     defaultDifficulty: userSettings.defaultDifficulty || DEFAULT_SETTINGS.defaultDifficulty,
                     defaultQuestionType: userSettings.defaultQuestionType || DEFAULT_SETTINGS.defaultQuestionType,
@@ -1927,12 +1928,12 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
 
         const handleSave = () => {
             saveSettings({
-                // (v11.0) userSettings에서 id를 제외하고 저장
+                // 📌 3. modelName 저장
                 apiKeys,
                 ...defaultSettings,
                 quizSystemPrompt,
                 gradingSystemPrompt,
-                modelName: userSettings.modelName || "gemini-2.5-flash-preview-09-2025"
+                modelName: modelName // 상태에서 저장
             });
             onClose();
         };
@@ -1941,6 +1942,19 @@ Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and prov
             if (activeTab === 'API Keys') {
                 return e('div', null,
                     e('h3', { className: 'text-lg font-semibold mb-4' }, 'API Configuration'),
+                    
+                    // 📌 4. 모델 이름 설정 UI 추가
+                    e('div', { className: 'form-group' },
+                        e('label', { htmlFor: 'model-name-input', className: 'form-label' }, 'Gemini Model Name'),
+                        e('input', { 
+                            id: 'model-name-input', type: 'text', className: 'form-input',
+                            value: modelName, 
+                            onChange: (ev) => setModelName(ev.target.value),
+                            placeholder: 'e.g., gemini-2.5-flash'
+                        }),
+                        e('p', { className: 'text-xs text-gray-400 mt-1' }, '사용할 Gemini 모델 ID를 입력하세요.')
+                    ),
+
                     e('div', { className: 'form-group' },
                         e('label', { htmlFor: 'api-key-input', className: 'form-label' }, 'New API Key'),
                         e('div', { className: 'flex gap-2' },
