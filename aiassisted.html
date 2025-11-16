@@ -1,0 +1,2178 @@
+<!DOCTYPE html>
+<html lang="ko" class="h-full bg-gray-900">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PromptWeaver IDE (v3.3 - Mapper Fix)</title>
+    
+    <!-- 1. 스타일링: TailwindCSS 로드 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        // VSCode와 유사한 다크 테마
+                        ide: {
+                            bg: '#1e1e1e',
+                            sidebar: '#252526',
+                            editor: '#1e1e1e',
+                            panel: '#252526',
+                            border: '#373737',
+                            text: '#cccccc',
+                            textActive: '#ffffff',
+                            selected: '#373737',
+                            menu: '#2c2c2c',
+                            menuBorder: '#454545',
+                            accent: '#0e639c',
+                        }
+                    }
+                },
+            },
+        };
+    </script>
+
+    <!-- 2. Monaco 에디터 로더 (CDN) -->
+    <script src="https://cdn.jsdelivr.net/npm/monaco-editor/min/vs/loader.js"></script>
+
+    <!-- 3. 커스텀 스타일 (파일 트리, 컨텍스트 메뉴 등) -->
+    <style>
+        body {
+            font-family: 'Inter', 'sans-serif';
+        }
+        /* Monaco 에디터가 부모 컨테이너를 꽉 채우도록 */
+        #editor-container, #diff-editor-container {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* 파일 트리 스타일 */
+        .file-tree-item {
+            display: flex;
+            align-items: center;
+            padding: 4px 10px;
+            cursor: pointer;
+            border-radius: 4px;
+            color: #cccccc;
+            /* [NEW] D&D를 위한 테두리 (평소엔 투명) */
+            border: 1px solid transparent; 
+        }
+        .file-tree-item:hover {
+            background-color: #373737;
+        }
+        .file-tree-item.selected {
+            background-color: #0e639c;
+            color: white;
+        }
+        /* [NEW] Drag & Drop 피드백 스타일 (Rule R2.4.1) */
+        .file-tree-item.drag-over {
+            background-color: #0e639c;
+            border: 1px dashed #ffffff;
+        }
+
+        /* [UX 개선] 변수 매핑용 트리 아이템 스타일 */
+        .selectable-file-tree-item.mapped {
+            background-color: #0e639c;
+            color: white;
+        }
+        .file-tree-item .icon, .selectable-file-tree-item .icon {
+            margin-right: 6px;
+            width: 16px;
+            height: 16px;
+            color: #c5c5c5;
+        }
+        .file-tree-item.selected .icon, .selectable-file-tree-item.mapped .icon {
+            color: white;
+        }
+        .folder-children {
+            padding-left: 20px;
+        }
+
+        /* 커스텀 컨텍스트 메뉴 */
+        #context-menu {
+            position: absolute;
+            display: none;
+            z-index: 1000;
+            background-color: #2c2c2c;
+            border: 1px solid #454545;
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            min-width: 180px;
+            padding: 6px;
+        }
+        .context-menu-item {
+            padding: 8px 12px;
+            cursor: pointer;
+            color: #cccccc;
+            border-radius: 4px;
+        }
+        .context-menu-item:hover {
+            background-color: #0e639c;
+            color: white;
+        }
+        .context-menu-divider {
+            height: 1px;
+            background-color: #454545;
+            margin: 4px 0;
+        }
+
+        /* 모달 스타일 */
+        .modal-backdrop {
+            position: fixed;
+            inset: 0;
+            background-color: rgba(0, 0, 0, 0.6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 500;
+        }
+        .modal-content {
+            background-color: #2c2c2c;
+            border-radius: 8px;
+            padding: 24px;
+            border: 1px solid #454545;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            max-height: 90vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        /* 스크롤바 스타일 */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #252526;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #4a4a4a;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #6a6a6a;
+        }
+    </style>
+</head>
+
+<body class="h-full text-ide-text overflow-hidden">
+
+    <!-- 
+      ==================================================================
+      HTML 구조 (UI Skeleton)
+      ==================================================================
+    -->
+
+    <!-- 1. 로그인 화면 -->
+    <div id="auth-container" class="h-full flex items-center justify-center">
+        <div class="text-center">
+            <h1 class="text-4xl font-bold text-white mb-4">PromptWeaver IDE</h1>
+            <p class="text-lg text-gray-400 mb-8">당신의 파일 시스템과 AI를 연결합니다.</p>
+            <button id="google-login-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg text-lg shadow-lg transition-all">
+                Google 계정으로 시작하기
+            </button>
+        </div>
+    </div>
+
+    <!-- 2. 메인 앱 화면 (로그인 후 표시) -->
+    <div id="app-container" class="hidden h-full flex flex-col">
+        <!-- 헤더 / 유저 정보 (API 키, 작업 현황 버튼 추가) -->
+        <header class="bg-ide-sidebar h-10 flex items-center justify-between px-4 border-b border-ide-border shrink-0">
+            <h1 class="text-md font-semibold text-white">PromptWeaver</h1>
+            <div id="user-info" class="flex items-center">
+                <button id="task-status-btn" title="작업 현황" class="text-gray-400 hover:text-white mr-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341A6.002 6.002 0 006 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
+                </button>
+                <button id="api-key-btn" title="API 키 관리" class="text-gray-400 hover:text-white mr-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H5v-2H3v-2H1v-2h2v-2h2v-2h2v2h2l2.257-2.257A6 6 0 0115 7zM5 5a2 2 0 012-2" /></svg>
+                </button>
+                <span id="user-name" class="text-sm text-gray-300 mr-3"></span>
+                <button id="logout-btn" class="text-sm bg-gray-700 hover:bg-red-600 text-white px-3 py-1 rounded-md">로그아웃</button>
+            </div>
+        </header>
+
+        <!-- 메인 컨텐츠 영역 (사이드바 + 에디터) -->
+        <main class="flex-grow flex overflow-hidden">
+            
+            <!-- 왼쪽 사이드바 (파일 탐색기 + 액션 레일) -->
+            <aside class="w-72 bg-ide-sidebar flex flex-col border-r border-ide-border">
+                <!-- 파일 탐색기 -->
+                <div class="p-3 border-b border-ide-border">
+                    <div class="flex justify-between items-center mb-2">
+                        <h2 class="text-sm font-semibold text-white uppercase">Explorer</h2>
+                        <div>
+                            <button id="add-root-file-btn" title="New File" class="text-gray-400 hover:text-white px-1">&#xFF0B; (File)</button>
+                            <button id="add-root-folder-btn" title="New Folder" class="text-gray-400 hover:text-white px-1">&#xFF0B; (Folder)</button>
+                        </div>
+                    </div>
+                    <input type="file" id="file-uploader" class="hidden" multiple>
+                </div>
+                <div id="file-tree-container" class="flex-grow overflow-auto p-2">
+                    <!-- 파일 트리가 JS에 의해 렌더링될 곳 -->
+                </div>
+                
+                <!-- 액션 레일 -->
+                <div class="p-3 border-t border-ide-border shrink-0">
+                    <div class="flex justify-between items-center mb-2">
+                        <h2 class="text-sm font-semibold text-white uppercase">Actions</h2>
+                        <button id="add-action-btn" class="text-gray-400 hover:text-white" title="New Action">&#x2b;</button>
+                    </div>
+                    <div id="action-rail" class="space-y-1">
+                        <!-- 액션 버튼이 JS에 의해 렌더링될 곳 -->
+                    </div>
+                </div>
+            </aside>
+
+            <!-- 메인 에디터 영역 (에디터 + 메타데이터) -->
+            <section class="flex-grow flex flex-col">
+                <!-- 탭 영역 (간단하게 현재 파일명 표시) -->
+                <div id="editor-tabs" class="h-10 bg-ide-sidebar border-b border-ide-border flex items-center px-4 shrink-0">
+                    <span id="current-file-tab" class="text-gray-300 text-sm"></span>
+                    <button id="save-file-btn" class="ml-auto bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded-md text-sm hidden">저장 (Ctrl+S)</button>
+                </div>
+
+                <!-- 에디터/Diff 뷰 -->
+                <div class="flex-grow bg-ide-editor relative">
+                    <div id="editor-container" class="absolute inset-0"></div>
+                    <div id="diff-editor-container" class="absolute inset-0 hidden"></div>
+                    <!-- AI 응답을 위한 간단한 출력 창 (Diff가 아닌 경우) -->
+                    <pre id="prompt-output" class="absolute bottom-0 left-0 right-0 h-48 bg-ide-panel p-4 overflow-auto text-sm border-t border-ide-border hidden z-10"></pre>
+                </div>
+
+                <!-- 하단 메타데이터 패널 -->
+                <div id="metadata-panel-container" class="h-48 bg-ide-panel border-t border-ide-border p-4 overflow-auto shrink-0">
+                    <!-- [UX 개선] 메타데이터 추가 폼을 제거하고, 편집 버튼으로 대체 -->
+                    <div class="flex justify-between items-center mb-3">
+                         <h3 class="text-sm font-semibold text-white uppercase">Context Inspector</h3>
+                         <button id="edit-metadata-btn" class="bg-blue-600 text-white px-3 py-1 rounded text-sm hidden">
+                            메타데이터 편집
+                         </button>
+                    </div>
+                    <div id="metadata-content" class="text-sm space-y-2">
+                        <!-- 메타데이터가 JS에 의해 렌더링될 곳 -->
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- 커스텀 컨텍스트 메뉴 (숨겨져 있음) -->
+    <div id="context-menu">
+        <!-- JS로 동적 생성 -->
+    </div>
+
+    <!-- 각종 모달 (숨겨져 있음) -->
+    <div id="modal-backdrop" class="modal-backdrop hidden">
+        <div id="modal-content" class="modal-content w-full max-w-lg">
+            <!-- JS로 동적 생성 -->
+        </div>
+    </div>
+
+
+    <!-- 
+      ==================================================================
+      JavaScript 로직 (모든 앱 기능)
+      [리팩토링] - Axiom of SOLID Architecture (SRP)
+      거대한 main() 함수를 기능별 서비스 객체로 분리
+      ==================================================================
+    -->
+    <script type="module">
+        // 1. Firebase SDK 로드
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
+        import { 
+            getAuth, 
+            GoogleAuthProvider, 
+            signInWithPopup, 
+            signOut, 
+            onAuthStateChanged 
+        } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
+        import { 
+            getFirestore, 
+            setLogLevel, 
+            collection, 
+            query, 
+            where, 
+            onSnapshot, 
+            doc, 
+            getDoc, 
+            setDoc, 
+            updateDoc, 
+            deleteDoc, 
+            writeBatch
+        } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
+
+        // 2. Firebase 설정 (제공된 값 사용)
+        const firebaseConfig = {
+            apiKey: "AIzaSyC8NHeDN-IsZsAhO8S6WOi3kgdqTvqWUow",
+            authDomain: "daily-88012.firebaseapp.com",
+            databaseURL: "https://daily-88012-default-rtdb.firebaseio.com",
+            projectId: "daily-88012",
+            storageBucket: "daily-88012.firebasestorage.app",
+            messagingSenderId: "1090875731054",
+            appId: "1:1090875731054:web:ec0b94ff7f2adf0baf4a7f",
+            measurementId: "G-N613S14WJE"
+        };
+
+        // 3. 글로벌 변수
+        let auth, db, monaco, editor, diffEditor;
+        
+        // 4. 앱 상태 관리
+        const AppState = {
+            userId: null,
+            selectedNodeId: null,
+            currentOpenFileId: null,
+            currentActionPrompt: null,
+            fileTreeListener: null,
+            promptListener: null,
+            currentNodeCache: new Map(), // VFS 캐시
+            dom: {}, // DOM 요소 캐시
+            apiKeys: [], // API 키 목록
+            runningTasks: [], // 백그라운드 작업 목록
+        };
+
+        // [버그 수정] 정규식 특수 문자 이스케이프 헬퍼
+        function escapeRegExp(string) {
+          return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // $& means the whole matched string
+        }
+        
+        // ===================================
+        // A. 모달 및 UI 헬퍼 서비스
+        // ===================================
+        const ModalService = {
+            init() {
+                // 모달 바깥 클릭 시 닫기
+                AppState.dom.modalBackdrop.addEventListener('click', (e) => {
+                    if (e.target === AppState.dom.modalBackdrop) {
+                        // 작업 현황 모달은 닫지 않음 (의도적)
+                        if (!document.getElementById('task-status-list')) {
+                             this.hide();
+                        }
+                    }
+                });
+            },
+            show(title, contentHtml, setupCallback, modalSize = 'max-w-lg') {
+                const modalContent = AppState.dom.modalContent;
+                modalContent.className = `modal-content w-full ${modalSize}`; // 크기 조절
+                modalContent.innerHTML = `
+                    <h2 class="text-xl font-bold text-white mb-4">${title}</h2>
+                    <div class="flex-grow overflow-auto">${contentHtml}</div>
+                `;
+                AppState.dom.modalBackdrop.classList.remove('hidden');
+                if (setupCallback) {
+                    setupCallback(modalContent);
+                }
+            },
+            hide() {
+                AppState.dom.modalBackdrop.classList.add('hidden');
+                AppState.dom.modalContent.innerHTML = "";
+            },
+            
+            toastTimer: null,
+            showToast(message) {
+                clearTimeout(this.toastTimer);
+                let toast = document.getElementById('toast-notification');
+                if (!toast) {
+                    toast = document.createElement('div');
+                    toast.id = 'toast-notification';
+                    toast.className = "fixed bottom-5 right-5 bg-green-600 text-white px-4 py-2 rounded-lg shadow-lg z-[1001]";
+                    document.body.appendChild(toast);
+                }
+                toast.textContent = message;
+                toast.style.display = 'block';
+                this.toastTimer = setTimeout(() => {
+                    toast.style.display = 'none';
+                }, 3000);
+            },
+            
+            // 프롬프트 매핑용 파일 트리 선택기 (리팩토링됨)
+            showFileTreeSelector() {
+                return new Promise((resolve) => {
+                    const modalHtml = `
+                        <div id="modal-file-tree" class="max-h-[50vh] overflow-auto bg-ide-bg p-2 rounded border border-ide-border">
+                        </div>
+                        <div class="flex justify-end mt-4">
+                        <button id="modal-cancel-select" class="bg-gray-600 hover:bg-gray-700 text-white py-2 px-4 rounded">취소</button>
+                        </div>
+                    `;
+                    this.show("파일/폴더 선택", modalHtml, (modalEl) => {
+                        const treeContainer = modalEl.querySelector('#modal-file-tree');
+                        const nodes = Array.from(AppState.currentNodeCache.values()).filter(n => n.userId === AppState.userId);
+                        const tree = UIService.buildTree(nodes, "root");
+                        const treeHtml = UIService.buildTreeHTML(tree, 'modal-tree'); // 모달용으로 빌드
+                        
+                        // 모달용 트리는 클릭 이벤트를 다르게 처리
+                        Array.from(treeHtml.children).forEach(el => {
+                            if (el.classList.contains('file-tree-item')) {
+                                el.addEventListener('click', (e) => {
+                                    e.stopPropagation();
+                                    const nodeId = el.getAttribute('data-node-id');
+                                    const node = AppState.currentNodeCache.get(nodeId);
+                                    this.hide();
+                                    resolve(node); // 선택된 노드 객체 반환
+                                });
+                            }
+                            treeContainer.appendChild(el);
+                        });
+                        
+                        modalEl.querySelector('#modal-cancel-select').addEventListener('click', () => {
+                            this.hide();
+                            resolve(null);
+                        });
+                    });
+                });
+            },
+
+            // 태스크 상태 모달
+            showTaskStatusModal() {
+                // 이미 열려있으면 내용만 업데이트
+                if (!AppState.dom.modalBackdrop.classList.contains('hidden') && document.getElementById('task-status-list')) {
+                    this.updateTaskStatusModal();
+                    return;
+                }
+                
+                let html = `<div id="task-status-list" class="space-y-2 max-h-[60vh] overflow-auto">
+                                <!-- 태스크 목록 렌더링 -->
+                            </div>
+                            <div class="flex justify-between items-center mt-6 border-t border-ide-border pt-4">
+                                <button id="clear-completed-tasks-btn" class="bg-gray-700 hover:bg-gray-800 text-white py-2 px-4 rounded text-sm">완료된 작업 지우기</button>
+                                <button id="close-task-modal-btn" class="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded">닫기</button>
+                            </div>`;
+                
+                this.show("백그라운드 작업 현황", html, (modalEl) => {
+                    this.updateTaskStatusModal();
+                    modalEl.querySelector('#close-task-modal-btn').onclick = () => this.hide();
+                    modalEl.querySelector('#clear-completed-tasks-btn').onclick = () => {
+                        AppState.runningTasks = AppState.runningTasks.filter(t => t.status === 'pending' || t.status === 'running');
+                        this.updateTaskStatusModal();
+                    };
+                });
+            },
+            
+            updateTaskStatusModal() {
+                const listEl = document.getElementById('task-status-list');
+                if (!listEl) return;
+                
+                if (AppState.runningTasks.length === 0) {
+                    listEl.innerHTML = `<p class="text-gray-500 italic">실행 중인 작업이 없습니다.</p>`;
+                    return;
+                }
+                
+                listEl.innerHTML = "";
+                AppState.runningTasks.forEach(task => {
+                    let statusHtml = '';
+                    switch(task.status) {
+                        case 'pending':
+                            statusHtml = `<span class="text-yellow-400">대기 중...</span>`;
+                            break;
+                        case 'running':
+                            statusHtml = `<span class="text-blue-400">실행 중...</span>`;
+                            break;
+                        case 'success':
+                            statusHtml = `<span class="text-green-400">성공</span>`;
+                            break;
+                        case 'failed':
+                            statusHtml = `<span class="text-red-400 truncate" title="${task.error}">실패: ${task.error.substring(0, 50)}...</span>`;
+                            break;
+                    }
+                    
+                    const item = document.createElement('div');
+                    item.className = "flex items-center justify-between bg-ide-bg p-2 rounded";
+                    item.innerHTML = `
+                        <div class="truncate">
+                            <span class="font-medium text-gray-300 truncate">${task.name}</span>
+                            <span class="text-gray-400 text-sm ml-2">(${new Date(task.startTime).toLocaleTimeString()})</span>
+                        </div>
+                        <div class="ml-4 flex-shrink-0 w-40 text-right">${statusHtml}</div>
+                    `;
+                    listEl.appendChild(item);
+                });
+            }
+        };
+
+        // ===================================
+        // B. 인증 서비스
+        // ===================================
+        const AuthService = {
+            init() {
+                AppState.dom.googleLoginBtn.addEventListener('click', () => this.login());
+                AppState.dom.logoutBtn.addEventListener('click', () => this.logout());
+
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        // 로그인 성공
+                        AppState.userId = user.uid;
+                        AppState.dom.userName.textContent = user.displayName || user.email;
+                        AppState.dom.authContainer.classList.add('hidden');
+                        AppState.dom.appContainer.classList.remove('hidden');
+                        this.onLoginSuccess();
+                    } else {
+                        // 로그아웃
+                        AppState.userId = null;
+                        AppState.dom.authContainer.classList.remove('hidden');
+                        AppState.dom.appContainer.classList.add('hidden');
+                        this.onLogoutSuccess();
+                    }
+                });
+            },
+            async login() {
+                try {
+                    const provider = new GoogleAuthProvider();
+                    await signInWithPopup(auth, provider);
+                } catch (error) {
+                    console.error("Google 로그인 실패:", error);
+                    ModalService.show("로그인 실패", `<p>Google 로그인에 실패했습니다. (콘솔을 확인하세요)</p><p>${error.message}</p>`);
+                }
+            },
+            logout() {
+                signOut(auth);
+            },
+            onLoginSuccess() {
+                // 로그인 후 필요한 서비스들 초기화
+                VFSService.initFileTreeListener();
+                ActionService.initActionListener();
+                ApiKeyService.initKeyListener(); // API 키 리스너
+            },
+            onLogoutSuccess() {
+                // 리스너 정리
+                if (AppState.fileTreeListener) AppState.fileTreeListener();
+                if (AppState.promptListener) AppState.promptListener();
+                AppState.currentNodeCache.clear();
+                AppState.dom.fileTreeContainer.innerHTML = "";
+                AppState.dom.actionRail.innerHTML = "";
+                AppState.apiKeys = []; 
+                AppState.runningTasks = []; 
+                EditorService.closeEditor();
+            }
+        };
+
+        // ===================================
+        // C. VFS (Firestore) 서비스
+        // ===================================
+        const VFSService = {
+            initFileTreeListener() {
+                if (!AppState.userId) return;
+                const nodesQuery = query(collection(db, "nodes"), where("userId", "==", AppState.userId));
+                
+                AppState.fileTreeListener = onSnapshot(nodesQuery, (snapshot) => {
+                    const nodes = [];
+                    snapshot.forEach((doc) => {
+                        nodes.push({ id: doc.id, ...doc.data() });
+                    });
+                    AppState.currentNodeCache.clear();
+                    nodes.forEach(node => AppState.currentNodeCache.set(node.id, node));
+                    UIService.renderFileTree(nodes);
+                }, (error) => {
+                    console.error("파일 트리 로드 실패:", error);
+                    ModalService.show("오류", `<p>파일 시스템을 불러오는 데 실패했습니다: ${error.message}</p>`);
+                });
+            },
+
+            async createNode(type, name, parentId = "root") {
+                if (!name) return ModalService.show("오류", "<p>이름을 입력해야 합니다.</p>");
+                
+                const newNodeDoc = doc(collection(db, "nodes"));
+                const nodeData = {
+                    userId: AppState.userId,
+                    parentId: parentId,
+                    type: type,
+                    name: name,
+                    meta_specific: {},
+                    meta_default: {},
+                    createdAt: new Date(),
+                };
+                
+                try {
+                    await setDoc(newNodeDoc, nodeData);
+                    if (type === 'file') {
+                        await setDoc(doc(db, "fileContent", newNodeDoc.id), {
+                            userId: AppState.userId,
+                            content: `// ${name} - 생성됨 ${new Date().toLocaleString()}\n`
+                        });
+                    }
+                } catch (error) {
+                    console.error("노드 생성 실패:", error);
+                    ModalService.show("오류", `<p>생성에 실패했습니다: ${error.message}</p>`);
+                }
+            },
+            
+            async getFileContent(fileId) {
+                try {
+                    const docRef = doc(db, "fileContent", fileId);
+                    const docSnap = await getDoc(docRef);
+                    if (docSnap.exists() && docSnap.data().userId === AppState.userId) {
+                        return docSnap.data().content;
+                    } else {
+                        console.warn("요청한 파일 내용이 없거나 접근 권한이 없습니다.");
+                        if (!docSnap.exists()) {
+                            await setDoc(docRef, { userId: AppState.userId, content: "" });
+                            return "";
+                        }
+                        return `// Error: Could not load file content or no access.`;
+                    }
+                } catch (error) {
+                    console.error("파일 내용 로드 실패:", error);
+                    return `// Error loading file: ${error.message}`;
+                }
+            },
+            
+            async saveFileContent(fileId, content) {
+                if (!fileId) return;
+                try {
+                    const docRef = doc(db, "fileContent", fileId);
+                    await updateDoc(docRef, { content: content });
+                    AppState.dom.saveFileBtn.classList.add('hidden');
+                    ModalService.showToast("파일이 저장되었습니다.");
+                } catch (error) {
+                    console.error("파일 저장 실패:", error);
+                    ModalService.show("오류", `<p>파일 저장에 실패했습니다: ${error.message}</p>`);
+                }
+            },
+
+            async renameNode(nodeId, newName) {
+                if (!newName) return ModalService.show("오류", "<p>새 이름을 입력해야 합니다.</p>");
+                try {
+                    await updateDoc(doc(db, "nodes", nodeId), { name: newName });
+                } catch (error) {
+                    console.error("이름 변경 실패:", error);
+                }
+            },
+            
+            async deleteNode(nodeId) {
+                const node = AppState.currentNodeCache.get(nodeId);
+                if (!node) return;
+                
+                const batch = writeBatch(db);
+                const childrenToDelete = [];
+                
+                function findChildren(parentId) {
+                    for (const child of AppState.currentNodeCache.values()) {
+                        if (child.parentId === parentId) {
+                            childrenToDelete.push(child);
+                            if (child.type === 'folder') {
+                                findChildren(child.id);
+                            }
+                        }
+                    }
+                }
+                findChildren(nodeId);
+                
+                const allNodesToDelete = [node, ...childrenToDelete];
+                
+                for (const n of allNodesToDelete) {
+                    batch.delete(doc(db, "nodes", n.id));
+                    if (n.type === 'file') {
+                        batch.delete(doc(db, "fileContent", n.id));
+                    }
+                }
+                
+                try {
+                    await batch.commit();
+                    ModalService.showToast(`${node.name} 및 하위 항목이 삭제되었습니다.`);
+                    if (allNodesToDelete.some(n => n.id === AppState.currentOpenFileId)) {
+                        EditorService.closeEditor();
+                    }
+                } catch (error) {
+                    console.error("삭제 실패:", error);
+                    ModalService.show("오류", `<p>삭제에 실패했습니다: ${error.message}</p>`);
+                }
+            },
+
+            // [NEW] Drag & Drop을 위한 노드 이동 메서드 (Rule R2.4.1)
+            async moveNode(nodeId, newParentId) {
+                const node = AppState.currentNodeCache.get(nodeId);
+                if (!node) return;
+                
+                // 자기 자신 또는 현재 부모로 이동 방지
+                if (nodeId === newParentId || node.parentId === newParentId) {
+                    return; 
+                }
+
+                // [TODO] 부모 폴더를 자식 폴더로 옮기는 순환 종속성 방지 로직 (현재는 생략)
+
+                try {
+                    await updateDoc(doc(db, "nodes", nodeId), { parentId: newParentId });
+                    ModalService.showToast(`'${node.name}'이(가) 이동되었습니다.`);
+                    // onSnapshot이 UI를 자동으로 갱신할 것입니다.
+                } catch (error) {
+                    console.error("노드 이동 실패:", error);
+                    ModalService.show("오류", `<p>항목 이동에 실패했습니다: ${error.message}</p>`);
+                }
+            },
+            
+            async handleFileUpload(files, parentId) {
+                for (const file of files) {
+                    const reader = new FileReader();
+                    reader.onload = async (e) => {
+                        const content = e.target.result;
+                        const newNodeDoc = doc(collection(db, "nodes"));
+                        const nodeData = {
+                            userId: AppState.userId,
+                            parentId: parentId,
+                            type: "file",
+                            name: file.name,
+                            meta_specific: { source: "uploaded" },
+                            meta_default: {},
+                            createdAt: new Date(),
+                        };
+                        
+                        try {
+                            await setDoc(newNodeDoc, nodeData);
+                            await setDoc(doc(db, "fileContent", newNodeDoc.id), {
+                                userId: AppState.userId,
+                                content: content
+                            });
+                            ModalService.showToast(`${file.name}이(가) 업로드되었습니다.`);
+                        } catch (error) {
+                            console.error("파일 업로드 실패:", error);
+                            ModalService.show("오류", `<p>${file.name} 업로드 실패: ${error.message}</p>`);
+                        }
+                    };
+                    reader.readAsText(file);
+                }
+            }
+        };
+        
+        // ===================================
+        // D. 메타데이터 서비스
+        // ===================================
+        const MetadataService = {
+            init() {
+                AppState.dom.editMetadataBtn.addEventListener('click', () => {
+                    if (AppState.selectedNodeId) {
+                        this.showMetadataEditorModal(AppState.selectedNodeId);
+                    }
+                });
+            },
+            
+            // 패널 렌더링
+            renderPanel(node) {
+                const panel = AppState.dom.metadataPanel; 
+                panel.innerHTML = "";
+                if (!node) {
+                    AppState.dom.editMetadataBtn.classList.add('hidden');
+                    return;
+                }
+                
+                AppState.dom.editMetadataBtn.classList.remove('hidden');
+
+                const effectiveMeta = this.calculateEffectiveMetadata(node.id);
+                
+                // 1. 고유 메타데이터 (Specific)
+                const specificMeta = node.meta_specific || {};
+                let specificHtml = '<div class="mb-2"><strong class="text-white">👑 고유 메타데이터:</strong>';
+                if (Object.keys(specificMeta).length > 0) {
+                    specificHtml += '<ul class="list-disc pl-5 mt-1">';
+                    Object.keys(specificMeta).forEach(key => {
+                        specificHtml += `<li class="text-gray-300"><span class="font-medium text-cyan-400">${key}:</span> ${specificMeta[key]}</li>`;
+                    });
+                    specificHtml += '</ul>';
+                } else {
+                    specificHtml += '<p class="text-gray-500 text-sm italic">없음</p>';
+                }
+                specificHtml += '</div>';
+                panel.innerHTML += specificHtml;
+                
+                // 2. 상속 메타데이터 (Default) - 폴더인 경우
+                if (node.type === 'folder') {
+                    const defaultMeta = node.meta_default || {};
+                    let defaultHtml = '<div class="mb-2"><strong class="text-white">📁 하위 상속 메타데이터:</strong>';
+                    if (Object.keys(defaultMeta).length > 0) {
+                        defaultHtml += '<ul class="list-disc pl-5 mt-1">';
+                        Object.keys(defaultMeta).forEach(key => {
+                            defaultHtml += `<li class="text-gray-300"><span class="font-medium text-purple-400">${key}:</span> ${defaultMeta[key]}</li>`;
+                        });
+                        defaultHtml += '</ul>';
+                    } else {
+                         defaultHtml += '<p class="text-gray-500 text-sm italic">없음</p>';
+                    }
+                    defaultHtml += '</div>';
+                    panel.innerHTML += defaultHtml;
+                }
+
+                // 3. 최종 유효 메타데이터 (AI 전송용)
+                let effectiveHtml = '<div class="mt-3 pt-3 border-t border-ide-border"><strong class="text-white">🌿 최종 유효 메타데이터 (AI 전송용):</strong>';
+                if (Object.keys(effectiveMeta).length > 0) {
+                    effectiveHtml += '<ul class="list-disc pl-5 mt-1">';
+                    Object.keys(effectiveMeta).forEach(key => {
+                        effectiveHtml += `<li class="text-gray-300"><span class="font-medium text-green-400">${key}:</span> ${effectiveMeta[key]}</li>`;
+                    });
+                    effectiveHtml += '</ul>';
+                } else {
+                    effectiveHtml += '<p class="text-gray-500 text-sm italic">없음</p>';
+                }
+                effectiveHtml += '</div>';
+                panel.innerHTML += effectiveHtml;
+            },
+            
+            // 상속 계산 로직
+            calculateEffectiveMetadata(nodeId) {
+                let currentNodeId = nodeId;
+                let meta = {};
+                let path = [];
+                
+                while (currentNodeId && currentNodeId !== "root") {
+                    const node = AppState.currentNodeCache.get(currentNodeId);
+                    if (!node) break;
+                    path.push(node);
+                    currentNodeId = node.parentId;
+                }
+                
+                for (let i = path.length - 1; i >= 0; i--) {
+                    const node = path[i];
+                    if (node.meta_default) {
+                        meta = { ...meta, ...node.meta_default };
+                    }
+                }
+                
+                const selfNode = AppState.currentNodeCache.get(nodeId);
+                if (selfNode && selfNode.meta_specific) {
+                    meta = { ...meta, ...selfNode.meta_specific };
+                }
+                
+                return meta;
+            },
+            
+            // Firestore 업데이트
+            async updateMetadata(nodeId, meta_specific, meta_default) {
+                try {
+                    await updateDoc(doc(db, "nodes", nodeId), { 
+                        meta_specific: meta_specific,
+                        meta_default: meta_default
+                    });
+                    // 패널 즉시 새로고침 (로컬 캐시 업데이트는 onSnapshot이 처리)
+                    ModalService.showToast("메타데이터가 저장되었습니다.");
+                } catch (error) {
+                    console.error("메타데이터 업데이트 실패:", error);
+                    ModalService.show("오류", "메타데이터 업데이트 실패: " + error.message);
+                }
+            },
+            
+            // 메타데이터 편집 모달
+            showMetadataEditorModal(nodeId) {
+                const node = AppState.currentNodeCache.get(nodeId);
+                if (!node) return;
+
+                let metaSpecific = { ...(node.meta_specific || {}) };
+                let metaDefault = { ...(node.meta_default || {}) };
+
+                let html = `<div class="space-y-4">`;
+                
+                // 1. 고유 메타데이터
+                html += `<div>
+                            <h4 class="text-lg font-semibold text-cyan-400 mb-2">👑 고유 메타데이터</h4>
+                            <div id="specific-meta-list" class="space-y-2"></div>
+                            <div class="mt-2 flex space-x-2">
+                                <input type="text" id="specific-key-input" placeholder="Key" class="bg-ide-bg text-sm px-2 py-1 rounded border border-ide-border w-1/3">
+                                <input type="text" id="specific-value-input" placeholder="Value" class="bg-ide-bg text-sm px-2 py-1 rounded border border-ide-border w-2/3">
+                                <button id="add-specific-btn" class="bg-blue-600 text-white px-3 rounded text-sm">추가</button>
+                            </div>
+                         </div>`;
+
+                // 2. 하위 상속 메타데이터 (폴더 전용)
+                if (node.type === 'folder') {
+                    html += `<div class="border-t border-ide-border pt-4 mt-4">
+                                <h4 class="text-lg font-semibold text-purple-400 mb-2">📁 하위 상속 메타데이터</h4>
+                                <div id="default-meta-list" class="space-y-2"></div>
+                                <div class="mt-2 flex space-x-2">
+                                    <input type="text" id="default-key-input" placeholder="Key" class="bg-ide-bg text-sm px-2 py-1 rounded border border-ide-border w-1/3">
+                                    <input type="text" id="default-value-input" placeholder="Value" class="bg-ide-bg text-sm px-2 py-1 rounded border border-ide-border w-2/3">
+                                    <button id="add-default-btn" class="bg-blue-600 text-white px-3 rounded text-sm">추가</button>
+                                </div>
+                             </div>`;
+                }
+                
+                html += `</div>
+                         <div class="flex justify-end space-x-3 mt-6 border-t border-ide-border pt-4">
+                            <button id="cancel-meta-btn" class="bg-gray-600 hover:bg-gray-700 text-white py-2 px-4 rounded">취소</button>
+                            <button id="save-meta-btn" class="bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded">저장</button>
+                         </div>`;
+
+                ModalService.show(`"${node.name}" 메타데이터 편집`, html, (modalEl) => {
+                    const specificList = modalEl.querySelector('#specific-meta-list');
+                    const defaultList = modalEl.querySelector('#default-meta-list');
+
+                    const renderList = (listEl, data, type) => {
+                        listEl.innerHTML = "";
+                        Object.keys(data).forEach(key => {
+                            const item = document.createElement('div');
+                            item.className = "flex items-center justify-between bg-ide-bg p-2 rounded";
+                            item.innerHTML = `
+                                <div>
+                                    <span class="font-medium text-gray-300">${key}:</span>
+                                    <span class="text-gray-400">${data[key]}</span>
+                                </div>
+                                <button data-key="${key}" data-type="${type}" class="text-red-500 px-2">X</button>
+                            `;
+                            item.querySelector('button').onclick = () => {
+                                if (type === 'specific') delete metaSpecific[key];
+                                if (type === 'default') delete metaDefault[key];
+                                renderList(specificList, metaSpecific, 'specific');
+                                if (defaultList) renderList(defaultList, metaDefault, 'default');
+                            };
+                            listEl.appendChild(item);
+                        });
+                    };
+                    
+                    const setupAddButton = (btnId, keyInputId, valInputId, data, listEl, type) => {
+                        modalEl.querySelector(btnId).onclick = () => {
+                            const key = modalEl.querySelector(keyInputId).value.trim();
+                            const value = modalEl.querySelector(valInputId).value.trim();
+                            if (key && value) {
+                                data[key] = value;
+                                renderList(listEl, data, type);
+                                modalEl.querySelector(keyInputId).value = "";
+                                modalEl.querySelector(valInputId).value = "";
+                            }
+                        };
+                    };
+
+                    renderList(specificList, metaSpecific, 'specific');
+                    setupAddButton('#add-specific-btn', '#specific-key-input', '#specific-value-input', metaSpecific, specificList, 'specific');
+                    
+                    if (defaultList) {
+                        renderList(defaultList, metaDefault, 'default');
+                        setupAddButton('#add-default-btn', '#default-key-input', '#default-value-input', metaDefault, defaultList, 'default');
+                    }
+                    
+                    modalEl.querySelector('#cancel-meta-btn').onclick = () => ModalService.hide();
+                    modalEl.querySelector('#save-meta-btn').onclick = () => {
+                        this.updateMetadata(nodeId, metaSpecific, metaDefault);
+                        ModalService.hide();
+                    };
+                });
+            }
+        };
+
+        // ===================================
+        // E. 에디터 서비스
+        // ===================================
+        const EditorService = {
+            saveDebounceTimer: null,
+            
+            init() {
+                // 메인 에디터
+                editor = monaco.editor.create(AppState.dom.editorContainer, {
+                    theme: 'vs-dark',
+                    automaticLayout: true,
+                    language: 'javascript',
+                    minimap: { enabled: true },
+                });
+                
+                // Diff 에디터
+                diffEditor = monaco.editor.createDiffEditor(AppState.dom.diffEditorContainer, {
+                    theme: 'vs-dark',
+                    automaticLayout: true,
+                    readOnly: false,
+                    originalEditable: true,
+                });
+                
+                // 저장 버튼
+                AppState.dom.saveFileBtn.addEventListener('click', () => this.saveCurrentFile());
+                
+                // Ctrl+S 저장
+                editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => this.saveCurrentFile());
+            },
+            
+            async openFile(fileId, fileName) {
+                if (AppState.currentOpenFileId === fileId) {
+                    if (!AppState.dom.diffEditorContainer.classList.contains('hidden')) {
+                        AppState.dom.diffEditorContainer.classList.add('hidden');
+                        AppState.dom.editorContainer.classList.remove('hidden');
+                        AppState.dom.saveFileBtn.classList.remove('hidden');
+                    }
+                    return;
+                }
+                
+                this.switchToMainEditor();
+                AppState.dom.saveFileBtn.classList.add('hidden');
+                
+                AppState.currentOpenFileId = fileId;
+                AppState.dom.currentFileTab.textContent = fileName;
+                
+                const content = await VFSService.getFileContent(fileId);
+                editor.setValue(content);
+                
+                const model = editor.getModel();
+                const extension = fileName.split('.').pop();
+                const language = this.getLanguageFromExtension(extension);
+                monaco.editor.setModelLanguage(model, language);
+                
+                // 변경 감지
+                model.onDidChangeContent(() => {
+                    AppState.dom.saveFileBtn.classList.remove('hidden');
+                    clearTimeout(this.saveDebounceTimer);
+                    // 2초 디바운스 (자동 저장 아님, 저장 버튼 표시용)
+                    this.saveDebounceTimer = setTimeout(() => {}, 2000);
+                });
+                
+                AppState.dom.saveFileBtn.classList.add('hidden');
+            },
+            
+            getLanguageFromExtension(ext) {
+                const map = {
+                    js: 'javascript', jsx: 'javascript',
+                    ts: 'typescript', tsx: 'typescript',
+                    py: 'python', html: 'html', css: 'css',
+                    json: 'json', md: 'markdown'
+                };
+                return map[ext] || 'plaintext';
+            },
+            
+            saveCurrentFile() {
+                if (AppState.currentOpenFileId) {
+                    VFSService.saveFileContent(AppState.currentOpenFileId, editor.getValue());
+                }
+            },
+
+            closeEditor() {
+                AppState.currentOpenFileId = null;
+                editor.setValue("");
+                AppState.dom.currentFileTab.textContent = "";
+                AppState.dom.saveFileBtn.classList.add('hidden');
+                this.switchToMainEditor();
+            },
+            
+            switchToMainEditor() {
+                AppState.dom.diffEditorContainer.classList.add('hidden');
+                AppState.dom.editorContainer.classList.remove('hidden');
+                AppState.dom.promptOutput.classList.add('hidden');
+            },
+            
+            showDiffView(originalContent, modifiedContent) {
+                const lang = editor.getModel() ? editor.getModel().getLanguageId() : 'plaintext';
+                const originalModel = monaco.editor.createModel(originalContent, lang);
+                const modifiedModel = monaco.editor.createModel(modifiedContent, lang);
+                
+                diffEditor.setModel({
+                    original: originalModel,
+                    modified: modifiedModel
+                });
+                
+                AppState.dom.editorContainer.classList.add('hidden');
+                AppState.dom.diffEditorContainer.classList.remove('hidden');
+                AppState.dom.saveFileBtn.classList.add('hidden');
+                AppState.dom.promptOutput.classList.add('hidden');
+                
+                // 기존 탭 내용 초기화
+                const fileName = AppState.dom.currentFileTab.textContent.replace("DIFF: ", "");
+                AppState.dom.currentFileTab.innerHTML = `<span class="text-gray-300 text-sm">${fileName} (AI 제안)</span>`;
+
+                const applyBtn = document.createElement('button');
+                applyBtn.textContent = "✅ 이 변경점 적용하기";
+                applyBtn.className = "ml-4 bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded-md text-sm";
+                applyBtn.onclick = () => {
+                    const newContent = diffEditor.getModel().modified.getValue();
+                    editor.setValue(newContent); // 메인 에디터에 적용
+                    VFSService.saveFileContent(AppState.currentOpenFileId, newContent);
+                    this.switchToMainEditor();
+                    AppState.dom.currentFileTab.textContent = fileName;
+                    AppState.dom.saveFileBtn.classList.add('hidden');
+                    ModalService.showToast("AI 변경점이 적용 및 저장되었습니다.");
+                };
+                AppState.dom.currentFileTab.appendChild(applyBtn);
+            }
+        };
+
+        // ===================================
+        // F. 액션 (프롬프트) 서비스
+        // ===================================
+        const ActionService = {
+            init() {
+                AppState.dom.addActionBtn.addEventListener('click', () => this.showAddActionModal());
+            },
+            
+            initActionListener() {
+                if (!AppState.userId) return;
+                const promptsQuery = query(collection(db, "prompts"), where("userId", "==", AppState.userId));
+                
+                AppState.promptListener = onSnapshot(promptsQuery, (snapshot) => {
+                    const prompts = [];
+                    snapshot.forEach((doc) => {
+                        prompts.push({ id: doc.id, ...doc.data() });
+                    });
+                    this.renderActionRail(prompts);
+                }, (error) => {
+                    console.error("액션 로드 실패:", error);
+                });
+            },
+            
+            renderActionRail(prompts) {
+                AppState.dom.actionRail.innerHTML = "";
+                // 모델 이름 표시
+                prompts.forEach(prompt => {
+                    const btn = document.createElement('button');
+                    btn.className = "w-full text-left p-2 rounded-md bg-ide-bg hover:bg-ide-selected transition-all flex items-center";
+                    const modelName = prompt.model ? prompt.model.replace('gemini-','').split('-')[0] : 'default';
+                    btn.innerHTML = `<span class.truncate="mr-2">${prompt.emoji}</span> 
+                                     <span class="flex-grow truncate" title="${prompt.name}">${prompt.name}</span>
+                                     <span class="text-xs text-gray-500 flex-shrink-0 ml-2">${modelName}</span>`;
+                    
+                    btn.addEventListener('click', () => {
+                        PromptEngineService.execute(prompt);
+                    });
+                    
+                    // [MODIFIED] 편집 및 삭제 버튼 컨테이너
+                    const controls = document.createElement('div');
+                    controls.className = "ml-auto flex-shrink-0";
+
+                    // [NEW] 편집 버튼 (Axiom of Actionability)
+                    const editBtn = document.createElement('span');
+                    editBtn.textContent = '✏️';
+                    editBtn.className = 'cursor-pointer px-1 text-gray-400 hover:text-white';
+                    editBtn.title = "Edit Action";
+                    editBtn.onclick = (e) => {
+                        e.stopPropagation();
+                        this.showEditActionModal(prompt);
+                    };
+                    
+                    const delBtn = document.createElement('span');
+                    delBtn.textContent = 'X';
+                    delBtn.className = 'cursor-pointer px-1 text-red-500 hover:text-red-400';
+                    delBtn.title = "Delete Action";
+                    delBtn.onclick = (e) => {
+                        e.stopPropagation();
+                        if (confirm(`'${prompt.name}' 액션을 삭제하시겠습니까?`)) {
+                            this.delete(prompt.id);
+                        }
+                    };
+
+                    controls.appendChild(editBtn);
+                    controls.appendChild(delBtn);
+                    btn.appendChild(controls);
+                    
+                    AppState.dom.actionRail.appendChild(btn);
+                });
+            },
+            
+            showAddActionModal() {
+                // 모델 선택 드롭다운 추가
+                ModalService.show("새 액션 등록", `
+                    <div class="space-y-4">
+                        <input type="text" id="prompt-name" placeholder="액션 이름 (예: 코드 리뷰)" class="w-full bg-ide-bg text-sm px-3 py-2 rounded border border-ide-border">
+                        <input type="text" id="prompt-emoji" placeholder="이모지 (예: 🎨)" class="w-1/4 bg-ide-bg text-sm px-3 py-2 rounded border border-ide-border">
+                        <textarea id="prompt-template" rows="10" placeholder="프롬프트 템플릿 (예: {{Context}}를 참고해서 이 코드를 리뷰해줘.)" class="w-full bg-ide-bg text-sm px-3 py-2 rounded border border-ide-border"></textarea>
+                        
+                        <div class="mt-4">
+                            <label class="block text-sm font-medium text-gray-300 mb-1">Gemini 모델 선택</label>
+                            <select id="prompt-model" class="w-full bg-ide-bg text-sm px-3 py-2 rounded border border-ide-border">
+                                <option value="gemini-2.5-flash-preview-09-2025">Gemini 2.5 Flash (Preview)</option>
+                                <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+                                <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
+                            </select>
+                        </div>
+                        
+                        <button id="save-prompt-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">저장</button>
+                    </div>
+                `, (modalEl) => {
+                    modalEl.querySelector('#save-prompt-btn').addEventListener('click', () => {
+                        const name = modalEl.querySelector('#prompt-name').value;
+                        const emoji = modalEl.querySelector('#prompt-emoji').value;
+                        const template = modalEl.querySelector('#prompt-template').value;
+                        const model = modalEl.querySelector('#prompt-model').value; 
+                        
+                        if (name && template) {
+                            this.save(name, emoji, template, model); 
+                            ModalService.hide();
+                        } else {
+                            alert("이름과 템플릿을 모두 입력해야 합니다.");
+                        }
+                    });
+                });
+            },
+
+            // [NEW] 액션 편집 모달 (Axiom of Actionability)
+            showEditActionModal(prompt) {
+                ModalService.show("액션 편집", `
+                    <div class="space-y-4">
+                        <input type="text" id="prompt-name-edit" value="${prompt.name}" class="w-full bg-ide-bg text-sm px-3 py-2 rounded border border-ide-border">
+                        <input type="text" id="prompt-emoji-edit" value="${prompt.emoji}" class="w-1/4 bg-ide-bg text-sm px-3 py-2 rounded border border-ide-border">
+                        <textarea id="prompt-template-edit" rows="10" class="w-full bg-ide-bg text-sm px-3 py-2 rounded border border-ide-border">${prompt.template}</textarea>
+                        
+                        <div class="mt-4">
+                            <label class="block text-sm font-medium text-gray-300 mb-1">Gemini 모델 선택</label>
+                            <select id="prompt-model-edit" class="w-full bg-ide-bg text-sm px-3 py-2 rounded border border-ide-border">
+                                <option value="gemini-2.5-flash-preview-09-2025">Gemini 2.5 Flash (Preview)</option>
+                                <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+                                <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
+                            </select>
+                        </div>
+                        
+                        <button id="update-prompt-btn" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">수정 완료</button>
+                    </div>
+                `, (modalEl) => {
+                    // 모델 셀렉트 박스 현재 값으로 설정
+                    modalEl.querySelector('#prompt-model-edit').value = prompt.model || 'gemini-2.5-flash-preview-09-2025';
+                    
+                    modalEl.querySelector('#update-prompt-btn').addEventListener('click', () => {
+                        const name = modalEl.querySelector('#prompt-name-edit').value;
+                        const emoji = modalEl.querySelector('#prompt-emoji-edit').value;
+                        const template = modalEl.querySelector('#prompt-template-edit').value;
+                        const model = modalEl.querySelector('#prompt-model-edit').value; 
+                        
+                        if (name && template) {
+                            this.update(prompt.id, name, emoji, template, model); 
+                            ModalService.hide();
+                        } else {
+                            alert("이름과 템플릿을 모두 입력해야 합니다.");
+                        }
+                    });
+                });
+            },
+            
+            async save(name, emoji, template, model) { 
+                try {
+                    await setDoc(doc(collection(db, "prompts")), {
+                        userId: AppState.userId,
+                        name: name,
+                        emoji: emoji,
+                        template: template,
+                        model: model, 
+                        order: 1,
+                        // [NEW] 매핑 저장 필드 초기화 (Rule R2.4.1)
+                        variableMappings: {} 
+                    });
+                } catch (error) {
+                    console.error("프롬프트 저장 실패:", error);
+                    ModalService.show("오류", `<p>액션 저장에 실패했습니다: ${error.message}</p>`);
+                }
+            },
+            
+            // [NEW] 액션 업데이트 (Axiom of SOLID Architecture)
+            async update(promptId, name, emoji, template, model) {
+                try {
+                    await updateDoc(doc(db, "prompts", promptId), {
+                        name: name,
+                        emoji: emoji,
+                        template: template,
+                        model: model, 
+                        // variableMappings는 수정하지 않음 (유지)
+                    });
+                    ModalService.showToast("액션이 수정되었습니다.");
+                } catch (error) {
+                    console.error("프롬프트 수정 실패:", error);
+                    ModalService.show("오류", `<p>액션 수정에 실패했습니다: ${error.message}</p>`);
+                }
+            },
+
+            // [NEW] 매핑 정보 업데이트 (Rule R2.4.1 / Axiom of SOLID Architecture)
+            async updateMappings(promptId, mappingsMap) {
+                // Firestore 저장을 위해 Map<string, NodeObject[]> -> Object<string, string[]> 변환
+                const simplifiedMappings = {};
+                for (const [key, nodes] of mappingsMap.entries()) {
+                    simplifiedMappings[key] = nodes.map(node => node.id);
+                }
+                
+                try {
+                    await updateDoc(doc(db, "prompts", promptId), {
+                        variableMappings: simplifiedMappings
+                    });
+                } catch (error) {
+                    console.error("프롬프트 매핑 저장 실패:", error);
+                    // 사용자에게 이 오류를 알릴 필요는 없을 수 있음 (백그라운드 작업)
+                }
+            },
+            
+            async delete(promptId) {
+                try {
+                    await deleteDoc(doc(db, "prompts", promptId));
+                } catch (error) {
+                    console.error("프롬프트 삭제 실패:", error);
+                }
+            }
+        };
+
+        // ===================================
+        // G. 프롬프트 엔진 서비스
+        // ===================================
+        const PromptEngineService = {
+            async execute(prompt) {
+                AppState.currentActionPrompt = prompt;
+                
+                const variables = this.parseVariables(prompt.template);
+                let mappings = new Map();
+
+                if (variables.length > 0) {
+                     // [NEW] 저장된 매핑 정보(prompt.variableMappings)를 모달로 전달 (Axiom of Minimum Cognitive Load)
+                     const savedMappings = prompt.variableMappings || {};
+                     mappings = await this.showVariableMapper(variables, savedMappings);
+                     if (!mappings) { // 사용자가 매핑 취소
+                        ModalService.showToast("액션이 취소되었습니다.");
+                        return;
+                    }
+                }
+
+                // 매핑이 완료되거나 필요 없으면 AI 실행
+                this.runAI(prompt, mappings);
+            },
+            
+            parseVariables(template) {
+                const regex = /\{\{(.*?)\}\}/g;
+                let match;
+                const vars = new Set();
+                while ((match = regex.exec(template)) !== null) {
+                    // {{TargetCode}} 같은 특수 변수는 제외
+                    if (match[1].trim().toLowerCase() !== 'targetcode') {
+                        vars.add(match[1].trim());
+                    }
+                }
+                return Array.from(vars);
+            },
+            
+            // [MODIFIED] 변수 매핑 모달 (savedMappings 파라미터 추가)
+            showVariableMapper(variables, savedMappings) {
+                return new Promise((resolve) => {
+                    // [NEW] mappings 맵을 savedMappings로 미리 채움 (Axiom of Minimum Cognitive Load)
+                    const mappings = new Map();
+                    variables.forEach(v => {
+                        const savedNodeIds = savedMappings[v] || [];
+                        // Firestore ID를 VFS 캐시의 전체 노드 객체로 변환
+                        const nodes = savedNodeIds
+                            .map(id => AppState.currentNodeCache.get(id))
+                            .filter(Boolean); // 캐시에 없는(삭제된) 노드 필터링
+                        mappings.set(v, nodes);
+                    });
+
+                    let selectedVariable = variables[0];
+
+                    let html = `<div class="flex h-[70vh] space-x-4">`;
+                    
+                    // 1. 왼쪽: 변수 목록
+                    html += `<div class="w-1/3 border-r border-ide-border pr-4">
+                                <h3 class="text-lg font-bold text-white mb-3">1. 변수 선택</h3>
+                                <div id="variable-list" class="space-y-2">`;
+                    variables.forEach((variable, index) => {
+                        html += `<button data-varname="${variable}" class="variable-select-btn w-full text-left p-2 rounded-md bg-ide-bg hover:bg-ide-selected ${index === 0 ? 'bg-ide-accent text-white' : ''}">
+                                    <span class="font-bold text-cyan-400">{{${variable}}}</span>
+                                    <span id="var-count-${variable}" class="text-xs text-gray-400 ml-2">(0개)</span>
+                                 </button>`;
+                    });
+                    html += `</div></div>`;
+                    
+                    // 2. 오른쪽: 파일 트리
+                    html += `<div class="w-2/3 flex flex-col">
+                                <h3 class="text-lg font-bold text-white mb-3">2. 파일/폴더 클릭하여 추가/제거</h3>
+                                <div id="mapping-file-tree" class="flex-grow min-h-0 overflow-auto bg-ide-bg p-2 rounded border border-ide-border">
+                                    <!-- 선택 가능한 파일 트리가 여기에 렌더링됨 -->
+                                </div>
+                             </div>`;
+                    
+                    html += `</div>`; // .flex
+                    
+                    html += `<div class="flex justify-end space-x-3 mt-6 border-t border-ide-border pt-4">
+                                <button id="cancel-mapping-btn" class="bg-gray-600 hover:bg-gray-700 text-white py-2 px-4 rounded">취소</button>
+                                <button id="run-mapping-btn" class="bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded">🚀 실행</button>
+                             </div>`;
+
+                    ModalService.show(`변수 매핑 (${AppState.currentActionPrompt.name})`, html, (modalEl) => {
+                        const treeContainer = modalEl.querySelector('#mapping-file-tree');
+                        const varListEl = modalEl.querySelector('#variable-list');
+
+                        // 변수 선택 버튼 리스너
+                        varListEl.querySelectorAll('.variable-select-btn').forEach(btn => {
+                            btn.addEventListener('click', () => {
+                                varListEl.querySelectorAll('.variable-select-btn').forEach(b => b.classList.remove('bg-ide-accent', 'text-white'));
+                                btn.classList.add('bg-ide-accent', 'text-white');
+                                selectedVariable = btn.getAttribute('data-varname');
+                                // 트리 UI 업데이트 (이미 매핑된 항목 하이라이트)
+                                updateTreeHighlights();
+                            });
+                        });
+                        
+                        // 매핑된 항목 수 업데이트
+                        const updateVarCount = (varName) => {
+                            const count = mappings.get(varName)?.length || 0;
+                            const el = modalEl.querySelector(`#var-count-${varName}`);
+                            if (el) el.textContent = `(${count}개)`;
+                        };
+
+                        // 트리에서 이미 매핑된 항목 하이라이트
+                        const updateTreeHighlights = () => {
+                            treeContainer.querySelectorAll('.selectable-file-tree-item').forEach(el => {
+                                el.classList.remove('mapped');
+                            });
+                            
+                            const currentMappedNodes = mappings.get(selectedVariable) || [];
+                            currentMappedNodes.forEach(node => {
+                                const el = treeContainer.querySelector(`[data-node-id="${node.id}"]`);
+                                if (el) el.classList.add('mapped');
+                            });
+                        };
+
+                        // 파일 트리 렌더링 (선택 가능 모드)
+                        const nodes = Array.from(AppState.currentNodeCache.values()).filter(n => n.userId === AppState.userId);
+                        const tree = UIService.buildTree(nodes, "root");
+                        
+                        // [MODIFIED] onSelectCallback 로직 수정 (불변성 적용)
+                        const treeHtml = UIService.buildSelectableFileTreeHTML(tree, (node) => {
+                            // 트리 아이템 클릭 시 실행될 콜백
+                            if (!selectedVariable) return;
+
+                            let currentMappings = mappings.get(selectedVariable);
+                            if (!currentMappings) {
+                                console.error(`[Mapper Bug] No mapping array found for ${selectedVariable}`);
+                                currentMappings = []; // 비상시, 빈 배열로 초기화
+                            }
+
+                            const existingIndex = currentMappings.findIndex(n => n.id === node.id);
+                            
+                            let newMappings;
+                            if (existingIndex > -1) {
+                                // 제거: 'node'를 제외한 새 배열 생성
+                                newMappings = currentMappings.filter(n => n.id !== node.id);
+                            } else {
+                                // 추가: 기존 배열에 'node'를 추가한 새 배열 생성
+                                newMappings = [...currentMappings, node];
+                            }
+                            
+                            // 맵에 새 배열로 업데이트 (핵심 수정)
+                            mappings.set(selectedVariable, newMappings);
+                            
+                            updateVarCount(selectedVariable);
+                            updateTreeHighlights();
+                        });
+                        
+                        treeContainer.appendChild(treeHtml);
+                        
+                        // [NEW] 모달 로드 시, 저장된 매핑 정보로 카운트 및 하이라이트 초기화
+                        variables.forEach(v => updateVarCount(v));
+                        updateTreeHighlights();
+                        
+                        modalEl.querySelector('#cancel-mapping-btn').onclick = () => {
+                            ModalService.hide();
+                            resolve(null);
+                        };
+                        modalEl.querySelector('#run-mapping-btn').onclick = () => {
+                            ModalService.hide();
+                            resolve(mappings);
+                        };
+
+                    }, 'max-w-4xl'); // 더 큰 모달 사용
+                });
+            },
+            
+            // 백그라운드 작업 관리 로직 추가
+            async runAI(prompt, mappings) {
+                const taskId = crypto.randomUUID();
+                const task = { 
+                    id: taskId, 
+                    name: prompt.name, 
+                    status: 'pending', 
+                    startTime: new Date(), 
+                    error: null 
+                };
+                AppState.runningTasks.unshift(task); // 맨 위에 추가
+                ModalService.showTaskStatusModal(); // 상태 모달 표시
+                
+                try {
+                    task.status = 'running';
+                    ModalService.updateTaskStatusModal();
+                    
+                    AppState.dom.promptOutput.textContent = `[${prompt.name}] AI 컨텍스트 직조 중...`;
+                    AppState.dom.promptOutput.classList.remove('hidden');
+
+                    const contextXmlMap = await ContextWeaverService.buildContext(mappings);
+                    
+                    // [NEW] 컨텍스트 직조 성공 후, 매핑 정보를 Firestore에 저장 (Rule R2.4.1)
+                    ActionService.updateMappings(prompt.id, mappings);
+
+                    let metaXml = "";
+                    if (AppState.selectedNodeId) {
+                        const meta = MetadataService.calculateEffectiveMetadata(AppState.selectedNodeId);
+                        metaXml = "<MetadataContext>\n" + Object.keys(meta).map(key => `  <Tag key="${key}">${meta[key]}</Tag>`).join('\n') + "\n</MetadataContext>\n";
+                    }
+
+                    let fullPrompt = prompt.template;
+                    
+                    for (const [varName, mappedItems] of mappings.entries()) {
+                        const escapedVarName = escapeRegExp(varName);
+                        const regex = new RegExp(`\\{\\{${escapedVarName}\\}\\}`, 'g');
+                        const varXml = contextXmlMap[varName] || `<!-- {{${varName}}}에 매핑된 컨텐츠 없음 -->`;
+                        fullPrompt = fullPrompt.replace(regex, varXml);
+                    }
+                    
+                    fullPrompt = metaXml + fullPrompt;
+                    
+                    if (AppState.currentOpenFileId && fullPrompt.includes("{{TargetCode}}")) {
+                        const currentContent = editor.getValue();
+                        const node = AppState.currentNodeCache.get(AppState.currentOpenFileId);
+                        const targetXml = ContextWeaverService.wrapFile(node, currentContent);
+                        fullPrompt = fullPrompt.replace(/\{\{TargetCode\}\}/g, targetXml);
+                    }
+                    
+                    console.log("===== 최종 AI 전송 프롬프트 =====", fullPrompt);
+                    AppState.dom.promptOutput.textContent = "AI API 호출 중...";
+
+                    // Get API Key and Model
+                    const apiKey = ApiKeyService.getActiveKey();
+                    const modelName = prompt.model || 'gemini-2.5-flash-preview-09-2025'; //
+                    
+                    if (!apiKey) {
+                        throw new Error("Gemini API 키가 설정되지 않았습니다. 헤더의 키 아이콘을 클릭해 등록하세요.");
+                    }
+                    
+                    const aiResponse = await AIService.callGemini(fullPrompt, modelName, apiKey);
+                    
+                    // Task Success
+                    task.status = 'success';
+                    ModalService.updateTaskStatusModal();
+                    
+                    if (AppState.currentOpenFileId && (prompt.name.includes("수정") || prompt.name.includes("리팩토링"))) {
+                        const originalContent = editor.getValue();
+                        const codeMatch = aiResponse.match(/```[\w]*\n([\s\S]*?)```/);
+                        
+                        if (codeMatch && codeMatch[1]) {
+                            const newCode = codeMatch[1].trim();
+                            EditorService.showDiffView(originalContent, newCode);
+                            AppState.dom.promptOutput.classList.add('hidden'); // Diff 뷰가 있으니 출력창 숨김
+                        } else {
+                            AppState.dom.promptOutput.textContent = `[AI 응답 (코드 블록 없음)]\n${aiResponse}`;
+                        }
+                    } else {
+                        AppState.dom.promptOutput.textContent = `[AI 응답]\n${aiResponse}`;
+                    }
+                } catch (error) {
+                    console.error("AI API 호출 실패:", error);
+                    // Task Failed
+                    task.status = 'failed';
+                    task.error = error.message;
+                    ModalService.updateTaskStatusModal();
+                    
+                    ModalService.show("AI 오류", `<p>AI API 호출에 실패했습니다: ${error.message}</p>`);
+                    AppState.dom.promptOutput.textContent = `[AI 오류]\n${error.message}`;
+                }
+            },
+        };
+
+        // ===================================
+        // H. 컨텍스트 직조기 서비스
+        // ===================================
+        const ContextWeaverService = {
+            async buildContext(mappings) {
+                const contextXmlMap = {};
+                for (const [variableName, nodes] of mappings.entries()) {
+                    let varXml = `<${variableName}>\n`;
+                    for (const node of nodes) {
+                        if (node.type === 'file') {
+                            const content = await VFSService.getFileContent(node.id);
+                            varXml += this.wrapFile(node, content);
+                        } else if (node.type === 'folder') {
+                            varXml += await this.wrapFolder(node);
+                        }
+                    }
+                    varXml += `</${variableName}>\n`;
+                    contextXmlMap[variableName] = varXml;
+                }
+                return contextXmlMap;
+            },
+        
+            wrapFile(node, content) {
+                return `  <File path="${node.name}">\n${content}\n  </File>\n`;
+            },
+        
+            async wrapFolder(folderNode) {
+                let folderXml = `  <Directory path="${folderNode.name}">\n`;
+                
+                const children = Array.from(AppState.currentNodeCache.values())
+                    .filter(node => node.parentId === folderNode.id)
+                    .sort((a, b) => {
+                        if (a.type !== b.type) return a.type === 'folder' ? -1 : 1;
+                        return a.name.localeCompare(b.name);
+                    });
+
+                for (const child of children) {
+                    if (child.type === 'file') {
+                        const content = await VFSService.getFileContent(child.id);
+                        folderXml += `    <File path="${child.name}">\n${content}\n    </File>\n`;
+                    } else if (child.type === 'folder') {
+                        // 재귀 호출
+                        folderXml += await this.wrapFolder(child); // 올바른 들여쓰기를 위해 재귀 결과 바로 삽입
+                    }
+                }
+                
+                folderXml += `  </Directory>\n`;
+                return folderXml;
+            }
+        };
+
+        // ===================================
+        // I. AI API 서비스
+        // ===================================
+        const AIService = {
+        
+            async callGemini(fullPrompt, modelName, apiKey) { 
+                if (!apiKey) {
+                    return Promise.reject(new Error("Gemini API 키가 설정되지 않았습니다. (AIService.callGemini)"));
+                }
+                
+                const API_URL = `https://generativestack.ai/api/gemini/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+                
+                let genConfig = {
+                    temperature: 0.7, 
+                    topK: 1, 
+                    topP: 1,
+                    maxOutputTokens: 4096, // 기본 Flash
+                };
+                
+                if (modelName === 'gemini-2.5-pro') {
+                    genConfig.maxOutputTokens = 8192; // Pro는 더 많이
+                }
+                
+                const requestBody = {
+                    contents: [{ parts: [{ "text": fullPrompt }] }],
+                    generationConfig: genConfig, // 동적 설정 사용
+                    safetySettings: [
+                        { "category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE" },
+                        { "category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE" },
+                        { "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE" },
+                        { "category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE" },
+                    ]
+                };
+
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(requestBody)
+                });
+
+                if (!response.ok) {
+                    const errorBody = await response.json();
+                    throw new Error(`AI API Error (${response.status}): ${errorBody.error.message}`);
+                }
+
+                const data = await response.json();
+                
+                if (data.candidates && data.candidates[0].content) {
+                    return data.candidates[0].content.parts[0].text;
+                } else if (data.candidates && data.candidates[0].finishReason) {
+                    throw new Error(`AI가 응답 생성을 중단했습니다: ${data.candidates[0].finishReason}`);
+                } else {
+                    throw new Error("AI로부터 유효한 응답을 받지 못했습니다.");
+                }
+            }
+        };
+        
+        // ===================================
+        // J. API 키 서비스
+        // ===================================
+        const ApiKeyService = {
+            init() {
+                AppState.dom.apiKeyBtn.addEventListener('click', () => this.showKeyManagerModal());
+            },
+            
+            initKeyListener() {
+                if (!AppState.userId) return;
+                // 키 저장을 위한 경로 (user_settings 컬렉션)
+                const keysQuery = query(collection(db, "user_settings", AppState.userId, "api_keys"));
+                
+                onSnapshot(keysQuery, (snapshot) => {
+                    AppState.apiKeys = [];
+                    snapshot.forEach((doc) => {
+                        AppState.apiKeys.push({ id: doc.id, ...doc.data() });
+                    });
+                    // 이름순 정렬
+                    AppState.apiKeys.sort((a, b) => a.name.localeCompare(b.name));
+                    console.log("API Keys loaded:", AppState.apiKeys.length);
+                }, (error) => {
+                    console.error("API 키 로드 실패:", error);
+                    ModalService.show("오류", "API 키를 불러오는 데 실패했습니다.");
+                });
+            },
+            
+            getActiveKey() {
+                // [POLICY] 간단하게, 첫 번째 등록된 키를 활성 키로 사용합니다.
+                return AppState.apiKeys[0]?.key;
+            },
+
+            async saveKey(name, key) {
+                if (!name || !key) {
+                    alert("이름과 키를 모두 입력해야 합니다.");
+                    return false;
+                }
+                try {
+                    await setDoc(doc(collection(db, "user_settings", AppState.userId, "api_keys")), {
+                        name: name,
+                        key: key, // [Security] 키를 Firestore에 저장하는 것은 보안 위험이 있습니다. 데모용입니다.
+                        createdAt: new Date()
+                    });
+                    ModalService.showToast("API 키가 저장되었습니다.");
+                    return true;
+                } catch (error) {
+                    console.error("API 키 저장 실패:", error);
+                    ModalService.show("오류", "API 키 저장 실패: " + error.message);
+                    return false;
+                }
+            },
+            
+            async deleteKey(keyId) {
+                if (!confirm("이 API 키를 정말 삭제하시겠습니까?")) return;
+                try {
+                    await deleteDoc(doc(db, "user_settings", AppState.userId, "api_keys", keyId));
+                    ModalService.showToast("API 키가 삭제되었습니다.");
+                } catch (error) {
+                    console.error("API 키 삭제 실패:", error);
+                    ModalService.show("오류", "API 키 삭제 실패: " + error.message);
+                }
+            },
+            
+            showKeyManagerModal() {
+                let html = `<div class="space-y-4">
+                                <div>
+                                    <h4 class="text-lg font-semibold text-cyan-400 mb-2">새 API 키 등록</h4>
+                                    <p class="text-sm text-gray-400 mb-2">[주의] API 키는 Firestore에 저장됩니다. 프로덕션 환경에서는 더 안전한 방식 (예: Secrets Manager)을 사용해야 합니다.</p>
+                                    <div class="flex space-x-2">
+                                        <input type="text" id="api-key-name" placeholder="키 이름 (예: My Key)" class="bg-ide-bg text-sm px-2 py-1 rounded border border-ide-border w-1/3">
+                                        <input type="password" id="api-key-value" placeholder="gsk_... 또는 AIza..." class="bg-ide-bg text-sm px-2 py-1 rounded border border-ide-border w-2/3">
+                                        <button id="add-api-key-btn" class="bg-blue-600 text-white px-3 rounded text-sm">추가</button>
+                                    </div>
+                                </div>
+                                <div class="border-t border-ide-border pt-4 mt-4">
+                                    <h4 class="text-lg font-semibold text-gray-300 mb-2">등록된 키 목록</h4>
+                                    <div id="api-key-list" class="space-y-2 max-h-48 overflow-auto">
+                                        <!-- 키 목록 렌더링 -->
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="flex justify-end mt-6 border-t border-ide-border pt-4">
+                                <button id="close-key-modal-btn" class="bg-gray-600 hover:bg-gray-700 text-white py-2 px-4 rounded">닫기</button>
+                            </div>`;
+                
+                ModalService.show("Gemini API 키 관리", html, (modalEl) => {
+                    const listEl = modalEl.querySelector('#api-key-list');
+                    const keyNameInput = modalEl.querySelector('#api-key-name');
+                    const keyValueInput = modalEl.querySelector('#api-key-value');
+                    
+                    const renderList = () => {
+                        listEl.innerHTML = "";
+                        if (AppState.apiKeys.length === 0) {
+                            listEl.innerHTML = `<p class="text-gray-500 italic">등록된 키가 없습니다.</p>`;
+                            return;
+                        }
+                        AppState.apiKeys.forEach((key, index) => {
+                            const item = document.createElement('div');
+                            item.className = "flex items-center justify-between bg-ide-bg p-2 rounded";
+                            item.innerHTML = `
+                                <div>
+                                    <span class="font-medium text-gray-300">${key.name}</span>
+                                    <span class="text-gray-400 text-sm ml-2">(...${key.key.slice(-4)})</span>
+                                    ${index === 0 ? '<span class="text-xs bg-green-600 text-white px-2 py-0.5 rounded-full ml-2">Active</span>' : ''}
+                                </div>
+                                <button data-key-id="${key.id}" class="text-red-500 px-2">X</button>
+                            `;
+                            item.querySelector('button').onclick = async () => {
+                                await this.deleteKey(key.id);
+                                renderList(); // 삭제 후 리스트 새로고침
+                            };
+                            listEl.appendChild(item);
+                        });
+                    };
+                    
+                    // onSnapshot이 AppState.apiKeys를 업데이트하므로,
+                    // 모달이 열린 동안 실시간 반영을 위해 리스너를 다시 사용 (단순화)
+                    const keysQuery = query(collection(db, "user_settings", AppState.userId, "api_keys"));
+                    const modalListener = onSnapshot(keysQuery, (snapshot) => {
+                         AppState.apiKeys = [];
+                         snapshot.forEach((doc) => AppState.apiKeys.push({ id: doc.id, ...doc.data() }));
+                         AppState.apiKeys.sort((a, b) => a.name.localeCompare(b.name));
+                         renderList();
+                    });
+                    
+                    modalEl.querySelector('#add-api-key-btn').onclick = async () => {
+                        const name = keyNameInput.value;
+                        const key = keyValueInput.value;
+                        const success = await this.saveKey(name, key);
+                        if (success) {
+                            keyNameInput.value = "";
+                            keyValueInput.value = "";
+                            // onSnapshot이 렌더링을 처리할 것임
+                        }
+                    };
+                    
+                    modalEl.querySelector('#close-key-modal-btn').onclick = () => {
+                        modalListener(); // 모달 닫을 때 리스너 정리
+                        ModalService.hide();
+                    };
+                });
+            }
+        };
+
+        // ===================================
+        // K. UI 서비스 (DOM 렌더링 및 이벤트)
+        // ===================================
+        const UIService = {
+            init() {
+                // 루트 파일/폴더 생성
+                AppState.dom.addRootFileBtn.addEventListener('click', () => this.handleNewFile("root"));
+                AppState.dom.addRootFolderBtn.addEventListener('click', () => this.handleNewFolder("root"));
+                
+                // 파일 업로더
+                AppState.dom.fileUploader.addEventListener('change', (e) => {
+                    const parentId = AppState.dom.fileUploader.getAttribute('data-parent-id') || "root";
+                    VFSService.handleFileUpload(e.target.files, parentId);
+                    AppState.dom.fileUploader.value = "";
+                });
+                
+                // 파일 트리 루트 컨텍스트 메뉴
+                AppState.dom.fileTreeContainer.addEventListener('contextmenu', (e) => {
+                    if (e.target === AppState.dom.fileTreeContainer) {
+                        e.preventDefault();
+                        this.clearSelection();
+                        this.showContextMenu(e, null); // root
+                    }
+                });
+            },
+            
+            renderFileTree(nodes) {
+                AppState.dom.fileTreeContainer.innerHTML = "";
+                const tree = this.buildTree(nodes, "root");
+                AppState.dom.fileTreeContainer.appendChild(this.buildTreeHTML(tree, 'main-tree'));
+                
+                if (AppState.selectedNodeId) {
+                    const el = AppState.dom.fileTreeContainer.querySelector(`[data-node-id="${AppState.selectedNodeId}"]`);
+                    if (el) {
+                        el.classList.add('selected');
+                        MetadataService.renderPanel(AppState.currentNodeCache.get(AppState.selectedNodeId));
+                    }
+                }
+            },
+            
+            buildTree(nodes, parentId) {
+                const children = nodes.filter(node => node.parentId === parentId)
+                    .map(node => ({
+                        ...node,
+                        children: node.type === 'folder' ? this.buildTree(nodes, node.id) : []
+                    }))
+                    .sort((a, b) => {
+                        if (a.type !== b.type) return a.type === 'folder' ? -1 : 1;
+                        return a.name.localeCompare(b.name);
+                    });
+                return children;
+            },
+
+            // 메인 파일 트리 렌더링
+            buildTreeHTML(treeNodes, type) {
+                const fragment = document.createDocumentFragment();
+                for (const node of treeNodes) {
+                    const el = document.createElement('div');
+                    el.className = 'file-tree-item'; // 공통 클래스
+                    el.setAttribute('data-node-id', node.id);
+                    el.setAttribute('data-node-type', node.type);
+                    el.setAttribute('data-node-name', node.name);
+                    
+                    const icon = node.type === 'folder' ? '📁' : '📄';
+                    el.innerHTML = `<span class="icon">${icon}</span> ${node.name}`;
+                    
+                    if (type === 'main-tree') {
+                        el.addEventListener('click', (e) => { e.stopPropagation(); this.selectNode(node); });
+                        el.addEventListener('contextmenu', (e) => {
+                            e.preventDefault(); e.stopPropagation();
+                            this.selectNode(node);
+                            this.showContextMenu(e, node);
+                        });
+
+                        // [NEW] Drag & Drop 이벤트 리스너 추가 (Axiom of Actionability)
+                        el.draggable = true;
+                        el.addEventListener('dragstart', (e) => this.handleDragStart(e, node));
+                        el.addEventListener('dragover', (e) => this.handleDragOver(e, node));
+                        el.addEventListener('dragleave', (e) => this.handleDragLeave(e));
+                        el.addEventListener('drop', (e) => this.handleDrop(e, node));
+                    }
+                    
+                    fragment.appendChild(el);
+
+                    if (node.type === 'folder') {
+                        // [MODIFIED] 폴더의 경우, 자식 컨테이너에도 dragover/leave/drop 리스너 추가
+                        const childrenContainer = document.createElement('div');
+                        childrenContainer.classList.add('folder-children');
+                        if (type === 'main-tree') {
+                            // 폴더의 빈 공간에 드롭하는 경우 (el과 동일한 로직)
+                            childrenContainer.addEventListener('dragover', (e) => this.handleDragOver(e, node)); 
+                            childrenContainer.addEventListener('dragleave', (e) => this.handleDragLeave(e));
+                            childrenContainer.addEventListener('drop', (e) => this.handleDrop(e, node));
+                        }
+                        
+                        if (node.children && node.children.length > 0) {
+                            childrenContainer.appendChild(this.buildTreeHTML(node.children, type));
+                        }
+                        fragment.appendChild(childrenContainer);
+                    }
+                }
+                return fragment;
+            },
+            
+            // [UX 개선] 변수 매핑용 선택 가능 파일 트리 렌더링
+            buildSelectableFileTreeHTML(treeNodes, onSelectCallback) {
+                const fragment = document.createDocumentFragment();
+                for (const node of treeNodes) {
+                    const el = document.createElement('div');
+                    // 'file-tree-item' 대신 'selectable-file-tree-item' 클래스 사용 (스타일 상속)
+                    el.className = 'file-tree-item selectable-file-tree-item'; 
+                    el.setAttribute('data-node-id', node.id);
+                    el.setAttribute('data-node-type', node.type);
+                    
+                    const icon = node.type === 'folder' ? '📁' : '📄';
+                    el.innerHTML = `<span class="icon">${icon}</span> ${node.name}`;
+                    
+                    // 클릭 이벤트를 '선택 콜백'으로 교체
+                    el.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        onSelectCallback(node);
+                    });
+                    
+                    fragment.appendChild(el);
+
+                    if (node.type === 'folder' && node.children && node.children.length > 0) {
+                        const childrenContainer = document.createElement('div');
+                        childrenContainer.classList.add('folder-children');
+                        childrenContainer.appendChild(this.buildSelectableFileTreeHTML(node.children, onSelectCallback));
+                        fragment.appendChild(childrenContainer);
+                    }
+                }
+                return fragment;
+            },
+            
+            selectNode(node) {
+                this.clearSelection();
+                AppState.selectedNodeId = node.id;
+                const el = AppState.dom.fileTreeContainer.querySelector(`[data-node-id="${node.id}"]`);
+                if (el) el.classList.add('selected');
+                
+                MetadataService.renderPanel(node);
+                
+                if (node.type === 'file') {
+                    EditorService.openFile(node.id, node.name);
+                }
+            },
+            
+            clearSelection() {
+                AppState.selectedNodeId = null;
+                MetadataService.renderPanel(null);
+                AppState.dom.fileTreeContainer.querySelectorAll('.selected').forEach(el => {
+                    el.classList.remove('selected');
+                });
+            },
+
+            // [NEW] Drag & Drop 핸들러 (Rule R2.4.1 / Axiom of SOLID Architecture)
+            handleDragStart(e, node) {
+                e.stopPropagation();
+                e.dataTransfer.setData('text/plain', node.id);
+                e.dataTransfer.effectAllowed = 'move';
+            },
+
+            handleDragOver(e, targetNode) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                const draggedNodeId = e.dataTransfer.getData('text/plain');
+                let dropTargetElement = e.currentTarget;
+
+                // 파일 위로 드래그 시, 부모 폴더를 타겟으로 함
+                if (targetNode.type === 'file') {
+                    // 부모 폴더 DOM 요소를 찾기 어려우므로, 파일 자체에 하이라이트 (시각적 혼란)
+                    // 대신 폴더에만 드롭 가능하도록 제한
+                    return; 
+                }
+
+                if (targetNode.type === 'folder' && draggedNodeId !== targetNode.id) {
+                     // .folder-children 위로 드롭 시, 부모(.file-tree-item)에 하이라이트
+                    if (dropTargetElement.classList.contains('folder-children')) {
+                         dropTargetElement = dropTargetElement.previousElementSibling; // .file-tree-item
+                    }
+                    if(dropTargetElement) {
+                        dropTargetElement.classList.add('drag-over');
+                    }
+                }
+            },
+
+            handleDragLeave(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                let dropTargetElement = e.currentTarget;
+                if (dropTargetElement.classList.contains('folder-children')) {
+                     dropTargetElement = dropTargetElement.previousElementSibling;
+                }
+                if(dropTargetElement) {
+                    dropTargetElement.classList.remove('drag-over');
+                }
+            },
+
+            handleDrop(e, targetNode) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                let dropTargetElement = e.currentTarget;
+                if (dropTargetElement.classList.contains('folder-children')) {
+                     dropTargetElement = dropTargetElement.previousElementSibling;
+                }
+                if(dropTargetElement) {
+                    dropTargetElement.classList.remove('drag-over');
+                }
+                
+                const draggedNodeId = e.dataTransfer.getData('text/plain');
+                if (!draggedNodeId || draggedNodeId === targetNode.id) return;
+                
+                let newParentId = "root";
+                
+                if (targetNode.type === 'folder') {
+                    newParentId = targetNode.id;
+                } else if (targetNode.type === 'file') {
+                    // 파일에 드롭 시, 해당 파일의 부모 폴더로 이동
+                    newParentId = targetNode.parentId; 
+                }
+
+                // 파일에 드롭 시, targetNode가 'file'이므로 targetNode.id 대신 newParentId를 전달
+                if(targetNode.type === 'file') {
+                     // 파일에 드롭하는 것을 허용하지 않으려면 여기서 return
+                     // return;
+                     
+                     // 파일의 부모 폴더로 이동
+                     VFSService.moveNode(draggedNodeId, newParentId);
+                } else {
+                     // 폴더에 드롭
+                     VFSService.moveNode(draggedNodeId, newParentId);
+                }
+            },
+            
+            // --- 컨텍스트 메뉴 로직 ---
+            showContextMenu(e, node) {
+                const menu = AppState.dom.contextMenu;
+                menu.innerHTML = "";
+                
+                const menuItems = [];
+                const nodeId = node ? node.id : "root";
+                const parentId = node ? node.parentId : "root";
+                
+                if (node) {
+                    menuItems.push({ text: "Rename", action: () => this.handleRename(node) });
+                    menuItems.push({ text: "Delete", action: () => this.handleDelete(node) });
+                    menuItems.push({ type: "divider" });
+                }
+                
+                let targetParentId = "root";
+                let uploadText = "Upload File(s) to Root";
+                
+                if (node && node.type === 'folder') {
+                    targetParentId = nodeId;
+                    uploadText = `Upload File(s) to "${node.name}"`;
+                    menuItems.push({ text: "New File in Folder", action: () => this.handleNewFile(nodeId) });
+                    menuItems.push({ text: "New Folder in Folder", action: () => this.handleNewFolder(nodeId) });
+                } else if (node && node.type === 'file') {
+                    targetParentId = parentId;
+                } else {
+                    menuItems.push({ text: "New File in Root", action: () => this.handleNewFile("root") });
+                    menuItems.push({ text: "New Folder in Root", action: () => this.handleNewFolder("root") });
+                }
+
+                menuItems.push({ type: "divider" });
+                menuItems.push({ text: uploadText, action: () => this.handleUpload(targetParentId) });
+                
+                menuItems.forEach(item => {
+                    if (item.type === 'divider') {
+                        menu.appendChild(document.createElement('div')).className = 'context-menu-divider';
+                    } else {
+                        const div = document.createElement('div');
+                        div.className = 'context-menu-item';
+                        div.textContent = item.text;
+                        div.onclick = (e) => { e.stopPropagation(); item.action(); this.hideContextMenu(); };
+                        menu.appendChild(div);
+                    }
+                });
+
+                menu.style.display = 'block';
+                menu.style.left = `${e.pageX}px`;
+                menu.style.top = `${e.pageY}px`;
+
+                document.addEventListener('click', () => this.hideContextMenu(), { once: true });
+            },
+            
+            hideContextMenu() {
+                AppState.dom.contextMenu.style.display = 'none';
+            },
+            
+            handleNewFile(parentId) {
+                const name = prompt("새 파일 이름을 입력하세요:");
+                if (name) VFSService.createNode("file", name, parentId);
+            },
+            handleNewFolder(parentId) {
+                const name = prompt("새 폴더 이름을 입력하세요:");
+                if (name) VFSService.createNode("folder", name, parentId);
+            },
+            handleRename(node) {
+                const newName = prompt(`"${node.name}"의 새 이름을 입력하세요:`, node.name);
+                if (newName && newName !== node.name) VFSService.renameNode(node.id, newName);
+            },
+            handleDelete(node) {
+                if (confirm(`'${node.name}'(와)과 그 안의 모든 내용을 정말 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) {
+                    VFSService.deleteNode(node.id);
+                }
+            },
+            handleUpload(parentId) {
+                AppState.dom.fileUploader.setAttribute('data-parent-id', parentId);
+                AppState.dom.fileUploader.click();
+            }
+        };
+
+        // ===================================
+        // Z. 앱 부트스트랩 (진입점)
+        // ===================================
+        const App = {
+            init() {
+                // 1. DOM 요소 캐싱
+                AppState.dom = {
+                    authContainer: document.getElementById('auth-container'),
+                    appContainer: document.getElementById('app-container'),
+                    googleLoginBtn: document.getElementById('google-login-btn'),
+                    logoutBtn: document.getElementById('logout-btn'),
+                    userName: document.getElementById('user-name'),
+                    apiKeyBtn: document.getElementById('api-key-btn'), 
+                    taskStatusBtn: document.getElementById('task-status-btn'), 
+                    fileTreeContainer: document.getElementById('file-tree-container'),
+                    actionRail: document.getElementById('action-rail'),
+                    addActionBtn: document.getElementById('add-action-btn'),
+                    addRootFileBtn: document.getElementById('add-root-file-btn'),
+                    addRootFolderBtn: document.getElementById('add-root-folder-btn'),
+                    editorContainer: document.getElementById('editor-container'),
+                    diffEditorContainer: document.getElementById('diff-editor-container'),
+                    currentFileTab: document.getElementById('current-file-tab'),
+                    saveFileBtn: document.getElementById('save-file-btn'),
+                    metadataPanel: document.getElementById('metadata-content'),
+                    editMetadataBtn: document.getElementById('edit-metadata-btn'), 
+                    contextMenu: document.getElementById('context-menu'),
+                    modalBackdrop: document.getElementById('modal-backdrop'),
+                    modalContent: document.getElementById('modal-content'),
+                    fileUploader: document.getElementById('file-uploader'),
+                    promptOutput: document.getElementById('prompt-output'),
+                };
+                
+                // 2. Firebase 초기화
+                initializeApp(firebaseConfig);
+                auth = getAuth();
+                db = getFirestore();
+                setLogLevel('debug');
+                
+                // 3. 핵심 서비스 초기화
+                ModalService.init();
+                EditorService.init();
+                UIService.init();
+                MetadataService.init();
+                ActionService.init();
+                ApiKeyService.init(); 
+                AuthService.init(); // 인증을 마지막에 시작하여 콜백 트리거
+                
+                // 4. 태스크 모달 리스너
+                AppState.dom.taskStatusBtn.addEventListener('click', () => ModalService.showTaskStatusModal());
+            }
+        };
+
+        // Monaco 에디터 로드 완료 후 앱 시작
+        require.config({ paths: { 'vs': 'https://cdn.jsdelivr.net/npm/monaco-editor/min/vs' } });
+        require(['vs/editor/editor.main'], () => {
+            monaco = window.monaco;
+            App.init(); // 앱 로직 실행
+        });
+
+    </script>
+</body>
+</html>
