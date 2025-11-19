@@ -1,0 +1,924 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Translation Studio V10: Perfection</title>
+    
+    <!-- Libraries -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://unpkg.com/turndown/dist/turndown.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400&display=swap');
+
+        :root { --primary: #2563eb; --bg-app: #f3f4f6; }
+        body { font-family: 'Pretendard', sans-serif; background-color: var(--bg-app); color: #1f2937; overflow: hidden; }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
+        
+        /* Tooltip & Toast */
+        #app-tooltip {
+            position: fixed; background: rgba(17, 24, 39, 0.95); color: #fff; padding: 6px 10px;
+            border-radius: 6px; font-size: 12px; pointer-events: none; opacity: 0; z-index: 10000;
+            transition: opacity 0.15s ease; white-space: pre-line; max-width: 300px;
+        }
+        #app-tooltip.show { opacity: 1; }
+
+        /* Animations */
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+        .spinner { animation: spin 0.8s linear infinite; }
+        .fade-in { animation: fadeIn 0.2s ease-out forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: scale(0.99); } to { opacity: 1; transform: scale(1); } }
+
+        /* Status Dots */
+        .status-dot { height: 8px; width: 8px; border-radius: 50%; display: inline-block; }
+        .status-queued { background-color: #9ca3af; }
+        .status-processing { background-color: #3b82f6; animation: pulse 1.5s infinite; }
+        .status-done { background-color: #10b981; }
+        .status-error { background-color: #ef4444; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
+
+        /* Editor */
+        .editor-area { font-family: 'Pretendard', sans-serif; line-height: 1.75; }
+        textarea { font-feature-settings: "ss01", "ss02"; outline: none; }
+    </style>
+</head>
+<body class="h-screen flex flex-col">
+
+<div id="root" class="h-full flex flex-col"></div>
+<div id="app-tooltip"></div>
+
+<script type="text/babel">
+    const { useState, useEffect, useRef, useMemo } = React;
+
+    // --- [System] Utilities ---
+    const Utils = {
+        generateId: (prefix) => `${prefix}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        formatTitle: (name) => name.replace(/\.(zip|json|html?|txt)$/i, '').replace(/^Chapter_(\d+)_/, 'Chapter $1: ').replace(/_/g, ' '),
+        naturalSort: (a, b) => a.path.localeCompare(b.path, undefined, { numeric: true, sensitivity: 'base' }),
+        
+        // Robust Splitting Logic with Normalization
+        getParagraphsForSplitting: (text) => {
+            if (!text || !text.trim()) return { paragraphs: [], separator: '\n\n' };
+            
+            // Normalize line endings
+            const normalized = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+
+            // 1. Try Double Newlines
+            let paragraphs = normalized.split(/\n{2,}/).map(p => p.trim()).filter(Boolean);
+            let separator = '\n\n';
+            
+            // 2. Try Single Newlines if chunks are too few
+            if (paragraphs.length < 2) {
+                paragraphs = normalized.split(/\n/).map(p => p.trim()).filter(Boolean);
+                separator = '\n';
+            }
+            
+            // 3. Fallback: If still 1 big block, return it (will be handled by length splitter)
+            return { paragraphs, separator };
+        },
+
+        copyToClipboard: (text) => {
+            if (!text) return;
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text)
+                    .then(() => Utils.showToast("클립보드에 복사되었습니다."))
+                    .catch(() => Utils.copyFallback(text));
+            } else {
+                Utils.copyFallback(text);
+            }
+        },
+        copyFallback: (text) => {
+            try {
+                const ta = document.createElement("textarea");
+                ta.value = text; ta.style.position="fixed"; ta.style.left="-9999px";
+                document.body.appendChild(ta); ta.focus(); ta.select();
+                document.execCommand('copy'); document.body.removeChild(ta);
+                Utils.showToast("클립보드에 복사되었습니다.");
+            } catch (e) { alert('복사 실패 (보안 차단)'); }
+        },
+        showToast: (msg, type='success') => window.dispatchEvent(new CustomEvent('show-toast', { detail: { msg, type } }))
+    };
+
+    // --- [Core] System Prompt ---
+    const DEFAULT_SYSTEM_PROMPT = `<?xml version="1.0" encoding="UTF-8"?>
+<AIFramework_V3>
+    <Cognitive_Core>
+        <Persona description="닥터 서이안 (Dr. Elian Seo), '인지 번역 아키텍트'.">
+            당신은 닥터 서이안입니다. 원문의 '의미'를 넘어, 독자가 느낄 '인지적 경험'을 한국어로 완벽하게 재설계합니다.
+        </Persona>
+        <Prime_Directive>
+            원문의 핵심 의도, 감성, 논리를 보존하며, **즉시 출판 가능한 수준의 자연스러운 문어체 한국어 원고**를 생성하십시오.
+        </Prime_Directive>
+    </Cognitive_Core>
+    <Task_Definition>
+        <Input_Data>
+            {{text}}
+        </Input_Data>
+        <Instruction>
+            위 Input_Data를 분석하여 완벽한 한국어 번역문을 작성하시오.
+            [절대적 제약사항]
+            1. **오직 번역된 텍스트 본문만 출력하십시오.** (인사말, 사족, 마크다운 코드블럭 기호 금지)
+            2. 마크다운 형식을 유지하십시오.
+            3. 원문의 문단 구분과 구조를 존중하되 가독성을 위해 최적화하십시오.
+            {{dictionary_instruction}}
+        </Instruction>
+    </Task_Definition>
+</AIFramework_V3>`;
+
+    // --- [Core] Database ---
+    class LocalDB {
+        constructor() { this.dbName = 'TranslationStudioDB_V10'; this.version = 1; this.db = null; }
+        async connect() {
+            if (this.db) return this.db;
+            return new Promise((resolve, reject) => {
+                const req = indexedDB.open(this.dbName, this.version);
+                req.onupgradeneeded = (e) => {
+                    const db = e.target.result;
+                    if(!db.objectStoreNames.contains('projects')) db.createObjectStore('projects', { keyPath: 'id' });
+                    if(!db.objectStoreNames.contains('chapters')) {
+                        const s = db.createObjectStore('chapters', { keyPath: 'id' });
+                        s.createIndex('projectId', 'projectId', { unique: false });
+                    }
+                };
+                req.onsuccess = (e) => { this.db = e.target.result; resolve(this.db); };
+                req.onerror = (e) => reject(e.target.error);
+            });
+        }
+        async getAllProjects() { const db = await this.connect(); return new Promise(r => db.transaction('projects').objectStore('projects').getAll().onsuccess = e => r(e.target.result)); }
+        async saveProject(p) { const db = await this.connect(); return new Promise(r => { const tx=db.transaction('projects','readwrite'); tx.objectStore('projects').put(p); tx.oncomplete=()=>r(p); }); }
+        async deleteProject(id) { 
+            const db = await this.connect(); 
+            const tx = db.transaction(['projects','chapters'],'readwrite');
+            tx.objectStore('projects').delete(id);
+            const idx = tx.objectStore('chapters').index('projectId');
+            idx.getAllKeys(id).onsuccess = (e) => { e.target.result.forEach(k => tx.objectStore('chapters').delete(k)); };
+            return new Promise(r => tx.oncomplete = () => r());
+        }
+        async getChapters(pid) { const db = await this.connect(); return new Promise(r => db.transaction('chapters').objectStore('chapters').index('projectId').getAll(pid).onsuccess = e => r(e.target.result)); }
+        async saveChapter(c) { const db = await this.connect(); return new Promise(r => { const tx=db.transaction('chapters','readwrite'); tx.objectStore('chapters').put(c); tx.oncomplete=()=>r(c); }); }
+        async saveChapters(chapters) {
+            const db = await this.connect();
+            return new Promise(r => {
+                const tx = db.transaction('chapters', 'readwrite');
+                const store = tx.objectStore('chapters');
+                chapters.forEach(c => store.put(c));
+                tx.oncomplete = () => r();
+            });
+        }
+    }
+    const db = new LocalDB();
+
+    // --- [Core] Key Manager & Async Queue ---
+    class GeminiKeyManager {
+        constructor() {
+            this.STORAGE_KEY = 'gemini_keys_v8';
+            this.CONFIG_KEY = 'gemini_config_v8';
+            this.data = this.load();
+            this.config = this.loadConfig();
+        }
+        load() { const s = localStorage.getItem(this.STORAGE_KEY); return s ? JSON.parse(s) : { keys: [], failed: {} }; }
+        save() { localStorage.setItem(this.STORAGE_KEY, JSON.stringify(this.data)); }
+        loadConfig() { const s = localStorage.getItem(this.CONFIG_KEY); return s ? JSON.parse(s) : { model: 'gemini-2.5-flash-preview-09-2025', prompt: DEFAULT_SYSTEM_PROMPT }; }
+        saveConfig(cfg) { this.config = {...this.config, ...cfg}; localStorage.setItem(this.CONFIG_KEY, JSON.stringify(this.config)); }
+        getKeys() { return this.data.keys; }
+        addKeys(newKeys) { this.data.keys = [...new Set([...this.data.keys, ...newKeys.filter(k=>k.trim())])]; this.save(); }
+        removeKey(k) { this.data.keys = this.data.keys.filter(xk => xk !== k); this.save(); }
+        getAvailableKeys() { const now = Date.now(); return this.data.keys.filter(k => !this.data.failed[k] || this.data.failed[k] < now); }
+        fail(key) { this.data.failed[key] = Date.now() + 60000; this.save(); }
+    }
+    const keyManager = new GeminiKeyManager();
+
+    class ConcurrentQueue {
+        constructor() {
+            this.queue = [];
+            this.activeTasks = new Map();
+            this.listeners = [];
+        }
+        subscribe(fn) { this.listeners.push(fn); return () => this.listeners = this.listeners.filter(l=>l!==fn); }
+        notify() { this.listeners.forEach(l => l([...this.queue], new Map(this.activeTasks))); }
+        add(task) {
+            if (this.queue.find(t => t.id === task.id)) return;
+            this.queue.push({ ...task, status: 'queued' });
+            this.notify();
+            this.process();
+        }
+        async process() {
+            const allKeys = keyManager.getAvailableKeys();
+            const busyKeys = Array.from(this.activeTasks.keys());
+            const idleKeys = allKeys.filter(k => !busyKeys.includes(k));
+
+            if (idleKeys.length === 0 || this.queue.length === 0) return;
+
+            idleKeys.forEach(key => {
+                const taskIndex = this.queue.findIndex(t => t.status === 'queued');
+                if (taskIndex === -1) return;
+
+                const task = this.queue[taskIndex];
+                this.queue[taskIndex].status = 'processing';
+                this.activeTasks.set(key, task.id);
+                this.notify();
+
+                this.executeTask(key, task).then(() => {
+                    this.activeTasks.delete(key);
+                    this.process();
+                });
+            });
+        }
+        async executeTask(key, task) {
+            try {
+                const config = keyManager.config;
+                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${config.model}:generateContent?key=${key}`, {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ contents: [{ parts: [{ text: task.prompt }] }] })
+                });
+                if (!res.ok) {
+                    if (res.status === 429) {
+                        keyManager.fail(key);
+                        const t = this.queue.find(q => q.id === task.id);
+                        if(t) t.status = 'queued'; 
+                        throw new Error("Rate Limit");
+                    }
+                    throw new Error(`HTTP ${res.status}`);
+                }
+                const data = await res.json();
+                const result = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+                const t = this.queue.find(q => q.id === task.id);
+                if(t) { t.status = 'done'; t.result = result; }
+                await task.onSuccess(result);
+            } catch (e) {
+                console.error(e);
+                const t = this.queue.find(q => q.id === task.id);
+                if(t && t.status !== 'queued') { t.status = 'error'; t.error = e.message; }
+            } finally { this.notify(); }
+        }
+        getStatus(id) { const task = this.queue.find(t => t.id === id); return task ? task.status : null; }
+    }
+    const translationQueue = new ConcurrentQueue();
+
+    // --- [Components] Tooltip ---
+    const TooltipController = () => {
+        useEffect(() => {
+            const el = document.getElementById('app-tooltip');
+            const show = (e) => {
+                const target = e.target.closest('[data-tooltip]');
+                if (!target) { el.classList.remove('show'); return; }
+                el.innerText = target.getAttribute('data-tooltip');
+                const rect = target.getBoundingClientRect();
+                let top = rect.bottom + 8, left = rect.left + (rect.width/2) - (el.offsetWidth/2);
+                if (left < 10) left = 10;
+                if (left + el.offsetWidth > window.innerWidth) left = window.innerWidth - el.offsetWidth - 10;
+                if (top + el.offsetHeight > window.innerHeight) top = rect.top - el.offsetHeight - 8;
+                el.style.top = `${top}px`; el.style.left = `${left}px`; el.classList.add('show');
+            };
+            const hide = () => el.classList.remove('show');
+            document.addEventListener('mouseover', show); document.addEventListener('mouseout', hide);
+            return () => { document.removeEventListener('mouseover', show); document.removeEventListener('mouseout', hide); };
+        }, []);
+        return null;
+    };
+
+    // --- [Components] Settings Modal ---
+    const SettingsModal = ({ isOpen, onClose }) => {
+        const [keys, setKeys] = useState(keyManager.getKeys());
+        const [input, setInput] = useState('');
+        const [activeTab, setActiveTab] = useState('keys');
+        const [config, setConfig] = useState(keyManager.config);
+
+        useEffect(() => { if(isOpen) { setKeys(keyManager.getKeys()); setConfig(keyManager.config); } }, [isOpen]);
+        if(!isOpen) return null;
+
+        const saveCfg = () => { keyManager.saveConfig(config); Utils.showToast("설정이 저장되었습니다."); };
+
+        return (
+            <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm fade-in">
+                <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl flex flex-col max-h-[85vh] overflow-hidden">
+                    <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+                        <h3 className="font-bold text-gray-800 flex items-center gap-2"><i className="bi bi-gear-wide-connected"></i> 시스템 설정</h3>
+                        <button onClick={onClose} className="p-2 hover:bg-gray-200 rounded-full"><i className="bi bi-x-lg"></i></button>
+                    </div>
+                    <div className="flex border-b border-gray-100">
+                        <button onClick={()=>setActiveTab('keys')} className={`flex-1 py-3 text-sm font-semibold ${activeTab==='keys'?'text-blue-600 border-b-2 border-blue-600':'text-gray-500 hover:bg-gray-50'}`}>API 키</button>
+                        <button onClick={()=>setActiveTab('model')} className={`flex-1 py-3 text-sm font-semibold ${activeTab==='model'?'text-blue-600 border-b-2 border-blue-600':'text-gray-500 hover:bg-gray-50'}`}>AI 모델</button>
+                        <button onClick={()=>setActiveTab('prompt')} className={`flex-1 py-3 text-sm font-semibold ${activeTab==='prompt'?'text-blue-600 border-b-2 border-blue-600':'text-gray-500 hover:bg-gray-50'}`}>프롬프트</button>
+                    </div>
+                    <div className="p-6 overflow-y-auto flex-1">
+                        {activeTab === 'keys' && (
+                            <>
+                                <textarea value={input} onChange={e=>setInput(e.target.value)} placeholder="API 키 입력 (줄바꿈으로 구분)" className="w-full bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm focus:border-blue-500 outline-none resize-none h-24 mb-4 font-mono" />
+                                <button onClick={()=>{ keyManager.addKeys(input.split('\n')); setKeys(keyManager.getKeys()); setInput(''); }} className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-bold shadow-md transition-all active:scale-95">키 등록하기</button>
+                                <div className="mt-6 space-y-2">
+                                    <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">등록된 키 ({keys.length})</h4>
+                                    {keys.map(k => (
+                                        <div key={k} className="flex justify-between items-center bg-gray-50 px-3 py-2 rounded-lg border border-gray-100 text-xs font-mono text-gray-600">
+                                            <span>{k.slice(0,12)}••••••••{k.slice(-4)}</span>
+                                            <button onClick={()=>{ keyManager.removeKey(k); setKeys(keyManager.getKeys()); }} className="text-red-400 hover:text-red-600"><i className="bi bi-trash"></i></button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </>
+                        )}
+                        {activeTab === 'model' && (
+                            <div className="space-y-4">
+                                <label className="block text-sm font-medium text-gray-700">Google Gemini 모델</label>
+                                {['gemini-2.5-flash-preview-09-2025', 'gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-1.0-pro'].map(m => (
+                                    <label key={m} className={`flex items-center p-4 border rounded-xl cursor-pointer transition-all ${config.model===m ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-500' : 'border-gray-200 hover:bg-gray-50'}`}>
+                                        <input type="radio" name="model" value={m} checked={config.model===m} onChange={()=>setConfig({...config, model:m})} className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500" />
+                                        <span className="ml-3 font-mono text-sm text-gray-700">{m}</span>
+                                    </label>
+                                ))}
+                            </div>
+                        )}
+                        {activeTab === 'prompt' && (
+                            <div className="h-full flex flex-col">
+                                <label className="block text-sm font-medium text-gray-700 mb-2">시스템 프롬프트</label>
+                                <textarea value={config.prompt} onChange={e=>setConfig({...config, prompt:e.target.value})} className="flex-1 w-full bg-gray-900 text-gray-100 rounded-xl p-4 text-xs font-mono leading-relaxed outline-none resize-none" />
+                                <button onClick={()=>setConfig({...config, prompt: DEFAULT_SYSTEM_PROMPT})} className="mt-2 text-xs text-gray-500 hover:text-blue-600 underline self-end">기본값으로 복원</button>
+                            </div>
+                        )}
+                    </div>
+                    {(activeTab === 'model' || activeTab === 'prompt') && <div className="p-4 border-t bg-gray-50 flex justify-end"><button onClick={saveCfg} className="px-6 py-2 bg-green-600 text-white rounded-lg font-bold hover:bg-green-700 shadow-md">저장</button></div>}
+                </div>
+            </div>
+        );
+    };
+
+    // --- [Components] Project Settings (Dictionary) ---
+    const ProjectSettingsModal = ({ project, isOpen, onClose, onSave }) => {
+        const [activeTab, setActiveTab] = useState('dict');
+        const [memo, setMemo] = useState(project.memo || '');
+        const [dictionary, setDictionary] = useState(project.dictionary || []);
+        const [newTerm, setNewTerm] = useState({ t: '', d: '' });
+
+        useEffect(() => { if(isOpen) { setMemo(project.memo||''); setDictionary(project.dictionary||[]); } }, [isOpen, project]);
+        if (!isOpen) return null;
+
+        const handleSave = () => { onSave({ ...project, memo, dictionary }); onClose(); };
+
+        return (
+            <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm fade-in">
+                <div className="bg-white w-full max-w-2xl rounded-xl shadow-2xl flex flex-col h-[70vh]">
+                    <div className="p-4 border-b flex justify-between items-center bg-gray-50 rounded-t-xl">
+                        <h3 className="font-bold text-gray-800"><i className="bi bi-book"></i> {project.name} 개별 설정</h3>
+                        <button onClick={onClose}><i className="bi bi-x-lg text-gray-500"></i></button>
+                    </div>
+                    <div className="flex border-b">
+                        <button onClick={() => setActiveTab('dict')} className={`flex-1 py-3 text-sm font-medium ${activeTab==='dict' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500 hover:bg-gray-50'}`}>번역 사전</button>
+                        <button onClick={() => setActiveTab('memo')} className={`flex-1 py-3 text-sm font-medium ${activeTab==='memo' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500 hover:bg-gray-50'}`}>메모</button>
+                    </div>
+                    <div className="flex-1 p-6 overflow-y-auto">
+                        {activeTab === 'dict' ? (
+                            <div className="space-y-4">
+                                <div className="flex gap-2 bg-blue-50 p-3 rounded-lg border border-blue-100">
+                                    <input placeholder="원문 (예: Stark)" className="flex-1 bg-white border rounded px-3 py-2 text-sm" value={newTerm.t} onChange={e => setNewTerm({...newTerm, t: e.target.value})} />
+                                    <span className="self-center text-blue-400"><i className="bi bi-arrow-right"></i></span>
+                                    <input placeholder="번역 (예: 스타크)" className="flex-1 bg-white border rounded px-3 py-2 text-sm" value={newTerm.d} onChange={e => setNewTerm({...newTerm, d: e.target.value})} />
+                                    <button onClick={()=>{ if(newTerm.t && newTerm.d) { setDictionary([...dictionary, {term: newTerm.t, def: newTerm.d}]); setNewTerm({t:'', d:''}); } }} className="bg-blue-600 text-white px-4 rounded font-bold hover:bg-blue-700 transition-colors"><i className="bi bi-plus-lg"></i></button>
+                                </div>
+                                <div className="space-y-2">
+                                    {dictionary.map((item, idx) => (
+                                        <div key={idx} className="flex justify-between items-center p-3 bg-white border border-gray-100 rounded-lg shadow-sm hover:border-blue-200 transition-colors">
+                                            <div className="flex items-center gap-3">
+                                                <span className="font-semibold text-gray-800">{item.term}</span>
+                                                <i className="bi bi-arrow-right-short text-gray-400"></i>
+                                                <span className="text-blue-600 font-bold">{item.def}</span>
+                                            </div>
+                                            <button onClick={() => setDictionary(dictionary.filter((_,i)=>i!==idx))} className="text-gray-400 hover:text-red-500 transition-colors"><i className="bi bi-x-circle-fill"></i></button>
+                                        </div>
+                                    ))}
+                                    {dictionary.length === 0 && <div className="text-center text-gray-400 py-8 text-sm">등록된 용어가 없습니다.</div>}
+                                </div>
+                            </div>
+                        ) : (
+                            <textarea 
+                                className="w-full h-full p-4 bg-gray-50 border border-gray-200 rounded-lg resize-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 outline-none"
+                                placeholder="이 프로젝트에 대한 메모를 작성하세요..."
+                                value={memo}
+                                onChange={e => setMemo(e.target.value)}
+                            ></textarea>
+                        )}
+                    </div>
+                    <div className="p-4 border-t bg-gray-50 rounded-b-xl flex justify-end gap-2">
+                        <button onClick={onClose} className="px-4 py-2 text-gray-600 hover:bg-gray-200 rounded font-medium">취소</button>
+                        <button onClick={handleSave} className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-medium shadow-sm">저장</button>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
+    // --- [Components] Editor & Queue UI ---
+    const Editor = ({ project, onClose }) => {
+        const [chapters, setChapters] = useState([]);
+        const [selectedId, setSelectedId] = useState(null);
+        const [content, setContent] = useState('');
+        const [translation, setTranslation] = useState('');
+        const [searchTerm, setSearchTerm] = useState('');
+        const [isSplitting, setIsSplitting] = useState(false); // Split loading state
+        const [isSaveLoading, setIsSaveLoading] = useState(false); // Save loading state
+        
+        const [queueState, setQueueState] = useState([]);
+        const [activeTasks, setActiveTasks] = useState(new Map());
+
+        const currentChapter = useMemo(() => chapters.find(c => c.id === selectedId), [chapters, selectedId]);
+
+        // Filtered Chapters
+        const filteredChapters = useMemo(() => {
+            if(!searchTerm) return chapters;
+            return chapters.filter(c => c.title.toLowerCase().includes(searchTerm.toLowerCase()));
+        }, [chapters, searchTerm]);
+
+        // Subscribe to Queue
+        useEffect(() => {
+            const unsub = translationQueue.subscribe((q, active) => {
+                setQueueState(q);
+                setActiveTasks(active);
+                // Check for completed tasks relevant to this project
+                if (q.some(t => t.projectId === project.id && t.status === 'done')) {
+                    loadChapters(false); 
+                }
+            });
+            return unsub;
+        }, [project.id]);
+
+        useEffect(() => {
+            loadChapters();
+            const handleKeyDown = (e) => {
+                if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); handleSave(); }
+                if (e.altKey) {
+                    if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') { e.preventDefault(); navigate(-1); }
+                    if (e.key === 'ArrowDown' || e.key === 'ArrowRight') { e.preventDefault(); navigate(1); }
+                }
+            };
+            window.addEventListener('keydown', handleKeyDown);
+            return () => window.removeEventListener('keydown', handleKeyDown);
+        }, [selectedId, chapters]);
+
+        useEffect(() => {
+            if (currentChapter) {
+                setContent(currentChapter.content || '');
+                setTranslation(currentChapter.translation || '');
+            }
+        }, [currentChapter]);
+
+        const loadChapters = async (resetSelection = true) => {
+            const list = await db.getChapters(project.id);
+            list.sort((a,b) => a.title.localeCompare(b.title, undefined, {numeric:true}));
+            setChapters(list);
+            if(resetSelection && list.length > 0 && !selectedId) setSelectedId(list[0].id);
+        };
+
+        const navigate = (dir) => {
+            if(!selectedId || filteredChapters.length === 0) return;
+            const idx = filteredChapters.findIndex(c => c.id === selectedId);
+            const newIdx = idx + dir;
+            if(newIdx >= 0 && newIdx < filteredChapters.length) setSelectedId(filteredChapters[newIdx].id);
+        };
+
+        const handleSave = async () => {
+            if(!currentChapter) return;
+            setIsSaveLoading(true);
+            const updated = { ...currentChapter, content, translation };
+            await db.saveChapter(updated);
+            setChapters(prev => prev.map(c => c.id === updated.id ? updated : c));
+            
+            setTimeout(() => setIsSaveLoading(false), 500);
+            Utils.showToast("저장되었습니다.");
+        };
+
+        const addToQueue = (ch) => {
+            const config = keyManager.config; // Use current config
+            let dictInstruction = "";
+            if(project.dictionary?.length) {
+                dictInstruction = `\n[필수 용어집 (반드시 준수)]\n${project.dictionary.map(d => `- ${d.term}: ${d.def}`).join('\n')}`;
+            }
+            
+            const finalPrompt = config.prompt
+                .replace('{{text}}', ch.content)
+                .replace('{{dictionary_instruction}}', dictInstruction);
+
+            translationQueue.add({
+                id: ch.id,
+                projectId: project.id,
+                prompt: finalPrompt,
+                onSuccess: async (result) => {
+                    const freshCh = (await db.getChapters(project.id)).find(c => c.id === ch.id);
+                    const updated = { ...freshCh, translation: result };
+                    await db.saveChapter(updated);
+                    if (selectedId === ch.id) setTranslation(result);
+                }
+            });
+        };
+
+        const handleTranslateCurrent = () => {
+            if (!currentChapter) return;
+            if (keyManager.getKeys().length === 0) return alert("API 키를 먼저 등록해주세요 (설정).");
+            addToQueue(currentChapter);
+        };
+
+        const handleTranslateAll = () => {
+            const keys = keyManager.getKeys();
+            if (keys.length === 0) return alert("API 키가 없습니다.");
+            if(!confirm(`전체 ${chapters.length}개 챕터 번역을 시작합니까?\n가용한 키 ${keys.length}개를 사용하여 병렬 처리합니다.`)) return;
+            
+            chapters.forEach(ch => {
+                if (ch.content.trim() && translationQueue.getStatus(ch.id) !== 'queued' && translationQueue.getStatus(ch.id) !== 'processing') {
+                    addToQueue(ch);
+                }
+            });
+            Utils.showToast("작업이 큐에 추가되었습니다.");
+        };
+
+        const handleSplit = async () => {
+            if(!currentChapter) return;
+            setIsSplitting(true);
+            
+            try {
+                const { paragraphs, separator } = Utils.getParagraphsForSplitting(content);
+                
+                // Fallback split logic: If regex splitting fails or returns 1 block, split by length
+                let finalChunks = [];
+                if (paragraphs.length < 2) {
+                     // Force split every 3000 chars
+                     for (let i = 0; i < content.length; i += 3000) {
+                         finalChunks.push(content.substring(i, i + 3000));
+                     }
+                } else {
+                    // Combine paragraphs into chunks
+                    let chunk = [];
+                    let len = 0;
+                    paragraphs.forEach((p, i) => {
+                        chunk.push(p);
+                        len += p.length;
+                        if(len > 3000 || i === paragraphs.length - 1) {
+                            finalChunks.push(chunk.join(separator));
+                            chunk = [];
+                            len = 0;
+                        }
+                    });
+                }
+                
+                if(finalChunks.length < 2 && paragraphs.length < 2) {
+                    Utils.showToast("분할할 내용이 너무 짧습니다.", "error");
+                    return;
+                }
+
+                // Replace current
+                const first = finalChunks[0];
+                const updatedFirst = { ...currentChapter, title: `${currentChapter.title} (1/${finalChunks.length})`, content: first, translation: '' };
+                await db.saveChapter(updatedFirst);
+
+                // Create new
+                for(let i=1; i<finalChunks.length; i++) {
+                    await db.saveChapter({
+                        id: Utils.generateId('ch'),
+                        projectId: project.id,
+                        title: `${currentChapter.title.replace(/\s\(\d+\/\d+\)$/, '')} (${i+1}/${finalChunks.length})`,
+                        content: finalChunks[i],
+                        translation: ''
+                    });
+                }
+                
+                await loadChapters();
+                setSelectedId(updatedFirst.id);
+                Utils.showToast(`${finalChunks.length}개로 분할되었습니다.`);
+                
+            } catch(e) {
+                console.error(e);
+                Utils.showToast("분할 중 오류 발생", "error");
+            } finally {
+                setIsSplitting(false);
+            }
+        };
+
+        const handleExportZip = async () => {
+            try {
+                const zip = new JSZip();
+                const folder = zip.folder(project.name);
+                const chs = await db.getChapters(project.id);
+                chs.forEach((c, i) => {
+                    folder.file(`${String(i+1).padStart(3,'0')}_${c.title}.md`, `# ${c.title}\n\n${c.content}\n\n---\n\n${c.translation||''}`);
+                });
+                const blob = await zip.generateAsync({type:'blob'});
+                saveAs(blob, `${project.name}.zip`);
+                Utils.showToast("다운로드 완료");
+            } catch(e) {
+                alert("다운로드 실패: " + e.message);
+            }
+        };
+
+        const getStatusIcon = (id) => {
+            const status = translationQueue.getStatus(id);
+            if (status === 'queued') return <span className="status-dot status-queued" title="대기중"></span>;
+            if (status === 'processing') return <span className="status-dot status-processing" title="번역중..."></span>;
+            if (status === 'error') return <span className="status-dot status-error" title="오류"></span>;
+            const ch = chapters.find(c => c.id === id);
+            if (ch && ch.translation) return <i className="bi bi-check-circle-fill text-green-500 text-xs"></i>;
+            return null;
+        };
+
+        const qTotal = queueState.length;
+        const qProcessed = queueState.filter(t => t.status === 'done').length;
+        const qPending = queueState.filter(t => t.status === 'queued' || t.status === 'processing').length;
+
+        return (
+            <div className="fixed inset-0 z-40 bg-white flex flex-col md:flex-row fade-in">
+                {/* Sidebar */}
+                <div className="w-full md:w-80 bg-gray-50 border-r border-gray-200 flex flex-col h-full shadow-[4px_0_24px_rgba(0,0,0,0.02)] z-10">
+                    <div className="p-4 border-b border-gray-200 flex items-center justify-between bg-white">
+                        <button onClick={onClose} className="btn-icon text-gray-600"><i className="bi bi-arrow-left text-lg"></i></button>
+                        <h2 className="font-bold text-gray-800 truncate flex-1 px-2 text-center cursor-default" data-tooltip={project.name}>{project.name}</h2>
+                        <button onClick={()=>window.dispatchEvent(new CustomEvent('open-project-settings', {detail: project}))} className="btn-icon text-blue-600"><i className="bi bi-sliders"></i></button>
+                    </div>
+                    
+                    {/* Search */}
+                    <div className="p-2 border-b border-gray-200 bg-white">
+                        <div className="relative">
+                            <i className="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
+                            <input 
+                                type="text" 
+                                placeholder="챕터 검색..." 
+                                value={searchTerm}
+                                onChange={e=>setSearchTerm(e.target.value)}
+                                className="w-full bg-gray-100 rounded-lg pl-9 pr-3 py-2 text-sm outline-none focus:bg-white focus:ring-2 focus:ring-blue-100 transition-all"
+                            />
+                        </div>
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto p-2 space-y-1">
+                        {filteredChapters.map(ch => (
+                            <button 
+                                key={ch.id}
+                                onClick={() => setSelectedId(ch.id)}
+                                className={`w-full text-left px-3 py-3 rounded-lg text-sm flex items-center justify-between group transition-all ${selectedId === ch.id ? 'bg-white shadow-md text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-200 text-gray-700 border border-transparent'}`}
+                                data-tooltip={`[${ch.title}]\n원문: ${ch.content.length}자 / 번역: ${ch.translation ? ch.translation.length : 0}자`}
+                            >
+                                <span className="truncate flex-1 mr-2">{ch.title}</span>
+                                {getStatusIcon(ch.id)}
+                            </button>
+                        ))}
+                        {filteredChapters.length === 0 && <div className="text-center py-8 text-gray-400 text-sm">챕터가 없습니다.</div>}
+                    </div>
+
+                    {/* Batch UI */}
+                    <div className="p-4 border-t bg-white border-gray-200 shadow-up">
+                        <div className="flex justify-between text-xs text-gray-500 mb-2 font-medium">
+                            <span>대기열: {qPending}</span>
+                            <span>활성 키: {activeTasks.size}/{keyManager.getKeys().length}</span>
+                        </div>
+                        {qPending > 0 && (
+                             <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden mb-3">
+                                <div className="h-full bg-blue-500 transition-all duration-500" style={{width: `${(qProcessed/qTotal)*100}%`}}></div>
+                             </div>
+                        )}
+                        <button onClick={handleTranslateAll} disabled={qPending > 0} className="w-full py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 active:scale-95 flex items-center justify-center gap-2 disabled:bg-gray-300 disabled:shadow-none disabled:cursor-not-allowed">
+                            {qPending > 0 ? <><i className="bi bi-hourglass-split animate-spin"></i> 처리 중...</> : <><i className="bi bi-collection-play-fill"></i> 전체 번역 시작</>}
+                        </button>
+                    </div>
+                </div>
+
+                {/* Editor Area */}
+                <div className="flex-1 flex flex-col h-full min-w-0 bg-white relative">
+                    {/* Toolbar */}
+                    <div className="h-16 border-b border-gray-200 flex items-center px-6 justify-between bg-white z-20 shadow-sm">
+                        <div className="flex items-center gap-6 text-sm text-gray-500 font-medium">
+                             <span className="flex items-center gap-2" data-tooltip="원문 글자수"><i className="bi bi-file-text"></i> {content.length.toLocaleString()}</span>
+                             <span className="flex items-center gap-2" data-tooltip="번역 글자수"><i className="bi bi-translate"></i> {translation.length.toLocaleString()}</span>
+                        </div>
+                        <div className="flex gap-2">
+                            <button onClick={handleExportZip} className="btn-icon text-green-600 hover:bg-green-50" data-tooltip="전체 다운로드"><i className="bi bi-download"></i></button>
+                            <div className="w-px h-6 bg-gray-300 mx-1"></div>
+                            <button onClick={handleSplit} className="btn-icon text-orange-500 hover:bg-orange-50" data-tooltip="긴 챕터 분할하기" disabled={isSplitting}>
+                                {isSplitting ? <i className="bi bi-arrow-repeat spinner"></i> : <i className="bi bi-scissors"></i>}
+                            </button>
+                            <button id="save-btn" onClick={handleSave} className="btn-icon text-blue-600 hover:bg-blue-50" data-tooltip="저장 (Ctrl+S)" disabled={isSaveLoading}>
+                                {isSaveLoading ? <i className="bi bi-check2-circle text-green-500 text-xl animate-pulse"></i> : <i className="bi bi-floppy"></i>}
+                            </button>
+                            <button 
+                                onClick={handleTranslateCurrent}
+                                className="flex items-center gap-2 px-5 py-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-all shadow-md hover:shadow-lg font-bold text-sm ml-2 active:scale-95"
+                            >
+                                <i className="bi bi-lightning-charge-fill"></i> 번역
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Split View */}
+                    {currentChapter ? (
+                        <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
+                            <div className="flex-1 flex flex-col border-r border-gray-200">
+                                <div className="bg-gray-50 px-6 py-2 text-xs font-bold text-gray-500 uppercase tracking-wider border-b flex justify-between">
+                                    <span>Source Text</span>
+                                </div>
+                                <textarea value={content} onChange={e=>setContent(e.target.value)} className="flex-1 p-8 resize-none outline-none text-gray-800 editor-area bg-white leading-loose" placeholder="여기에 원문을 입력하세요..." spellCheck="false" />
+                            </div>
+                            <div className="flex-1 flex flex-col bg-gray-50/30">
+                                <div className="bg-gray-50 px-6 py-2 text-xs font-bold text-gray-500 uppercase tracking-wider border-b flex justify-between items-center">
+                                    <span>Korean Translation</span>
+                                    <button onClick={()=>Utils.copyToClipboard(translation)} className="hover:text-blue-600 transition-colors"><i className="bi bi-clipboard"></i> 복사</button>
+                                </div>
+                                <textarea value={translation} onChange={e=>setTranslation(e.target.value)} className="flex-1 p-8 resize-none outline-none text-gray-900 editor-area bg-transparent placeholder-gray-400 leading-loose" placeholder="번역 결과가 여기에 표시됩니다." spellCheck="false" />
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="flex-1 flex flex-col items-center justify-center text-gray-300">
+                            <i className="bi bi-book-half text-6xl mb-6 opacity-20"></i>
+                            <p className="text-lg font-medium">좌측 목록에서 챕터를 선택하세요</p>
+                        </div>
+                    )}
+                </div>
+            </div>
+        );
+    };
+
+    // --- [Main App Shell] ---
+    const App = () => {
+        const [projects, setProjects] = useState([]);
+        const [activeProject, setActiveProject] = useState(null);
+        const [modalState, setModalState] = useState({ type: null, data: null });
+        const [toast, setToast] = useState(null);
+
+        useEffect(() => {
+            loadProjects();
+            const handleToast = (e) => { setToast(e.detail); setTimeout(()=>setToast(null), 3000); };
+            const handleSettings = (e) => setModalState({ type: 'project', data: e.detail });
+            const handleGlobalSettings = () => setModalState({ type: 'global', data: null });
+            
+            window.addEventListener('show-toast', handleToast);
+            window.addEventListener('open-project-settings', handleSettings);
+            window.addEventListener('open-settings', handleGlobalSettings);
+            
+            return () => {
+                window.removeEventListener('show-toast', handleToast);
+                window.removeEventListener('open-project-settings', handleSettings);
+                window.removeEventListener('open-settings', handleGlobalSettings);
+            };
+        }, []);
+
+        const loadProjects = async () => {
+            const list = await db.getAllProjects();
+            setProjects(list.sort((a,b) => b.createdAt - a.createdAt));
+        };
+
+        const handleCreate = async (name) => {
+            const p = { id: Utils.generateId('p'), name, createdAt: Date.now(), memo:'', dictionary:[] };
+            await db.saveProject(p);
+            setProjects([p, ...projects]);
+            Utils.showToast("프로젝트 생성 완료");
+        };
+
+        const handleImportZip = async (file) => {
+            const zip = await JSZip.loadAsync(file);
+            const td = new TurndownService();
+            const entries = [];
+            zip.forEach((path, entry) => {
+                if(!entry.dir && !path.startsWith('__MACOSX') && /\.(txt|md|html)$/i.test(path)) entries.push({path, entry});
+            });
+            entries.sort(Utils.naturalSort);
+
+            if(entries.length===0) return alert("텍스트 파일이 없습니다.");
+
+            const p = { id: Utils.generateId('p'), name: Utils.formatTitle(file.name), createdAt: Date.now(), memo:'', dictionary:[] };
+            const chapters = [];
+            for(const e of entries) {
+                let txt = await e.entry.async('string');
+                if(e.path.endsWith('.html')) txt = td.turndown(txt);
+                if(txt.trim()) chapters.push({
+                    id: Utils.generateId('c'),
+                    projectId: p.id,
+                    title: Utils.formatTitle(e.path.split('/').pop()),
+                    content: txt,
+                    translation: ''
+                });
+            }
+            await db.saveProject(p);
+            await db.saveChapters(chapters);
+            setProjects([p, ...projects]);
+            Utils.showToast(`${chapters.length}개 챕터 가져오기 완료`);
+        };
+
+        const handleDelete = async (e, id) => {
+            e.stopPropagation();
+            if(!confirm("정말 삭제하시겠습니까?")) return;
+            await db.deleteProject(id);
+            setProjects(prev => prev.filter(p => p.id !== id));
+            Utils.showToast("삭제되었습니다.");
+        };
+
+        const handleExportZip = async (e, p) => {
+            e.stopPropagation();
+            const chapters = await db.getChapters(p.id);
+            const zip = new JSZip();
+            const folder = zip.folder(p.name);
+            chapters.forEach((c, i) => {
+                folder.file(`${String(i+1).padStart(3,'0')}_${c.title}.md`, `# ${c.title}\n\n${c.content}\n\n---\n\n${c.translation||''}`);
+            });
+            const blob = await zip.generateAsync({type:'blob'});
+            saveAs(blob, `${p.name}.zip`);
+        };
+
+        // --- Quick Input Component ---
+        const QuickInput = () => {
+            const [title, setTitle] = useState('');
+            const [expanded, setExpanded] = useState(false);
+            const fileRef = useRef();
+            const containerRef = useRef();
+
+            useEffect(() => {
+                const clickOut = (e) => { if(containerRef.current && !containerRef.current.contains(e.target) && !title) setExpanded(false); };
+                document.addEventListener('mousedown', clickOut);
+                return () => document.removeEventListener('mousedown', clickOut);
+            }, [title]);
+
+            return (
+                <div ref={containerRef} className={`mx-auto max-w-2xl bg-white rounded-xl border border-gray-200 shadow-sm transition-all overflow-hidden ${expanded?'ring-2 ring-blue-100 shadow-md':''}`}>
+                    {!expanded ? (
+                        <div className="flex items-center p-4 cursor-text text-gray-500" onClick={()=>setExpanded(true)}>
+                            <span className="flex-1 font-medium">새로운 번역 프로젝트...</span>
+                            <button className="p-2 hover:bg-gray-100 rounded-full" onClick={(e)=>{e.stopPropagation(); fileRef.current.click();}} title="ZIP 가져오기"><i className="bi bi-folder-plus text-lg"></i></button>
+                        </div>
+                    ) : (
+                        <div className="p-4">
+                            <input 
+                                value={title} onChange={e=>setTitle(e.target.value)} 
+                                onKeyDown={e=>{if(e.key==='Enter'&&title.trim()){handleCreate(title); setTitle(''); setExpanded(false);}}}
+                                placeholder="제목 입력" className="w-full text-lg font-bold outline-none placeholder-gray-300 mb-4" autoFocus 
+                            />
+                            <div className="flex justify-between">
+                                <button onClick={()=>fileRef.current.click()} className="text-gray-500 hover:bg-gray-100 px-3 py-1.5 rounded transition-colors text-sm flex items-center gap-2"><i className="bi bi-file-earmark-zip"></i> ZIP 파일</button>
+                                <button onClick={()=>{if(title.trim()){handleCreate(title); setTitle(''); setExpanded(false);}}} className="bg-blue-600 text-white px-5 py-1.5 rounded-lg font-bold text-sm hover:bg-blue-700 transition-colors">만들기</button>
+                            </div>
+                        </div>
+                    )}
+                    <input type="file" ref={fileRef} className="hidden" accept=".zip" onChange={(e)=>{handleImportZip(e.target.files[0]); setExpanded(false); e.target.value=null;}} />
+                </div>
+            );
+        };
+
+        return (
+            <div className="h-full flex flex-col bg-[#f3f4f6]">
+                <TooltipController />
+                
+                {/* Header */}
+                <header className="h-16 bg-white border-b border-gray-200 flex items-center px-6 justify-between sticky top-0 z-30 shadow-sm">
+                    <div className="flex items-center gap-3 text-xl font-bold text-gray-700">
+                        <div className="w-9 h-9 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center text-white shadow-lg shadow-blue-200">
+                            <i className="bi bi-translate"></i>
+                        </div>
+                        <span>Translation Studio <span className="text-xs font-normal text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full align-middle ml-1">V10 Perfection</span></span>
+                    </div>
+                    <button onClick={()=>setModalState({type:'global'})} className="btn-icon text-gray-600" data-tooltip="시스템 설정 (API, 모델)"><i className="bi bi-gear-wide-connected text-lg"></i></button>
+                </header>
+
+                {/* Body */}
+                {activeProject ? (
+                    <Editor project={activeProject} onClose={()=>setActiveProject(null)} />
+                ) : (
+                    <div className="flex-1 overflow-y-auto p-8">
+                        <div className="mb-10"><QuickInput /></div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 max-w-7xl mx-auto pb-20 masonry-grid">
+                            {projects.map(p => (
+                                <div key={p.id} onClick={()=>setActiveProject(p)} className="project-card p-5 rounded-2xl bg-white border border-gray-200 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all cursor-pointer group break-inside-avoid mb-6">
+                                    <div className="flex justify-between items-start mb-3">
+                                        <h3 className="font-bold text-lg text-gray-800 leading-snug break-words">{p.name}</h3>
+                                        <button onClick={(e)=>handleDelete(e, p.id)} className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 transition-opacity px-2"><i className="bi bi-trash3"></i></button>
+                                    </div>
+                                    <p className="text-sm text-gray-500 line-clamp-3 mb-4 h-[3.6em]">{p.memo || "메모 없음"}</p>
+                                    <div className="text-xs text-gray-400 font-mono flex justify-between items-center pt-3 border-t border-gray-50">
+                                        <span>{new Date(p.createdAt).toLocaleDateString()}</span>
+                                        <button onClick={(e)=>handleExportZip(e,p)} className="hover:text-green-600 text-lg opacity-0 group-hover:opacity-100 transition-opacity" data-tooltip="다운로드"><i className="bi bi-download"></i></button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                <SettingsModal isOpen={modalState.type==='global'} onClose={()=>setModalState({type:null})} />
+                {modalState.type==='project' && <ProjectSettingsModal project={modalState.data} isOpen={true} onClose={()=>setModalState({type:null})} onSave={(p)=>{ db.saveProject(p); setProjects(projects.map(x=>x.id===p.id?p:x)); if(activeProject?.id===p.id) setActiveProject(p); }} />}
+
+                {toast && (
+                    <div className={`fixed bottom-8 left-1/2 transform -translate-x-1/2 px-6 py-3 rounded-full shadow-2xl flex items-center gap-3 text-sm font-bold z-50 fade-in ${toast.type==='error'?'bg-red-500 text-white':'bg-gray-800 text-white'}`}>
+                        <i className={`bi ${toast.type==='error'?'bi-exclamation-triangle':'bi-check-circle-fill text-green-400'}`}></i> {toast.msg}
+                    </div>
+                )}
+            </div>
+        );
+    };
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+</script>
+</body>
+</html>
