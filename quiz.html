@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AI Quiz Obsidian (v14.0 - Project Manager)</title>
+  <title>AI Quiz Obsidian (v14.1 - Optimized & Fixed)</title>
 
   <!-- Fonts: Inter (Requested), Nanum for fallback -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -278,7 +278,7 @@
         contents: [{ role: "user", parts: [{ text: `--- SOURCE ---\n${text}` }] }],
         systemInstruction: { parts: [{ text: settings.quizSystemPrompt.replace('{{DIFFICULTY}}', opts.difficulty).replace('{{QUESTION_TYPE}}', opts.questionType).replace('{{NUM_QUESTIONS}}', opts.numQuestions) }] },
         generationConfig: { responseMimeType: "application/json", responseSchema: { type: "OBJECT", properties: { title: { type: "STRING" }, questions: { type: "ARRAY", items: { type: "OBJECT", properties: { questionType: { type: "STRING" }, questionText: { type: "STRING" }, options: { type: "ARRAY", items: { "type": "STRING" }, nullable: true }, correctAnswerIndex: { type: "NUMBER", nullable: true }, gradingCriteria: { type: "STRING", nullable: true } }, required: ["questionType", "questionText"] } }, required: ["title", "questions"] }, temperature: 0.3 }
-      };
+      }};
       const res = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/${settings.modelName || "gemini-2.5-flash"}:generateContent?key=${apiKey}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       return JSON.parse(res.candidates?.[0]?.content?.parts?.[0]?.text);
     };
@@ -469,18 +469,25 @@
     };
 
     const FileManagerView = ({ viewId }) => {
-        const { fileTree, fileActions, userId, setActiveEditorFile } = useContext(AppContext);
+        const { fileTree, fileActions, userId, setActiveEditorFile, setEditingNodeId } = useContext(AppContext);
         const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, node: null });
-        const handleContextMenu = (e, node) => { if(!userId) return; e.preventDefault(); e.stopPropagation(); setContextMenu({ visible: true, x: e.clientX, y: e.clientY, node }); };
+        const handleContextMenu = (e, node) => { 
+            if(!userId) return; 
+            e.preventDefault(); e.stopPropagation(); 
+            setContextMenu({ visible: true, x: e.clientX, y: e.clientY, node }); 
+        };
+        
         useEffect(() => { window.addEventListener('click', () => setContextMenu({ visible: false })); }, []);
+        
         return e('div', { viewId, className: 'vsc-view-panes' },
             e('div', { className: 'vsc-view-pane' },
                 e('div', { className: 'view-header' }, e('span', null, e('i', { className: 'bi bi-files mr-2' }), 'Explorer'), userId && e('div', { className: 'flex gap-1' }, e('button', { className: 'view-header-icon', onClick: () => fileActions.create('root', 'folder'), title: 'New Folder' }, e('i', { className: 'bi bi-folder-plus' })), e('button', { className: 'view-header-icon', onClick: () => fileActions.create('root', 'file'), title: 'New File' }, e('i', { className: 'bi bi-file-earmark-plus' })), e('button', { className: 'view-header-icon', onClick: () => document.getElementById('file-upload-input').click(), title: 'Upload' }, e('i', { className: 'bi bi-upload' })))),
                 e('div', { className: 'vsc-view-pane-content' },
                     !userId && e('div', { className: 'empty-state' }, e('i', { className: 'bi bi-lock-fill' }), 'Sign in to access files'),
                     userId && fileTree.length === 0 && e('div', { className: 'empty-state' }, e('i', { className: 'bi bi-inbox' }), 'No files yet'),
-                    userId && fileTree.map(node => e(FileNode, { key: node.id, node, depth: 0, onContextMenu })),
-                    userId && contextMenu.visible && e('div', { className: 'context-menu', style: { position: 'fixed', top: contextMenu.y, left: contextMenu.x, zIndex: 1000 } }, e('div', { className: 'context-menu-item', onClick: () => useContext(AppContext).setEditingNodeId(contextMenu.node.id) }, e('i', { className: 'bi bi-pencil' }), 'Rename'), e('div', { className: 'context-menu-divider' }), e('div', { className: 'context-menu-item text-red-400', onClick: () => fileActions.remove(contextMenu.node.id) }, e('i', { className: 'bi bi-trash' }), 'Delete'))
+                    // Fix: Passed handleContextMenu properly as onContextMenu
+                    userId && fileTree.map(node => e(FileNode, { key: node.id, node, depth: 0, onContextMenu: handleContextMenu })),
+                    userId && contextMenu.visible && e('div', { className: 'context-menu', style: { position: 'fixed', top: contextMenu.y, left: contextMenu.x, zIndex: 1000 } }, e('div', { className: 'context-menu-item', onClick: () => setEditingNodeId(contextMenu.node.id) }, e('i', { className: 'bi bi-pencil' }), 'Rename'), e('div', { className: 'context-menu-divider' }), e('div', { className: 'context-menu-item text-red-400', onClick: () => fileActions.remove(contextMenu.node.id) }, e('i', { className: 'bi bi-trash' }), 'Delete'))
                 )
             )
         );
@@ -498,11 +505,18 @@
         const [mode, setMode] = useState('edit');
         const [isSaved, setIsSaved] = useState(true);
         const toast = useToast();
+        
         useEffect(() => { setContent(activeEditorFile?.content || ""); setMode('edit'); setIsSaved(true); }, [activeEditorFile]);
+        
+        // Optimization: Increased debounce to 3s and strict content check
         useEffect(() => { 
             if(!activeEditorFile || content === activeEditorFile.content) { setIsSaved(true); return; }
             setIsSaved(false);
-            const timer = setTimeout(() => { fileActions.updateContent(activeEditorFile.id, content).then(() => setIsSaved(true)); }, 1000);
+            const timer = setTimeout(() => { 
+                if (content !== activeEditorFile.content) {
+                    fileActions.updateContent(activeEditorFile.id, content).then(() => setIsSaved(true)); 
+                }
+            }, 3000); // Increased to 3 seconds to save costs
             return () => clearTimeout(timer);
         }, [content, activeEditorFile]);
         
@@ -662,9 +676,18 @@
         const deleteProject = async (id) => {
             if(confirm('Delete this project and all its files?')) {
                 await deleteDoc(doc(db, `artifacts/${window.__app_id}/users/${userId}/projects`, id));
-                // Ideally we should delete all files in the project too, but for now we just delete the project ref.
             }
         };
+
+        const handleGoogleSignIn = async () => {
+            if (!auth) return;
+            try {
+                await signInWithPopup(auth, new GoogleAuthProvider());
+            } catch (e) {
+                console.error(e);
+                toast.show(`Login Failed: ${e.message}. If popups are blocked, try allowing them.`, 'error');
+            }
+        }
 
         const { fileTree, fileActions } = useFileSystem(files, db, userId, window.__app_id, activeProjectId);
 
@@ -677,7 +700,7 @@
             },
             quizOptions, setQuizOptions, attempts, quizzes, setModalContent, userSettings,
             saveSettings: (s) => setDoc(doc(db, `artifacts/${window.__app_id}/users/${userId}/settings/userConfig`), s, {merge: true}),
-            handleGoogleSignIn: () => signInWithPopup(auth, new GoogleAuthProvider()),
+            handleGoogleSignIn,
             handleSignOut: () => { signOut(auth); setActiveProjectId(null); },
             editingNodeId, setEditingNodeId,
             dispatchGradingTask: (a) => {
