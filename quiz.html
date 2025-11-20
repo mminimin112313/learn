@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AI Quiz Obsidian (v13.0 - Bootstrap UX)</title>
+  <title>AI Quiz Obsidian (v14.0 - Project Manager)</title>
 
   <!-- Fonts: Inter (Requested), Nanum for fallback -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -35,7 +35,7 @@
     } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
     import { 
       getFirestore, doc, getDoc, getDocs, addDoc, setDoc, updateDoc, deleteDoc, 
-      onSnapshot, collection, query, where, writeBatch, setLogLevel
+      onSnapshot, collection, query, where, writeBatch, setLogLevel, orderBy
     } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
     window.firebase = {
@@ -46,7 +46,7 @@
       },
       firestore: { 
         getFirestore, doc, getDoc, getDocs, addDoc, setDoc, updateDoc, deleteDoc, 
-        onSnapshot, collection, query, where, writeBatch, setLogLevel
+        onSnapshot, collection, query, where, writeBatch, setLogLevel, orderBy
       }
     };
   </script>
@@ -104,260 +104,114 @@
       letter-spacing: -0.01em;
     }
 
-    /* Bootstrap Icon alignment adjustment */
-    .bi {
-        vertical-align: -0.125em;
-        fill: currentColor;
-    }
+    .bi { vertical-align: -0.125em; fill: currentColor; }
 
-    /* Scrollbars */
     ::-webkit-scrollbar { width: 6px; height: 6px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
     ::-webkit-scrollbar-thumb:hover { background: #555; }
 
-    /* Layout Structure */
-    .vsc-sidebar-container {
-      display: flex;
-      flex-direction: row;
-      width: auto;
-      height: 100vh;
-      background-color: var(--obsidian-black);
+    /* Project Dashboard Specifics */
+    .project-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 20px;
+        padding: 40px;
+        overflow-y: auto;
+        height: 100%;
     }
+    .project-card {
+        background: rgba(255,255,255,0.03);
+        border: var(--glass-border);
+        border-radius: 12px;
+        padding: 24px;
+        transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+        cursor: pointer;
+        display: flex;
+        flex-direction: column;
+        position: relative;
+        overflow: hidden;
+        height: 200px;
+    }
+    .project-card:hover {
+        background: rgba(255,255,255,0.08);
+        border-color: rgba(255,255,255,0.4);
+        transform: translateY(-5px);
+        box-shadow: 0 15px 30px rgba(0,0,0,0.5);
+    }
+    .project-card-new {
+        border-style: dashed;
+        display: flex; align-items: center; justify-content: center;
+        color: var(--text-secondary);
+    }
+    .project-card-new:hover { color: white; border-color: white; }
+    .project-title { font-size: 1.2rem; font-weight: 500; margin-bottom: 8px; color: white; }
+    .project-desc { font-size: 0.9rem; color: var(--text-secondary); flex-grow: 1; overflow: hidden; text-overflow: ellipsis; }
+    .project-meta { font-size: 0.8rem; color: var(--text-tertiary); margin-top: 12px; display: flex; justify-content: space-between; align-items: center; }
+    .delete-project-btn {
+        opacity: 0; transition: opacity 0.2s; padding: 8px; color: #ff6b6b;
+    }
+    .project-card:hover .delete-project-btn { opacity: 1; }
 
-    /* Activity Bar */
-    .vsc-activity-bar {
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-      padding: 12px 0;
-      background-color: var(--obsidian-black);
-      border-right: 1px solid rgba(255,255,255,0.1);
-      flex-shrink: 0;
-      width: 56px;
-      z-index: 10;
-    }
-    .vsc-activity-item {
-      background: transparent;
-      border: none;
-      color: var(--text-tertiary);
-      padding: 12px;
-      margin: 4px 0;
-      cursor: pointer;
-      font-size: 20px; /* Adjusted for BI */
-      transition: all 0.2s ease;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      position: relative;
-    }
+    /* Reuse existing styles... */
+    .vsc-sidebar-container { display: flex; flex-direction: row; width: auto; height: 100vh; background-color: var(--obsidian-black); }
+    .vsc-activity-bar { display: flex; flex-direction: column; justify-content: space-between; padding: 12px 0; background-color: var(--obsidian-black); border-right: 1px solid rgba(255,255,255,0.1); flex-shrink: 0; width: 56px; z-index: 10; }
+    .vsc-activity-item { background: transparent; border: none; color: var(--text-tertiary); padding: 12px; margin: 4px 0; cursor: pointer; font-size: 20px; transition: all 0.2s ease; display: flex; justify-content: center; align-items: center; position: relative; }
     .vsc-activity-item:hover { color: var(--text-primary); transform: scale(1.1); }
     .vsc-activity-item[data-active='true'] { color: #fff; }
-    .vsc-activity-item[data-active='true']::before {
-        content: ''; position: absolute; left: 0; top: 12px; bottom: 12px; width: 3px;
-        background: white; border-radius: 0 2px 2px 0; box-shadow: 0 0 8px rgba(255,255,255,0.5);
-    }
-
-    /* Sidebar View */
-    .vsc-sidebar-view {
-      flex-grow: 1;
-      background-color: var(--obsidian-panel);
-      color: var(--text-primary);
-      width: 300px;
-      min-width: 300px;
-      border-right: 1px solid rgba(255,255,255,0.08);
-      transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-      display: flex;
-      flex-direction: column;
-    }
-    .vsc-sidebar-view[data-visible='false'] {
-      width: 0; min-width: 0; opacity: 0; border-right: none;
-    }
-
-    /* Headers */
-    .view-header, .vsc-view-pane-header {
-      margin: 0; color: var(--text-primary); font-size: 0.9rem; font-weight: 500;
-      padding: 16px; border-bottom: var(--glass-border);
-      background: rgba(255, 255, 255, 0.02); backdrop-filter: var(--glass-blur);
-      display: flex; justify-content: space-between; align-items: center;
-      text-transform: uppercase; letter-spacing: 0.05em;
-    }
-    
-    .view-header-icon {
-        background: transparent; border: 1px solid transparent; color: var(--text-secondary); 
-        cursor: pointer; padding: 6px; border-radius: 4px; transition: all 0.2s;
-        display: flex; align-items: center; justify-content: center;
-    }
-    .view-header-icon:hover { 
-        background-color: rgba(255,255,255,0.1); color: white; border-color: rgba(255,255,255,0.2);
-    }
-
-    /* Content Areas */
-    .vsc-view-content, .view-content-scroll, .vsc-view-pane-content {
-        flex-grow: 1; overflow-y: auto; background-color: transparent;
-    }
-    .view-padding { padding: 16px; }
+    .vsc-activity-item[data-active='true']::before { content: ''; position: absolute; left: 0; top: 12px; bottom: 12px; width: 3px; background: white; border-radius: 0 2px 2px 0; box-shadow: 0 0 8px rgba(255,255,255,0.5); }
+    .vsc-sidebar-view { flex-grow: 1; background-color: var(--obsidian-panel); color: var(--text-primary); width: 300px; min-width: 300px; border-right: 1px solid rgba(255,255,255,0.08); transition: all 0.3s; display: flex; flex-direction: column; }
+    .vsc-sidebar-view[data-visible='false'] { width: 0; min-width: 0; opacity: 0; border-right: none; }
+    .view-header, .vsc-view-pane-header { margin: 0; color: var(--text-primary); font-size: 0.9rem; font-weight: 500; padding: 16px; border-bottom: var(--glass-border); background: rgba(255, 255, 255, 0.02); backdrop-filter: var(--glass-blur); display: flex; justify-content: space-between; align-items: center; text-transform: uppercase; letter-spacing: 0.05em; }
+    .view-header-icon { background: transparent; border: 1px solid transparent; color: var(--text-secondary); cursor: pointer; padding: 6px; border-radius: 4px; transition: all 0.2s; display: flex; align-items: center; justify-content: center; }
+    .view-header-icon:hover { background-color: rgba(255,255,255,0.1); color: white; border-color: rgba(255,255,255,0.2); }
+    .vsc-view-content, .view-content-scroll, .vsc-view-pane-content { flex-grow: 1; overflow-y: auto; background-color: transparent; }
     .vsc-view-panes { height: 100%; }
     .vsc-view-pane { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
-
-    /* Main Content Editor */
-    .main-content {
-      flex: 1; display: flex; flex-direction: column; overflow: hidden;
-      background-color: var(--obsidian-dark); position: relative;
-    }
-
-    .main-editor-header {
-        display: flex; justify-content: space-between; align-items: center;
-        padding: 10px 20px; background-color: rgba(0,0,0,0.6); backdrop-filter: blur(10px);
-        border-bottom: 1px solid rgba(255,255,255,0.08); height: 50px;
-    }
+    .main-content { flex: 1; display: flex; flex-direction: column; overflow: hidden; background-color: var(--obsidian-dark); position: relative; }
+    .main-editor-header { display: flex; justify-content: space-between; align-items: center; padding: 10px 20px; background-color: rgba(0,0,0,0.6); backdrop-filter: blur(10px); border-bottom: 1px solid rgba(255,255,255,0.08); height: 50px; }
     .main-editor-title { font-size: 0.9rem; font-weight: 400; letter-spacing: 0.02em; display: flex; align-items: center; gap: 8px; }
-
-    .editor-toggle-group {
-        display: inline-flex; border: 1px solid rgba(255,255,255,0.15);
-        border-radius: 6px; padding: 2px; background: rgba(0,0,0,0.3);
-    }
-    .editor-toggle-btn {
-        background: transparent; color: var(--text-secondary); padding: 4px 12px;
-        border: none; cursor: pointer; font-size: 0.8rem; border-radius: 4px;
-        font-weight: 400; transition: all 0.2s; display: flex; align-items: center; gap: 6px;
-    }
-    .editor-toggle-btn.active {
-        background-color: rgba(255,255,255,0.1); color: white; font-weight: 500;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.3);
-    }
-    
-    .main-editor-action-btn, .form-button, .modal-button-primary {
-        background: var(--accent-gradient); color: var(--accent-text); padding: 6px 16px;
-        border: 1px solid white; border-radius: 4px; cursor: pointer;
-        font-size: 0.85rem; font-weight: 600; box-shadow: 0 0 10px rgba(255,255,255,0.1);
-        transition: all 0.2s ease; text-transform: uppercase; letter-spacing: 0.03em;
-        display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-    }
-    .main-editor-action-btn:hover, .form-button:hover, .modal-button-primary:hover {
-        transform: translateY(-1px); box-shadow: 0 0 15px rgba(255,255,255,0.3); background: var(--accent-hover);
-    }
-    .main-editor-action-btn:disabled, .form-button:disabled {
-        background: #333; color: #666; border-color: #444; cursor: not-allowed; box-shadow: none; transform: none;
-    }
-
-    .main-editor {
-      flex-grow: 1; background-color: var(--obsidian-dark); color: #e0e0e0;
-      border: none; outline: none; padding: 40px;
-      font-family: 'Nanum Gothic', sans-serif; font-size: 15px; line-height: 1.8;
-      resize: none; font-weight: 300;
-    }
-    .main-editor-placeholder {
-      display: flex; flex-direction: column; justify-content: center; align-items: center;
-      height: 100%; color: var(--text-secondary); font-weight: 200; gap: 16px;
-    }
-    .main-editor-footer {
-        padding: 4px 12px; background-color: rgba(0,0,0,0.8); border-top: 1px solid #333;
-        color: var(--text-secondary); font-size: 0.75rem; display: flex; justify-content: flex-end;
-    }
-    
-    /* Form Elements */
+    .editor-toggle-group { display: inline-flex; border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; padding: 2px; background: rgba(0,0,0,0.3); }
+    .editor-toggle-btn { background: transparent; color: var(--text-secondary); padding: 4px 12px; border: none; cursor: pointer; font-size: 0.8rem; border-radius: 4px; font-weight: 400; transition: all 0.2s; display: flex; align-items: center; gap: 6px; }
+    .editor-toggle-btn.active { background-color: rgba(255,255,255,0.1); color: white; font-weight: 500; box-shadow: 0 1px 3px rgba(0,0,0,0.3); }
+    .main-editor-action-btn, .form-button, .modal-button-primary { background: var(--accent-gradient); color: var(--accent-text); padding: 6px 16px; border: 1px solid white; border-radius: 4px; cursor: pointer; font-size: 0.85rem; font-weight: 600; box-shadow: 0 0 10px rgba(255,255,255,0.1); transition: all 0.2s ease; text-transform: uppercase; letter-spacing: 0.03em; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+    .main-editor-action-btn:hover, .form-button:hover, .modal-button-primary:hover { transform: translateY(-1px); box-shadow: 0 0 15px rgba(255,255,255,0.3); background: var(--accent-hover); }
+    .main-editor-action-btn:disabled, .form-button:disabled { background: #333; color: #666; border-color: #444; cursor: not-allowed; box-shadow: none; transform: none; }
+    .main-editor { flex-grow: 1; background-color: var(--obsidian-dark); color: #e0e0e0; border: none; outline: none; padding: 40px; font-family: 'Nanum Gothic', sans-serif; font-size: 15px; line-height: 1.8; resize: none; font-weight: 300; }
+    .main-editor-placeholder { display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100%; color: var(--text-secondary); font-weight: 200; gap: 16px; }
+    .main-editor-footer { padding: 4px 12px; background-color: rgba(0,0,0,0.8); border-top: 1px solid #333; color: var(--text-secondary); font-size: 0.75rem; display: flex; justify-content: flex-end; }
     .form-group { margin-bottom: 20px; }
-    .form-label {
-        display: block; font-size: 0.8rem; margin-bottom: 8px; color: var(--text-secondary);
-        font-weight: 400; text-transform: uppercase;
-    }
-    .form-input, .form-textarea, .form-select {
-      width: 100%; padding: 10px 12px; box-sizing: border-box;
-      border: var(--glass-border); background-color: rgba(0,0,0,0.3); color: white;
-      border-radius: 4px; font-family: var(--font-main); font-weight: 300; transition: border-color 0.2s;
-    }
-    .form-input:focus, .form-textarea:focus, .form-select:focus {
-        outline: none; border-color: rgba(255,255,255,0.5); background-color: rgba(0,0,0,0.5);
-    }
-    
-    /* List Items */
-    .list-item {
-      padding: 14px; background: rgba(255, 255, 255, 0.03);
-      border: 1px solid transparent; border-radius: 6px; margin-bottom: 10px;
-      cursor: pointer; transition: all 0.2s; position: relative;
-    }
-    .list-item:hover {
-      background: rgba(255, 255, 255, 0.07); border-color: rgba(255, 255, 255, 0.2); transform: translateX(2px);
-    }
+    .form-label { display: block; font-size: 0.8rem; margin-bottom: 8px; color: var(--text-secondary); font-weight: 400; text-transform: uppercase; }
+    .form-input, .form-textarea, .form-select { width: 100%; padding: 10px 12px; box-sizing: border-box; border: var(--glass-border); background-color: rgba(0,0,0,0.3); color: white; border-radius: 4px; font-family: var(--font-main); font-weight: 300; transition: border-color 0.2s; }
+    .form-input:focus, .form-textarea:focus, .form-select:focus { outline: none; border-color: rgba(255,255,255,0.5); background-color: rgba(0,0,0,0.5); }
+    .list-item { padding: 14px; background: rgba(255, 255, 255, 0.03); border: 1px solid transparent; border-radius: 6px; margin-bottom: 10px; cursor: pointer; transition: all 0.2s; position: relative; }
+    .list-item:hover { background: rgba(255, 255, 255, 0.07); border-color: rgba(255, 255, 255, 0.2); transform: translateX(2px); }
     .list-item-title { font-weight: 500; color: white; margin-bottom: 4px; display: flex; align-items: center; gap: 8px;}
     .list-item-sub { font-size: 0.8rem; color: var(--text-secondary); font-weight: 300; }
-    
-    /* Modals */
-    .modal-overlay {
-      position: fixed; inset: 0; background-color: rgba(0, 0, 0, 0.8);
-      backdrop-filter: blur(5px); display: flex; justify-content: center; align-items: center; z-index: 100;
-    }
-    .modal-container {
-      background-color: rgba(15, 15, 15, 0.95); backdrop-filter: blur(24px); color: var(--text-primary);
-      border: var(--glass-highlight); border-radius: 12px; width: 90%; max-width: 700px; max-height: 85vh;
-      display: flex; flex-direction: column; box-shadow: 0 20px 50px -10px rgba(0,0,0,0.8);
-    }
-    .modal-header {
-      padding: 20px 24px; border-bottom: var(--glass-border); display: flex; justify-content: space-between; align-items: center;
-    }
-    .modal-close-btn {
-        background: none; border: none; color: var(--text-secondary); font-size: 1.2rem; cursor: pointer; transition: color 0.2s;
-    }
+    .modal-overlay { position: fixed; inset: 0; background-color: rgba(0, 0, 0, 0.8); backdrop-filter: blur(5px); display: flex; justify-content: center; align-items: center; z-index: 100; }
+    .modal-container { background-color: rgba(15, 15, 15, 0.95); backdrop-filter: blur(24px); color: var(--text-primary); border: var(--glass-highlight); border-radius: 12px; width: 90%; max-width: 700px; max-height: 85vh; display: flex; flex-direction: column; box-shadow: 0 20px 50px -10px rgba(0,0,0,0.8); }
+    .modal-header { padding: 20px 24px; border-bottom: var(--glass-border); display: flex; justify-content: space-between; align-items: center; }
+    .modal-close-btn { background: none; border: none; color: var(--text-secondary); font-size: 1.2rem; cursor: pointer; transition: color 0.2s; }
     .modal-close-btn:hover { color: white; }
     .modal-body { padding: 24px; overflow-y: auto; }
-    .modal-footer {
-      padding: 16px 24px; border-top: var(--glass-border); display: flex; justify-content: flex-end; gap: 12px; background: rgba(0,0,0,0.2);
-    }
-    .modal-button-secondary {
-      background: transparent; color: var(--text-primary); border: 1px solid rgba(255,255,255,0.2);
-      padding: 6px 16px; border-radius: 4px; cursor: pointer; transition: all 0.2s; font-weight: 300;
-    }
+    .modal-footer { padding: 16px 24px; border-top: var(--glass-border); display: flex; justify-content: flex-end; gap: 12px; background: rgba(0,0,0,0.2); }
+    .modal-button-secondary { background: transparent; color: var(--text-primary); border: 1px solid rgba(255,255,255,0.2); padding: 6px 16px; border-radius: 4px; cursor: pointer; transition: all 0.2s; font-weight: 300; }
     .modal-button-secondary:hover { border-color: white; background: rgba(255,255,255,0.05); }
-
-    /* Settings Nav */
-    .settings-nav { width: 180px; border-right: var(--glass-border); padding: 20px 0; }
-    .settings-nav-item {
-        padding: 12px 24px; cursor: pointer; font-size: 0.9rem; font-weight: 300;
-        color: var(--text-secondary); border-left: 2px solid transparent; display: flex; align-items: center; gap: 8px;
-    }
-    .settings-nav-item:hover { color: white; background: rgba(255,255,255,0.03); }
-    .settings-nav-item[data-active='true'] {
-        color: white; border-left-color: white; background: linear-gradient(90deg, rgba(255,255,255,0.05), transparent); font-weight: 500;
-    }
-
-    /* File Tree */
-    .file-tree-node {
-        color: var(--text-secondary); border: 1px solid transparent; margin: 1px 0;
-        border-radius: 4px; transition: all 0.15s;
-    }
+    .file-tree-node { color: var(--text-secondary); border: 1px solid transparent; margin: 1px 0; border-radius: 4px; transition: all 0.15s; }
     .file-tree-node:hover { background-color: rgba(255,255,255,0.05); color: white; }
-    .file-tree-node[data-active='true'] {
-        background-color: rgba(255,255,255,0.1); border: var(--glass-border); color: white;
-    }
+    .file-tree-node[data-active='true'] { background-color: rgba(255,255,255,0.1); border: var(--glass-border); color: white; }
     .file-tree-node-icon { opacity: 0.8; margin-right: 6px; font-size: 0.9rem; }
-
-    /* Context Menu */
-    .context-menu {
-        background: rgba(10, 10, 10, 0.95); backdrop-filter: blur(12px);
-        border: 1px solid rgba(255,255,255,0.2); box-shadow: 0 10px 30px rgba(0,0,0,0.8); padding: 4px; border-radius: 6px;
-    }
-    .context-menu-item {
-        padding: 8px 12px; font-size: 0.9rem; cursor: pointer; border-radius: 4px; display: flex; align-items: center; gap: 8px;
-    }
+    .context-menu { background: rgba(10, 10, 10, 0.95); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.2); box-shadow: 0 10px 30px rgba(0,0,0,0.8); padding: 4px; border-radius: 6px; }
+    .context-menu-item { padding: 8px 12px; font-size: 0.9rem; cursor: pointer; border-radius: 4px; display: flex; align-items: center; gap: 8px; }
     .context-menu-item:hover { background: rgba(255,255,255,0.1); color: white; }
     .context-menu-divider { border-top: 1px solid rgba(255,255,255,0.1); margin: 4px 0; }
-
-    /* Viewer & Other */
     .prose-readable-wrapper { padding: 40px; }
-    .prose-dark-theme {
-        --text-primary: #f0f0f0; --text-secondary: #b0b0b0; --border-color: #333;
-        --accent-primary: #ffffff; --bg-tertiary: rgba(255,255,255,0.05);
-    }
+    .prose-dark-theme { --text-primary: #f0f0f0; --text-secondary: #b0b0b0; --border-color: #333; --accent-primary: #ffffff; --bg-tertiary: rgba(255,255,255,0.05); }
     .prose-readable h1, .prose-readable h2, .prose-readable h3 { font-family: 'Inter', sans-serif; font-weight: 500; color: white; }
     .prose-readable p { font-family: 'Inter', sans-serif; font-weight: 300; font-size: 1.05rem; line-height: 1.8; }
     .prose-readable code { background: rgba(255,255,255,0.1); color: #fff; border: 1px solid rgba(255,255,255,0.2); }
     .spinner { border-color: rgba(255,255,255,0.1); border-top-color: white; }
-    
-    .empty-state {
-        display: flex; flex-direction: column; align-items: center; justify-content: center;
-        padding: 40px; color: var(--text-tertiary); text-align: center; gap: 10px;
-    }
+    .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px; color: var(--text-tertiary); text-align: center; gap: 10px; }
     .empty-state i { font-size: 2rem; opacity: 0.5; margin-bottom: 8px; }
 
   </style>
@@ -367,7 +221,6 @@
   <div id="root"></div>
   <input type="file" id="file-upload-input" style="display: none" multiple accept=".txt,.md,.zip" />
 
-  <!-- React Application Script -->
   <script type="module">
     const { useState, useEffect, useCallback, useMemo, createContext, useContext, useRef } = React;
     const { createRoot } = ReactDOM;
@@ -381,10 +234,10 @@
     } = auth;
     const { 
         getFirestore, doc, getDoc, getDocs, addDoc, setDoc, updateDoc, deleteDoc, 
-        onSnapshot, collection, query, where, writeBatch, setLogLevel
+        onSnapshot, collection, query, where, writeBatch, setLogLevel, orderBy
     } = firestore;
 
-    /* --- Data Hooks & Logic (Simplified for brevity, logic unchanged) --- */
+    /* --- Common Utils --- */
     const ToastContext = createContext(null);
     const useToast = () => useContext(ToastContext);
     const AppContext = createContext(null);
@@ -424,7 +277,8 @@
       const payload = {
         contents: [{ role: "user", parts: [{ text: `--- SOURCE ---\n${text}` }] }],
         systemInstruction: { parts: [{ text: settings.quizSystemPrompt.replace('{{DIFFICULTY}}', opts.difficulty).replace('{{QUESTION_TYPE}}', opts.questionType).replace('{{NUM_QUESTIONS}}', opts.numQuestions) }] },
-        generationConfig: { responseMimeType: "application/json", responseSchema: { type: "OBJECT", properties: { title: { type: "STRING" }, questions: { type: "ARRAY", items: { type: "OBJECT", properties: { questionType: { type: "STRING" }, questionText: { type: "STRING" }, options: { type: "ARRAY", items: { "type": "STRING" }, nullable: true }, correctAnswerIndex: { type: "NUMBER", nullable: true }, gradingCriteria: { type: "STRING", nullable: true } }, required: ["questionType", "questionText"] } }, required: ["title", "questions"] }, temperature: 0.3 }}};
+        generationConfig: { responseMimeType: "application/json", responseSchema: { type: "OBJECT", properties: { title: { type: "STRING" }, questions: { type: "ARRAY", items: { type: "OBJECT", properties: { questionType: { type: "STRING" }, questionText: { type: "STRING" }, options: { type: "ARRAY", items: { "type": "STRING" }, nullable: true }, correctAnswerIndex: { type: "NUMBER", nullable: true }, gradingCriteria: { type: "STRING", nullable: true } }, required: ["questionType", "questionText"] } }, required: ["title", "questions"] }, temperature: 0.3 }
+      };
       const res = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/${settings.modelName || "gemini-2.5-flash"}:generateContent?key=${apiKey}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       return JSON.parse(res.candidates?.[0]?.content?.parts?.[0]?.text);
     };
@@ -471,13 +325,18 @@
         gradingSystemPrompt: "Grade the answer strictly based on the criteria."
     };
 
-    const useFileSystem = (files, db, userId, appId) => {
+    /* --- Project Aware Hook --- */
+    const useFileSystem = (files, db, userId, appId, projectId) => {
         const getCollectionRef = (n) => collection(db, `artifacts/${appId}/users/${userId}/${n}`);
         const fileActions = useMemo(() => {
-          if (!db || !userId) return {};
+          if (!db || !userId || !projectId) return {};
           return {
             create: async (pid, type, name, content = '') => {
-              const ref = await addDoc(getCollectionRef('files'), { name: name || (type === 'folder' ? 'New Folder' : 'New File'), type, parentId: pid, content: type === 'file' ? content : null, metadata: { notes: '' }, createdAt: new Date().toISOString(), userId });
+              const ref = await addDoc(getCollectionRef('files'), { 
+                  name: name || (type === 'folder' ? 'New Folder' : 'New File'), 
+                  type, parentId: pid, projectId, // Add projectId
+                  content: type === 'file' ? content : null, metadata: { notes: '' }, createdAt: new Date().toISOString(), userId 
+              });
               return { id: ref.id };
             },
             rename: async (fid, name) => updateDoc(doc(db, `artifacts/${appId}/users/${userId}/files`, fid), { name }),
@@ -485,9 +344,10 @@
             updateContent: async (fid, content) => updateDoc(doc(db, `artifacts/${appId}/users/${userId}/files`, fid), { content }),
             move: async (fid, pid) => updateDoc(doc(db, `artifacts/${appId}/users/${userId}/files`, fid), { parentId: pid })
           };
-        }, [db, userId, appId]);
+        }, [db, userId, appId, projectId]);
 
         const fileTree = useMemo(() => {
+          if (!projectId) return [];
           const map = {}, roots = [];
           files.forEach(f => map[f.id] = { ...f, children: [] });
           Object.values(map).forEach(n => { if(n.parentId === 'root') roots.push(n); else if(map[n.parentId]) map[n.parentId].children.push(n); });
@@ -495,7 +355,7 @@
           const sortNode = (l) => { l.sort(sortFn); l.forEach(c => sortNode(c.children)); };
           sortNode(roots);
           return roots;
-        }, [files]);
+        }, [files, projectId]);
         return { fileTree, fileActions };
     };
 
@@ -510,27 +370,91 @@
         return e(ToastContext.Provider, { value: { show } }, children, e('div', { className: 'toast-container' }, toasts.map(t => e('div', { key: t.id, className: `toast-item ${t.type}` }, e('i', { className: t.type === 'success' ? 'bi bi-check-circle-fill mr-2' : 'bi bi-info-circle-fill mr-2' }), t.message))));
     };
 
-    const ReactVscodeSidebar = ({ items, onActiveChange, activeId, isVisible, children }) => {
+    const ProjectDashboard = ({ projects, onCreate, onSelect, onDelete, isLoading }) => {
+        const [newProjName, setNewProjName] = useState('');
+        const [isCreating, setIsCreating] = useState(false);
+        
+        const handleCreate = (e) => {
+            e.preventDefault();
+            if (newProjName.trim()) {
+                onCreate(newProjName.trim());
+                setNewProjName('');
+                setIsCreating(false);
+            }
+        };
+
+        return e('div', { className: 'h-screen flex flex-col bg-black' },
+            e('div', { className: 'p-8 border-b border-gray-800 flex justify-between items-center glass-header' },
+                e('h1', { className: 'text-2xl font-light text-white flex items-center gap-3' }, 
+                    e('i', { className: 'bi bi-grid-1x2-fill' }), 'Project Dashboard'
+                ),
+                e('div', { className: 'text-sm text-gray-500' }, `${projects.length} Projects`)
+            ),
+            e('div', { className: 'project-grid' },
+                // Create New Card
+                e('div', { className: 'project-card project-card-new', onClick: () => setIsCreating(true) },
+                    isCreating 
+                    ? e('form', { onSubmit: handleCreate, className: 'w-full', onClick: e => e.stopPropagation() },
+                        e('input', { 
+                            autoFocus: true,
+                            className: 'form-input text-center bg-transparent border-none text-xl mb-4', 
+                            placeholder: 'Project Name',
+                            value: newProjName,
+                            onChange: e => setNewProjName(e.target.value),
+                            onBlur: () => setIsCreating(false)
+                        }),
+                        e('button', { type: 'submit', className: 'modal-button-primary w-full justify-center' }, 'Create')
+                    )
+                    : e('div', { className: 'flex flex-col items-center' },
+                        e('i', { className: 'bi bi-plus-circle text-4xl mb-4' }),
+                        e('span', null, 'New Project')
+                    )
+                ),
+                // Project List
+                projects.map(p => e('div', { key: p.id, className: 'project-card', onClick: () => onSelect(p.id) },
+                    e('div', { className: 'project-title' }, p.name),
+                    e('div', { className: 'project-desc' }, 'Managed Workspace'),
+                    e('div', { className: 'project-meta' },
+                        e('span', null, new Date(p.createdAt).toLocaleDateString()),
+                        e('button', { 
+                            className: 'delete-project-btn', 
+                            onClick: (e) => { e.stopPropagation(); onDelete(p.id); },
+                            title: 'Delete Project'
+                        }, e('i', { className: 'bi bi-trash' }))
+                    )
+                ))
+            )
+        );
+    };
+
+    const ReactVscodeSidebar = ({ items, onActiveChange, activeId, isVisible, onHome, children }) => {
       const renderItem = (i) => e('button', { key: i.id, className: 'vsc-activity-item', onClick: () => onActiveChange(i.id), 'data-active': isVisible && i.id === activeId, title: i.label }, e('i', { className: i.icon }));
       return e('div', { className: 'vsc-sidebar-container' }, 
-        e('div', { className: 'vsc-activity-bar' }, e('div', null, items.filter(i => !i.isBottom).map(renderItem)), e('div', null, items.filter(i => i.isBottom).map(renderItem))), 
+        e('div', { className: 'vsc-activity-bar' }, 
+            e('div', null, items.filter(i => !i.isBottom).map(renderItem)), 
+            e('div', null, 
+                e('button', { className: 'vsc-activity-item mb-4 text-blue-400', onClick: onHome, title: 'Back to Dashboard' }, e('i', { className: 'bi bi-grid-fill' })),
+                items.filter(i => i.isBottom).map(renderItem)
+            )
+        ), 
         e('div', { className: 'vsc-sidebar-view', 'data-visible': isVisible }, isVisible && React.Children.toArray(children).find(c => c.props.viewId === activeId))
       );
     };
 
+    /* --- Main App Logic Updates --- */
+    /* Most components (FileNode, MarkdownViewer, etc) remain similar but depend on AppContext */
+    
     const FileNode = ({ node, depth, onContextMenu }) => {
         const { activeEditorFile, editingNodeId, setEditingNodeId, fileActions, setActiveEditorFile } = useContext(AppContext);
-        const [isOpen, setIsOpen] = useState(false); // Default closed for cleaner look
+        const [isOpen, setIsOpen] = useState(false);
         const [editName, setEditName] = useState(node.name);
         const isEditing = editingNodeId === node.id;
-        
         const handleRename = (e) => { e.preventDefault(); if(editName.trim()) fileActions.rename(node.id, editName); setEditingNodeId(null); };
         const getIcon = () => {
             if (node.type === 'folder') return isOpen ? 'bi bi-folder2-open' : 'bi bi-folder-fill';
             if (node.name.endsWith('.md')) return 'bi bi-markdown-fill';
             return 'bi bi-file-earmark-text';
         };
-
         return e(React.Fragment, null,
             e('div', { 
                 className: 'file-tree-node', style: { paddingLeft: `${depth * 12 + 8}px`, display: 'flex', alignItems: 'center' },
@@ -538,9 +462,7 @@
                 onContextMenu: (e) => onContextMenu(e, node), 'data-active': activeEditorFile?.id === node.id
               },
               e('i', { className: `file-tree-node-icon ${getIcon()} ${node.type === 'folder' ? 'text-yellow-600' : 'text-gray-400'}` }),
-              isEditing 
-                ? e('form', { onSubmit: handleRename }, e('input', { className: 'form-input !p-0 !h-6 text-sm', value: editName, onChange: e => setEditName(e.target.value), onBlur: handleRename, autoFocus: true, onClick: e => e.stopPropagation() }))
-                : e('span', { className: 'truncate select-none' }, node.name)
+              isEditing ? e('form', { onSubmit: handleRename }, e('input', { className: 'form-input !p-0 !h-6 text-sm', value: editName, onChange: e => setEditName(e.target.value), onBlur: handleRename, autoFocus: true, onClick: e => e.stopPropagation() })) : e('span', { className: 'truncate select-none' }, node.name)
             ),
             isOpen && node.children.map(child => e(FileNode, { key: child.id, node: child, depth: depth + 1, onContextMenu }))
         );
@@ -549,34 +471,16 @@
     const FileManagerView = ({ viewId }) => {
         const { fileTree, fileActions, userId, setActiveEditorFile } = useContext(AppContext);
         const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, node: null });
-        
-        const handleContextMenu = (e, node) => {
-            if(!userId) return;
-            e.preventDefault(); e.stopPropagation();
-            setContextMenu({ visible: true, x: e.clientX, y: e.clientY, node });
-        };
-        
+        const handleContextMenu = (e, node) => { if(!userId) return; e.preventDefault(); e.stopPropagation(); setContextMenu({ visible: true, x: e.clientX, y: e.clientY, node }); };
         useEffect(() => { window.addEventListener('click', () => setContextMenu({ visible: false })); }, []);
-
         return e('div', { viewId, className: 'vsc-view-panes' },
             e('div', { className: 'vsc-view-pane' },
-                e('div', { className: 'view-header' }, 
-                    e('span', null, e('i', { className: 'bi bi-files mr-2' }), 'Explorer'),
-                    userId && e('div', { className: 'flex gap-1' },
-                        e('button', { className: 'view-header-icon', onClick: () => fileActions.create('root', 'folder'), title: 'New Folder' }, e('i', { className: 'bi bi-folder-plus' })),
-                        e('button', { className: 'view-header-icon', onClick: () => fileActions.create('root', 'file'), title: 'New File' }, e('i', { className: 'bi bi-file-earmark-plus' })),
-                        e('button', { className: 'view-header-icon', onClick: () => document.getElementById('file-upload-input').click(), title: 'Upload' }, e('i', { className: 'bi bi-upload' }))
-                    )
-                ),
+                e('div', { className: 'view-header' }, e('span', null, e('i', { className: 'bi bi-files mr-2' }), 'Explorer'), userId && e('div', { className: 'flex gap-1' }, e('button', { className: 'view-header-icon', onClick: () => fileActions.create('root', 'folder'), title: 'New Folder' }, e('i', { className: 'bi bi-folder-plus' })), e('button', { className: 'view-header-icon', onClick: () => fileActions.create('root', 'file'), title: 'New File' }, e('i', { className: 'bi bi-file-earmark-plus' })), e('button', { className: 'view-header-icon', onClick: () => document.getElementById('file-upload-input').click(), title: 'Upload' }, e('i', { className: 'bi bi-upload' })))),
                 e('div', { className: 'vsc-view-pane-content' },
                     !userId && e('div', { className: 'empty-state' }, e('i', { className: 'bi bi-lock-fill' }), 'Sign in to access files'),
                     userId && fileTree.length === 0 && e('div', { className: 'empty-state' }, e('i', { className: 'bi bi-inbox' }), 'No files yet'),
                     userId && fileTree.map(node => e(FileNode, { key: node.id, node, depth: 0, onContextMenu })),
-                    userId && contextMenu.visible && e('div', { className: 'context-menu', style: { position: 'fixed', top: contextMenu.y, left: contextMenu.x, zIndex: 1000 } },
-                         e('div', { className: 'context-menu-item', onClick: () => useContext(AppContext).setEditingNodeId(contextMenu.node.id) }, e('i', { className: 'bi bi-pencil' }), 'Rename'),
-                         e('div', { className: 'context-menu-divider' }),
-                         e('div', { className: 'context-menu-item text-red-400', onClick: () => fileActions.remove(contextMenu.node.id) }, e('i', { className: 'bi bi-trash' }), 'Delete')
-                    )
+                    userId && contextMenu.visible && e('div', { className: 'context-menu', style: { position: 'fixed', top: contextMenu.y, left: contextMenu.x, zIndex: 1000 } }, e('div', { className: 'context-menu-item', onClick: () => useContext(AppContext).setEditingNodeId(contextMenu.node.id) }, e('i', { className: 'bi bi-pencil' }), 'Rename'), e('div', { className: 'context-menu-divider' }), e('div', { className: 'context-menu-item text-red-400', onClick: () => fileActions.remove(contextMenu.node.id) }, e('i', { className: 'bi bi-trash' }), 'Delete'))
                 )
             )
         );
@@ -594,56 +498,25 @@
         const [mode, setMode] = useState('edit');
         const [isSaved, setIsSaved] = useState(true);
         const toast = useToast();
-        
         useEffect(() => { setContent(activeEditorFile?.content || ""); setMode('edit'); setIsSaved(true); }, [activeEditorFile]);
-        
-        // Auto-save logic
         useEffect(() => { 
             if(!activeEditorFile || content === activeEditorFile.content) { setIsSaved(true); return; }
             setIsSaved(false);
-            const timer = setTimeout(() => {
-                fileActions.updateContent(activeEditorFile.id, content).then(() => setIsSaved(true));
-            }, 1000);
+            const timer = setTimeout(() => { fileActions.updateContent(activeEditorFile.id, content).then(() => setIsSaved(true)); }, 1000);
             return () => clearTimeout(timer);
         }, [content, activeEditorFile]);
-
-        // Keyboard shortcut: Ctrl+S
-        useEffect(() => {
-            const handleKeyDown = (e) => {
-                if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-                    e.preventDefault();
-                    if (activeEditorFile) {
-                        fileActions.updateContent(activeEditorFile.id, content);
-                        setIsSaved(true);
-                        toast.show('File saved manually', 'success');
-                    }
-                }
-            };
-            window.addEventListener('keydown', handleKeyDown);
-            return () => window.removeEventListener('keydown', handleKeyDown);
-        }, [activeEditorFile, content, fileActions, toast]);
-
+        
         if (!userId) return e('div', { className: 'main-editor-placeholder' }, e('i', { className: 'bi bi-shield-lock text-6xl mb-4 opacity-50' }), e('p', null, 'Authentication Required'), e('button', { className: 'form-button', onClick: handleGoogleSignIn }, e('i', { className: 'bi bi-google' }), 'Sign In with Google'));
         if (!activeEditorFile) return e('div', { className: 'main-editor-placeholder' }, e('i', { className: 'bi bi-file-earmark-text text-6xl mb-4 opacity-50' }), e('p', null, 'Select a file to edit'));
 
         return e('div', { className: 'flex flex-col h-full' },
             e('div', { className: 'main-editor-header' },
                 e('span', { className: 'main-editor-title' }, e('i', { className: 'bi bi-file-text' }), activeEditorFile.name),
-                e('div', { className: 'editor-toggle-group mx-4' },
-                    e('button', { className: `editor-toggle-btn ${mode==='edit'?'active':''}`, onClick: ()=>setMode('edit') }, e('i', { className: 'bi bi-pencil-square' }), 'Edit'),
-                    e('button', { className: `editor-toggle-btn ${mode==='view'?'active':''}`, onClick: ()=>setMode('view') }, e('i', { className: 'bi bi-eye' }), 'Preview')
-                ),
+                e('div', { className: 'editor-toggle-group mx-4' }, e('button', { className: `editor-toggle-btn ${mode==='edit'?'active':''}`, onClick: ()=>setMode('edit') }, e('i', { className: 'bi bi-pencil-square' }), 'Edit'), e('button', { className: `editor-toggle-btn ${mode==='view'?'active':''}`, onClick: ()=>setMode('view') }, e('i', { className: 'bi bi-eye' }), 'Preview')),
                 e('button', { className: 'main-editor-action-btn', onClick: () => dispatchTask({ taskType: 'generate', sourceText: content, options: { ...quizOptions, fileId: activeEditorFile.id, sourceFileName: activeEditorFile.name } }) }, e('i', { className: 'bi bi-stars' }), 'Generate Quiz')
             ),
-            mode === 'view' 
-              ? e(MarkdownViewer, { markdownText: content })
-              : e('textarea', { className: 'main-editor', value: content, onChange: e => setContent(e.target.value), spellCheck: false, placeholder: 'Start typing...' }),
-            e('div', { className: 'main-editor-footer' }, 
-                e('span', { className: 'flex items-center gap-2' }, 
-                    isSaved ? e('i', { className: 'bi bi-check2-circle text-green-500' }) : e('i', { className: 'bi bi-circle text-yellow-500' }),
-                    isSaved ? 'Saved' : 'Unsaved changes'
-                )
-            )
+            mode === 'view' ? e(MarkdownViewer, { markdownText: content }) : e('textarea', { className: 'main-editor', value: content, onChange: e => setContent(e.target.value), spellCheck: false, placeholder: 'Start typing...' }),
+            e('div', { className: 'main-editor-footer' }, e('span', { className: 'flex items-center gap-2' }, isSaved ? e('i', { className: 'bi bi-check2-circle text-green-500' }) : e('i', { className: 'bi bi-circle text-yellow-500' }), isSaved ? 'Saved' : 'Unsaved changes'))
         );
     };
 
@@ -666,15 +539,7 @@
             e('h3', { className: 'view-header' }, e('span', null, e('i', { className: 'bi bi-clock-history mr-2' }), 'History')),
             e('div', { className: 'view-content-scroll p-4' },
                 attempts.length === 0 && e('div', { className: 'empty-state' }, e('i', { className: 'bi bi-journal-x' }), 'No quizzes taken yet'),
-                attempts.map(a => e('div', { 
-                    key: a.id, className: 'list-item',
-                    onClick: () => setModalContent(e(QuizResult, { attempt: a, onClose: () => setModalContent(null), dispatchGradingTask, userSettings }))
-                }, 
-                e('div', { className: 'list-item-title' }, e('i', { className: 'bi bi-check2-square' }), a.quizTitle), 
-                e('div', { className: 'list-item-sub flex justify-between' }, 
-                    e('span', null, `Score: ${a.score}/${a.total}`),
-                    e('span', { className: 'opacity-50' }, new Date(a.completedAt || Date.now()).toLocaleDateString())
-                )))
+                attempts.map(a => e('div', { key: a.id, className: 'list-item', onClick: () => setModalContent(e(QuizResult, { attempt: a, onClose: () => setModalContent(null), dispatchGradingTask, userSettings })) }, e('div', { className: 'list-item-title' }, e('i', { className: 'bi bi-check2-square' }), a.quizTitle), e('div', { className: 'list-item-sub flex justify-between' }, e('span', null, `Score: ${a.score}/${a.total}`), e('span', { className: 'opacity-50' }, new Date(a.completedAt || Date.now()).toLocaleDateString()))))
             )
         );
     };
@@ -685,30 +550,10 @@
             e('div', { className: 'modal-container', onClick: e => e.stopPropagation() },
                 e('div', { className: 'modal-header' }, e('h2', null, attempt.quizTitle), e('button', { className: 'modal-close-btn', onClick: onClose }, e('i', { className: 'bi bi-x-lg' }))),
                 e('div', { className: 'modal-body' },
-                    e('div', { className: 'flex flex-col items-center mb-8' },
-                        e('div', { className: 'text-4xl font-thin mb-2' }, `${attempt.score} / ${attempt.total}`),
-                        e('div', { className: 'text-sm text-gray-400 uppercase tracking-widest' }, 'Final Score')
-                    ),
-                    results.map((r, i) => e('div', { key: i, className: 'quiz-question-card mb-4' },
-                        e('p', { className: 'font-medium mb-2 text-lg' }, `${i+1}. ${r.questionText}`),
-                        r.isCorrect === null 
-                            ? e('p', { className: 'text-yellow-500 text-sm flex items-center gap-2' }, e('i', { className: 'bi bi-hourglass-split' }), 'Pending AI Grading...')
-                            : e('div', null, 
-                                e('p', { className: r.isCorrect ? 'text-green-400 flex items-center gap-2' : 'text-red-400 flex items-center gap-2' }, 
-                                    e('i', { className: r.isCorrect ? 'bi bi-check-circle' : 'bi bi-x-circle' }), 
-                                    r.isCorrect ? 'Correct' : 'Incorrect'
-                                ),
-                                r.feedback && e('div', { className: 'text-sm text-gray-300 mt-2 bg-black bg-opacity-30 p-3 rounded border border-gray-800' }, 
-                                    e('strong', { className: 'block mb-1 text-xs text-blue-300' }, 'AI FEEDBACK'),
-                                    r.feedback
-                                )
-                            )
-                    ))
+                    e('div', { className: 'flex flex-col items-center mb-8' }, e('div', { className: 'text-4xl font-thin mb-2' }, `${attempt.score} / ${attempt.total}`), e('div', { className: 'text-sm text-gray-400 uppercase tracking-widest' }, 'Final Score')),
+                    results.map((r, i) => e('div', { key: i, className: 'quiz-question-card mb-4' }, e('p', { className: 'font-medium mb-2 text-lg' }, `${i+1}. ${r.questionText}`), r.isCorrect === null ? e('p', { className: 'text-yellow-500 text-sm flex items-center gap-2' }, e('i', { className: 'bi bi-hourglass-split' }), 'Pending AI Grading...') : e('div', null, e('p', { className: r.isCorrect ? 'text-green-400 flex items-center gap-2' : 'text-red-400 flex items-center gap-2' }, e('i', { className: r.isCorrect ? 'bi bi-check-circle' : 'bi bi-x-circle' }), r.isCorrect ? 'Correct' : 'Incorrect'), r.feedback && e('div', { className: 'text-sm text-gray-300 mt-2 bg-black bg-opacity-30 p-3 rounded border border-gray-800' }, e('strong', { className: 'block mb-1 text-xs text-blue-300' }, 'AI FEEDBACK'), r.feedback))))
                 ),
-                e('div', { className: 'modal-footer' },
-                    e('button', { className: 'modal-button-secondary', onClick: onClose }, 'Close'),
-                    results.some(r => r.isCorrect === null) && e('button', { className: 'modal-button-primary', onClick: () => { dispatchGradingTask(attempt); onClose(); } }, e('i', { className: 'bi bi-magic' }), 'Auto-Grade')
-                )
+                e('div', { className: 'modal-footer' }, e('button', { className: 'modal-button-secondary', onClick: onClose }, 'Close'), results.some(r => r.isCorrect === null) && e('button', { className: 'modal-button-primary', onClick: () => { dispatchGradingTask(attempt); onClose(); } }, e('i', { className: 'bi bi-magic' }), 'Auto-Grade'))
             )
         );
     };
@@ -719,13 +564,7 @@
             e('h3', { className: 'view-header' }, e('span', null, e('i', { className: 'bi bi-activity mr-2' }), 'Tasks')),
             e('div', { className: 'view-content-scroll p-4' },
                 taskQueue.length === 0 && e('div', { className: 'empty-state' }, e('i', { className: 'bi bi-check2-all' }), 'All systems nominal'),
-                taskQueue.map(t => e('div', { key: t.id, className: 'list-item' },
-                    e('div', { className: 'list-item-title' }, 
-                        e('i', { className: t.status === 'processing' ? 'bi bi-arrow-repeat animate-spin' : (t.status === 'success' ? 'bi bi-check-circle text-green-500' : 'bi bi-exclamation-triangle text-red-500') }),
-                        t.taskType
-                    ),
-                    e('div', { className: 'list-item-sub ml-6' }, t.status === 'processing' ? 'Processing...' : t.status)
-                ))
+                taskQueue.map(t => e('div', { key: t.id, className: 'list-item' }, e('div', { className: 'list-item-title' }, e('i', { className: t.status === 'processing' ? 'bi bi-arrow-repeat animate-spin' : (t.status === 'success' ? 'bi bi-check-circle text-green-500' : 'bi bi-exclamation-triangle text-red-500') }), t.taskType), e('div', { className: 'list-item-sub ml-6' }, t.status === 'processing' ? 'Processing...' : t.status)))
             )
         );
     };
@@ -737,14 +576,8 @@
         return e('div', { className: 'modal-overlay', onClick: onClose },
             e('div', { className: 'modal-container', onClick: e => e.stopPropagation() },
                 e('div', { className: 'modal-header' }, e('h2', null, 'Settings'), e('button', { className: 'modal-close-btn', onClick: onClose }, e('i', { className: 'bi bi-x-lg' }))),
-                e('div', { className: 'modal-body' },
-                    e('div', { className: 'form-group' }, e('label', { className: 'form-label' }, 'Gemini API Key'), e('input', { className: 'form-input', type: 'password', value: key, onChange: e => setKey(e.target.value) })),
-                    e('div', { className: 'form-group' }, e('label', { className: 'form-label' }, 'Model Name'), e('input', { className: 'form-input', value: model, onChange: e => setModel(e.target.value) }))
-                ),
-                e('div', { className: 'modal-footer' },
-                    e('button', { className: 'modal-button-secondary', onClick: onClose }, 'Cancel'),
-                    e('button', { className: 'modal-button-primary', onClick: () => { saveSettings({ ...userSettings, apiKeys: [{ key, rpm: 60 }], modelName: model }); onClose(); } }, e('i', { className: 'bi bi-save' }), 'Save')
-                )
+                e('div', { className: 'modal-body' }, e('div', { className: 'form-group' }, e('label', { className: 'form-label' }, 'Gemini API Key'), e('input', { className: 'form-input', type: 'password', value: key, onChange: e => setKey(e.target.value) })), e('div', { className: 'form-group' }, e('label', { className: 'form-label' }, 'Model Name'), e('input', { className: 'form-input', value: model, onChange: e => setModel(e.target.value) }))),
+                e('div', { className: 'modal-footer' }, e('button', { className: 'modal-button-secondary', onClick: onClose }, 'Cancel'), e('button', { className: 'modal-button-primary', onClick: () => { saveSettings({ ...userSettings, apiKeys: [{ key, rpm: 60 }], modelName: model }); onClose(); } }, e('i', { className: 'bi bi-save' }), 'Save'))
             )
         );
     };
@@ -753,6 +586,9 @@
         const [db, setDb] = useState(null);
         const [auth, setAuth] = useState(null);
         const [userId, setUserId] = useState(null);
+        const [activeProjectId, setActiveProjectId] = useState(null);
+        const [projects, setProjects] = useState([]);
+        
         const [userSettings, setUserSettings] = useState(DEFAULT_SETTINGS);
         const [files, setFiles] = useState([]);
         const [quizzes, setQuizzes] = useState([]);
@@ -765,6 +601,7 @@
         const [quizOptions, setQuizOptions] = useState({ numQuestions: 5, difficulty: 'Medium', questionType: 'MultipleChoice' });
         
         const quizWorker = useMemo(() => new Worker(workerUrl), []);
+        const toast = useToast();
 
         useEffect(() => {
             try {
@@ -772,33 +609,68 @@
                 const app = initializeApp(c);
                 setDb(getFirestore(app));
                 setAuth(getAuth(app));
-                onAuthStateChanged(getAuth(app), u => setUserId(u ? u.uid : null));
+                onAuthStateChanged(getAuth(app), u => {
+                    setUserId(u ? u.uid : null);
+                    if(!u) setActiveProjectId(null);
+                });
             } catch(e) { console.error(e); }
         }, []);
 
+        // Projects Listener
         useEffect(() => {
             if(!db || !userId) return;
-            const unsubF = onSnapshot(query(collection(db, `artifacts/${window.__app_id}/users/${userId}/files`)), s => setFiles(s.docs.map(d => ({id:d.id, ...d.data()}))));
-            const unsubQ = onSnapshot(query(collection(db, `artifacts/${window.__app_id}/users/${userId}/quizzes`)), s => setQuizzes(s.docs.map(d => ({id:d.id, ...d.data()}))));
-            const unsubA = onSnapshot(query(collection(db, `artifacts/${window.__app_id}/users/${userId}/quizAttempts`)), s => setAttempts(s.docs.map(d => ({id:d.id, ...d.data()}))));
-            const unsubS = onSnapshot(doc(db, `artifacts/${window.__app_id}/users/${userId}/settings/userConfig`), s => s.exists() && setUserSettings(s.data()));
-            return () => { unsubF(); unsubQ(); unsubA(); unsubS(); };
+            const q = query(collection(db, `artifacts/${window.__app_id}/users/${userId}/projects`), orderBy('createdAt', 'desc'));
+            return onSnapshot(q, s => setProjects(s.docs.map(d => ({id: d.id, ...d.data()}))));
         }, [db, userId]);
+
+        // Project-specific Data Listeners
+        useEffect(() => {
+            if(!db || !userId || !activeProjectId) {
+                setFiles([]); setQuizzes([]); setAttempts([]); setActiveEditorFile(null);
+                return;
+            }
+            const filesQuery = query(collection(db, `artifacts/${window.__app_id}/users/${userId}/files`), where('projectId', '==', activeProjectId));
+            const quizzesQuery = query(collection(db, `artifacts/${window.__app_id}/users/${userId}/quizzes`), where('projectId', '==', activeProjectId));
+            const attemptsQuery = query(collection(db, `artifacts/${window.__app_id}/users/${userId}/quizAttempts`), where('projectId', '==', activeProjectId));
+            
+            const uF = onSnapshot(filesQuery, s => setFiles(s.docs.map(d => ({id:d.id, ...d.data()}))));
+            const uQ = onSnapshot(quizzesQuery, s => setQuizzes(s.docs.map(d => ({id:d.id, ...d.data()}))));
+            const uA = onSnapshot(attemptsQuery, s => setAttempts(s.docs.map(d => ({id:d.id, ...d.data()}))));
+            const uS = onSnapshot(doc(db, `artifacts/${window.__app_id}/users/${userId}/settings/userConfig`), s => s.exists() && setUserSettings(s.data()));
+            return () => { uF(); uQ(); uA(); uS(); };
+        }, [db, userId, activeProjectId]);
 
         useEffect(() => {
             quizWorker.onmessage = (e) => {
-                const { status, taskId, taskType, quizData, updatedAttempt } = e.data;
+                const { status, taskId, taskType, quizData, updatedAttempt, options } = e.data;
                 setTaskQueue(q => q.map(t => t.id === taskId ? { ...t, status } : t));
-                if(status === 'success' && taskType === 'generate') addDoc(collection(db, `artifacts/${window.__app_id}/users/${userId}/quizzes`), { ...quizData, userId, createdAt: new Date().toISOString() });
-                if(status === 'success' && taskType === 'grade') updateDoc(doc(db, `artifacts/${window.__app_id}/users/${userId}/quizAttempts`, updatedAttempt.id), updatedAttempt);
+                // Must use activeProjectId when saving result
+                if(status === 'success' && taskType === 'generate') {
+                     addDoc(collection(db, `artifacts/${window.__app_id}/users/${userId}/quizzes`), { ...quizData, userId, projectId: activeProjectId, createdAt: new Date().toISOString() });
+                }
+                if(status === 'success' && taskType === 'grade') {
+                    updateDoc(doc(db, `artifacts/${window.__app_id}/users/${userId}/quizAttempts`, updatedAttempt.id), updatedAttempt);
+                }
             };
-        }, [quizWorker, db, userId]);
+        }, [quizWorker, db, userId, activeProjectId]);
+
+        const createProject = async (name) => {
+            if(!userId) return;
+            await addDoc(collection(db, `artifacts/${window.__app_id}/users/${userId}/projects`), { name, createdAt: new Date().toISOString() });
+        };
+
+        const deleteProject = async (id) => {
+            if(confirm('Delete this project and all its files?')) {
+                await deleteDoc(doc(db, `artifacts/${window.__app_id}/users/${userId}/projects`, id));
+                // Ideally we should delete all files in the project too, but for now we just delete the project ref.
+            }
+        };
+
+        const { fileTree, fileActions } = useFileSystem(files, db, userId, window.__app_id, activeProjectId);
 
         const contextValue = {
-            db, userId, 
-            fileTree: useFileSystem(files, db, userId, window.__app_id).fileTree,
-            fileActions: useFileSystem(files, db, userId, window.__app_id).fileActions,
-            activeEditorFile, setActiveEditorFile, dispatchTask: (data) => {
+            db, userId, fileTree, fileActions, activeEditorFile, setActiveEditorFile, 
+            dispatchTask: (data) => {
                 const id = crypto.randomUUID();
                 setTaskQueue(p => [{...data, id, status: 'processing'}, ...p]);
                 quizWorker.postMessage({ ...data, id, settings: userSettings });
@@ -806,7 +678,7 @@
             quizOptions, setQuizOptions, attempts, quizzes, setModalContent, userSettings,
             saveSettings: (s) => setDoc(doc(db, `artifacts/${window.__app_id}/users/${userId}/settings/userConfig`), s, {merge: true}),
             handleGoogleSignIn: () => signInWithPopup(auth, new GoogleAuthProvider()),
-            handleSignOut: () => signOut(auth),
+            handleSignOut: () => { signOut(auth); setActiveProjectId(null); },
             editingNodeId, setEditingNodeId,
             dispatchGradingTask: (a) => {
                 const id = crypto.randomUUID();
@@ -831,9 +703,25 @@
             else setActiveViewId(id);
         };
 
+        // Render Logic
+        if (userId && !activeProjectId) {
+            return e(ProjectDashboard, { 
+                projects, 
+                onCreate: createProject, 
+                onSelect: setActiveProjectId,
+                onDelete: deleteProject
+            });
+        }
+
         return e(AppContext.Provider, { value: contextValue },
             e('div', { className: 'flex h-screen' },
-                e(ReactVscodeSidebar, { items: sidebarItems, onActiveChange: handleActiveChange, activeId: activeViewId, isVisible: true },
+                e(ReactVscodeSidebar, { 
+                    items: sidebarItems, 
+                    onActiveChange: handleActiveChange, 
+                    activeId: activeViewId, 
+                    isVisible: true,
+                    onHome: () => setActiveProjectId(null) 
+                },
                     e(FileManagerView, { viewId: 'files' }),
                     e(QuizGeneratorView, { viewId: 'quiz-generator' }),
                     e(QuizHistoryView, { viewId: 'history' }),
