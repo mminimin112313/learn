@@ -680,7 +680,7 @@
     };
 
     /* --- API & Worker Logic --- */
-    const QUIZ_SCHEMA = { type: "OBJECT", properties: { title: { type: "STRING" }, questions: { type: "ARRAY", items: { type: "OBJECT", properties: { questionType: { type: "STRING" }, questionText: { type: "STRING" }, options: { type: "ARRAY", items: { "type": "STRING" }, nullable: true }, correctAnswerIndex: { type: "NUMBER", nullable: true }, gradingCriteria: { type: "STRING", nullable: true } }, required: ["questionType", "questionText"] } }, required: ["title", "questions"] };
+    const QUIZ_SCHEMA = { type: "OBJECT", properties: { title: { type: "STRING" }, questions: { type: "ARRAY", items: { type: "OBJECT", properties: { questionType: { type: "STRING" }, questionText: { type: "STRING" }, options: { type: "ARRAY", items: { "type": "STRING" }, nullable: true }, correctAnswerIndex: { type: "NUMBER", nullable: true }, gradingCriteria: { type: "STRING", nullable: true } }, required: ["questionType", "questionText"] } }, required: ["title", "questions"] }};
     const GRADING_SCHEMA = { type: "OBJECT", properties: { isCorrect: { type: "BOOLEAN" }, feedback: { type: "STRING" } }, required: ["isCorrect", "feedback"] };
     
     class ApiError extends Error { constructor(message, status) { super(message); this.name = 'ApiError'; this.status = status; } }
