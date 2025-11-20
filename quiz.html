@@ -3,59 +3,43 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <!-- (v12.0) 타이틀 업데이트: 뷰어 모드 통합 -->
-  <title>AI 퀴즈 VSCode (v12.0 - 뷰어 모드)</title>
+  <title>AI Quiz Obsidian (v12.1 - High Contrast Fix)</title>
 
-  <!-- 1. 의존성 로드: React, Tailwind, JSZip, Firebase -->
+  <!-- Fonts: Inter (Requested), Nanum for fallback -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600&family=Nanum+Gothic:wght@300;400;700&family=Nanum+Myeongjo:wght@400;700&display=swap" rel="stylesheet">
+
+  <!-- Dependencies -->
   <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 
-  <!-- (v12.0) 뷰어 모드 의존성 추가 -->
+  <!-- Viewer Mode Dependencies -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.8/purify.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
   <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
 
-  <!-- 
-    (v11.1) Firebase SDK 추가 (Google Auth 포함)
-  -->
+  <!-- Firebase SDK -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
     import { 
-      getAuth, 
-      signInAnonymously, 
-      signInWithCustomToken, 
-      onAuthStateChanged,
-      GoogleAuthProvider,  // (v11.1) Google Auth Provider 추가
-      signInWithPopup,     // (v11.1) 팝업 로그인 추가
-      signOut              // (v11.1) 로그아웃 추가
+      getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged,
+      GoogleAuthProvider, signInWithPopup, signOut
     } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
     import { 
-      getFirestore, 
-      doc, 
-      getDoc, 
-      getDocs,
-      addDoc, 
-      setDoc, 
-      updateDoc, 
-      deleteDoc, 
-      onSnapshot, 
-      collection, 
-      query, 
-      where, 
-      writeBatch,
-      setLogLevel
+      getFirestore, doc, getDoc, getDocs, addDoc, setDoc, updateDoc, deleteDoc, 
+      onSnapshot, collection, query, where, writeBatch, setLogLevel
     } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-    // 전역 변수로 Firebase 모듈 할당
     window.firebase = {
       app: { initializeApp },
       auth: { 
         getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged,
-        GoogleAuthProvider, signInWithPopup, signOut // (v11.1) 추가
+        GoogleAuthProvider, signInWithPopup, signOut 
       },
       firestore: { 
         getFirestore, doc, getDoc, getDocs, addDoc, setDoc, updateDoc, deleteDoc, 
@@ -65,742 +49,486 @@
   </script>
 
   <script>
-    // 1. Firebase 프로젝트 설정 (Firebase 콘솔에서 복사)
-    // 이 정보는 공개되어도 안전합니다. (보안은 '보안 규칙'으로 강제)
     const firebaseConfig = {
-  apiKey: "AIzaSyBR_9ivOtQRIW_KIQRYBxJ_nFtYL7GYZwg",
-  authDomain: "quiz-436ac.firebaseapp.com",
-  projectId: "quiz-436ac",
-  storageBucket: "quiz-436ac.firebasestorage.app",
-  messagingSenderId: "131117093431",
-  appId: "1:131117093431:web:56e1beff4c63d35b5b25b2"
-};
-
-    
-    // 2. 앱 ID (데이터 분리용)
-    const appId = "my-unique-app-id"; // (예: "ai-quiz-project")
-
-    // 3. (선택) 커스텀 인증 토큰 (서버에서 발급받아야 함)
-    // const initialAuthToken = "eyJhbGciOi...YOUR_CUSTOM_TOKEN";
-
-    // --- 앱에서 사용할 전역 변수로 설정 ---
+      apiKey: "AIzaSyBR_9ivOtQRIW_KIQRYBxJ_nFtYL7GYZwg",
+      authDomain: "quiz-436ac.firebaseapp.com",
+      projectId: "quiz-436ac",
+      storageBucket: "quiz-436ac.firebasestorage.app",
+      messagingSenderId: "131117093431",
+      appId: "1:131117093431:web:56e1beff4c63d35b5b25b2"
+    };
+    const appId = "my-unique-app-id";
     window.__firebase_config = JSON.stringify(firebaseConfig);
     window.__app_id = appId;
-    // if (initialAuthToken) {
-    //   window.__initial_auth_token = initialAuthToken;
-    // }
   </script>
   
-  <!-- 2. 스타일 -->
+  <!-- High Contrast Obsidian Styles -->
   <style>
-    /* (v12.0) 나눔고딕, 나눔명조 웹 폰트 불러오기 */
-    @import url('https://fonts.googleapis.com/css2?family=Nanum+Gothic:wght@400;700;800&family=Nanum+Myeongjo:wght@400;700;800&display=swap');
+    :root {
+        /* Palette Definition */
+        --obsidian-black: #000000;
+        --obsidian-dark: #050505;
+        --obsidian-panel: #0a0a0a;
+        --obsidian-border: #333333;
+        
+        /* Glassmorphism Variables */
+        --glass-bg: rgba(20, 20, 20, 0.65);
+        --glass-border: 1px solid rgba(255, 255, 255, 0.15);
+        --glass-highlight: 1px solid rgba(255, 255, 255, 0.3);
+        --glass-blur: blur(12px);
+        
+        /* Typography */
+        --font-main: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        --text-primary: #eeeeee;
+        --text-secondary: #a0a0a0;
+        --text-tertiary: #666666;
+        
+        /* Engagement / Accents */
+        --accent-gradient: linear-gradient(135deg, #ffffff 0%, #b0b0b0 100%);
+        --accent-hover: linear-gradient(135deg, #ffffff 0%, #e0e0e0 100%);
+        --accent-text: #000000;
+        --danger-color: #ff4d4d;
+    }
 
     body {
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
-        Helvetica, Arial, sans-serif;
+      font-family: var(--font-main);
+      font-weight: 300; /* Thin Typography */
       margin: 0;
-      background-color: #1e1e1e;
-      color: #cccccc;
+      background-color: var(--obsidian-black);
+      color: var(--text-primary);
       height: 100vh;
       overflow: hidden;
+      letter-spacing: -0.01em;
     }
-    ::-webkit-scrollbar { width: 8px; }
-    ::-webkit-scrollbar-track { background: #252526; }
-    ::-webkit-scrollbar-thumb { background: #4a4a4a; border-radius: 4px; }
-    ::-webkit-scrollbar-thumb:hover { background: #5a5a5a; }
+
+    /* Scrollbars */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #555; }
+
+    /* Layout Structure */
     .vsc-sidebar-container {
       display: flex;
       flex-direction: row;
       width: auto;
       height: 100vh;
+      background-color: var(--obsidian-black);
     }
+
+    /* Activity Bar (Leftmost Slim Bar) */
     .vsc-activity-bar {
       display: flex;
       flex-direction: column;
       justify-content: space-between;
-      padding: 8px 0;
-      background-color: #333333;
-      color: white;
+      padding: 12px 0;
+      background-color: var(--obsidian-black);
+      border-right: 1px solid rgba(255,255,255,0.1);
       flex-shrink: 0;
-      width: 52px;
+      width: 56px;
+      z-index: 10;
     }
     .vsc-activity-item {
-      background-color: transparent;
+      background: transparent;
       border: none;
-      color: #b0b0b0;
+      color: var(--text-tertiary);
       padding: 12px;
-      margin: 2px 4px;
+      margin: 4px 0;
       cursor: pointer;
-      font-size: 24px;
-      line-height: 1;
-      border-radius: 4px;
-      transition: background-color 0.2s, color 0.2s;
+      font-size: 22px;
+      transition: all 0.2s ease;
+      display: flex;
+      justify-content: center;
+      position: relative;
     }
-    .vsc-activity-item:hover { background-color: #404040; }
+    .vsc-activity-item:hover { color: var(--text-primary); }
     .vsc-activity-item[data-active='true'] {
-      color: #ffffff;
-      background-color: #4a4a4a;
+      color: #fff;
     }
+    .vsc-activity-item[data-active='true']::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 12px;
+        bottom: 12px;
+        width: 3px;
+        background: white;
+        border-radius: 0 2px 2px 0;
+        box-shadow: 0 0 8px rgba(255,255,255,0.5);
+    }
+
+    /* Sidebar View (File Explorer etc) */
     .vsc-sidebar-view {
       flex-grow: 1;
-      overflow-y: auto;
-      background-color: #252526;
-      color: #cccccc;
+      background-color: var(--obsidian-panel);
+      color: var(--text-primary);
       width: 300px;
       min-width: 300px;
-      border-right: 1px solid #444;
-      transition: min-width 0.2s ease-out, width 0.2s ease-out;
-      overflow: hidden;
-    }
-    .vsc-sidebar-view[data-visible='false'] {
-      width: 0px;
-      min-width: 0px;
-      border-right: none;
-    }
-    .vsc-view-content {
-      height: 100%;
-      min-width: 300px;
+      border-right: 1px solid rgba(255,255,255,0.08);
+      transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
       display: flex;
       flex-direction: column;
     }
-    .view-padding {
-        padding: 16px;
+    .vsc-sidebar-view[data-visible='false'] {
+      width: 0;
+      min-width: 0;
+      opacity: 0;
+      border-right: none;
     }
-    .view-header {
-      margin-top: 0;
-      color: #cccccc;
-      font-size: 1.1rem;
-      font-weight: 600;
-      padding: 12px 16px;
-      border-bottom: 1px solid #444;
-      flex-shrink: 0;
+
+    /* Glassmorphism Headers */
+    .view-header, .vsc-view-pane-header {
+      margin: 0;
+      color: var(--text-primary);
+      font-size: 0.9rem;
+      font-weight: 500;
+      padding: 16px;
+      border-bottom: var(--glass-border);
+      background: rgba(255, 255, 255, 0.02);
+      backdrop-filter: var(--glass-blur);
       display: flex;
       justify-content: space-between;
       align-items: center;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
     }
+    
     .view-header-icon {
-        background: none; border: none; color: #b0b0b0; cursor: pointer;
-        padding: 4px; border-radius: 4px;
+        background: transparent; 
+        border: 1px solid transparent; 
+        color: var(--text-secondary); 
+        cursor: pointer;
+        padding: 4px; 
+        border-radius: 4px;
+        transition: all 0.2s;
     }
-    .view-header-icon:hover { background-color: #4a4a4a; color: white; }
-    .view-content-scroll {
+    .view-header-icon:hover { 
+        background-color: rgba(255,255,255,0.1); 
+        color: white; 
+        border-color: rgba(255,255,255,0.2);
+    }
+
+    /* Content Areas */
+    .vsc-view-content, .view-content-scroll, .vsc-view-pane-content {
         flex-grow: 1;
         overflow-y: auto;
-        padding: 16px;
+        background-color: transparent;
     }
-    .view-content-full {
-        flex-grow: 1;
-        overflow-y: auto;
-    }
-    .vsc-view-panes {
-        display: flex;
-        flex-direction: column;
-        height: 100%;
-    }
-    .vsc-view-pane {
-        flex: 1;
-        overflow: hidden;
-        display: flex;
-        flex-direction: column;
-    }
-    .vsc-view-pane-header {
-        padding: 4px 12px;
-        background-color: #333;
-        font-size: 0.9rem;
-        font-weight: 500;
-        border-top: 1px solid #444;
-        border-bottom: 1px solid #444;
-    }
-    .vsc-view-pane-content {
-        flex: 1;
-        overflow-y: auto;
-        padding: 8px;
-    }
-    .vsc-view-pane-content.full {
-        padding: 0;
-    }
-    .vsc-view-pane-content.full[data-drag-over='true'] {
-        background-color: #0e639c;
-    }
+    .view-padding { padding: 16px; }
+    
+    /* Panes */
+    .vsc-view-panes { height: 100%; }
+    .vsc-view-pane { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+
+    /* Main Content Editor Area */
     .main-content {
       flex: 1;
       display: flex;
       flex-direction: column;
       overflow: hidden;
+      background-color: var(--obsidian-dark);
+      position: relative;
     }
+
+    /* Editor Header (Tabs area) */
     .main-editor-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 8px 12px;
-        background-color: #252526;
-        border-bottom: 1px solid #444;
-        flex-shrink: 0;
+        padding: 10px 20px;
+        background-color: rgba(0,0,0,0.6);
+        backdrop-filter: blur(10px);
+        border-bottom: 1px solid rgba(255,255,255,0.08);
+        height: 50px;
     }
-    .main-editor-title {
-        font-size: 0.9rem;
-    }
-    /* (v12.0) 편집/보기 토글 버튼 스타일 */
+    .main-editor-title { font-size: 0.9rem; font-weight: 400; letter-spacing: 0.02em; }
+
+    /* Toggle Group - Glass Style */
     .editor-toggle-group {
         display: inline-flex;
-        border: 1px solid #444;
-        border-radius: 4px;
-        overflow: hidden;
+        border: 1px solid rgba(255,255,255,0.15);
+        border-radius: 6px;
+        padding: 2px;
+        background: rgba(0,0,0,0.3);
     }
     .editor-toggle-btn {
-        background-color: #333;
-        color: #b0b0b0;
-        padding: 4px 10px;
+        background: transparent;
+        color: var(--text-secondary);
+        padding: 4px 12px;
         border: none;
         cursor: pointer;
-        font-size: 0.85rem;
-        transition: background-color 0.2s, color 0.2s;
-    }
-    .editor-toggle-btn:not(:last-child) {
-        border-right: 1px solid #444;
+        font-size: 0.8rem;
+        border-radius: 4px;
+        font-weight: 400;
+        transition: all 0.2s;
     }
     .editor-toggle-btn.active {
-        background-color: #4a4a4a;
-        color: #ffffff;
-    }
-    .editor-toggle-btn:hover:not(.active) {
-        background-color: #404040;
-    }
-
-    .main-editor-action-btn {
-        background-color: #0e639c;
+        background-color: rgba(255,255,255,0.1);
         color: white;
-        padding: 4px 10px;
-        border: none;
+        font-weight: 500;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    }
+    
+    /* Primary Action Button (White Gradient) */
+    .main-editor-action-btn, .form-button, .modal-button-primary {
+        background: var(--accent-gradient);
+        color: var(--accent-text);
+        padding: 6px 16px;
+        border: 1px solid white;
         border-radius: 4px;
         cursor: pointer;
-        font-size: 0.9rem;
+        font-size: 0.85rem;
+        font-weight: 600;
+        box-shadow: 0 0 10px rgba(255,255,255,0.1);
+        transition: all 0.2s ease;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
     }
-    .main-editor-action-btn:hover { background-color: #1177bb; }
-    .main-editor-action-btn:disabled { background-color: #555; cursor: not-allowed; }
-    
-    .main-editor {
-      flex-grow: 1;
-      background-color: #1e1e1e;
-      color: #d4d4d4;
-      border: none;
-      outline: none;
-      padding: 20px;
-      font-family: 'Courier New', Courier, monospace;
-      font-size: 14px;
-      line-height: 1.5;
-      resize: none;
+    .main-editor-action-btn:hover, .form-button:hover, .modal-button-primary:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 0 15px rgba(255,255,255,0.3);
+        background: var(--accent-hover);
     }
-    /* (v12.0) 뷰어 래퍼 스타일 */
-    .prose-readable-wrapper {
-        flex-grow: 1;
-        overflow-y: auto;
-        padding: 20px;
+    .main-editor-action-btn:disabled, .form-button:disabled {
+        background: #333;
+        color: #666;
+        border-color: #444;
+        cursor: not-allowed;
+        box-shadow: none;
+        transform: none;
     }
 
-    .main-editor.\!p-4 {
-        padding: 1rem;
+    .main-editor {
+      flex-grow: 1;
+      background-color: var(--obsidian-dark);
+      color: #e0e0e0;
+      border: none;
+      outline: none;
+      padding: 40px;
+      font-family: 'Nanum Gothic', sans-serif;
+      font-size: 15px;
+      line-height: 1.8;
+      resize: none;
+      font-weight: 300;
     }
     .main-editor-placeholder {
       display: flex;
+      flex-direction: column;
       justify-content: center;
       align-items: center;
       height: 100%;
-      color: #6a6a6a;
-      font-size: 1.2rem;
+      color: var(--text-secondary);
+      font-weight: 200;
     }
-    .main-editor-footer {
-        padding: 4px 12px;
-        background-color: #252526;
-        border-top: 1px solid #444;
-        flex-shrink: 0;
-        font-size: 0.8rem;
-        color: #a0a0a0;
-        text-align: right;
-        min-height: 26px;
-    }
-    .form-group { margin-bottom: 16px; }
+    
+    /* Form Elements (Glassmorphism Inputs) */
+    .form-group { margin-bottom: 20px; }
     .form-label {
         display: block;
-        font-size: 0.9rem;
-        margin-bottom: 6px;
-        color: #a0a0a0;
-        font-weight: 500;
+        font-size: 0.8rem;
+        margin-bottom: 8px;
+        color: var(--text-secondary);
+        font-weight: 400;
+        text-transform: uppercase;
     }
     .form-input, .form-textarea, .form-select {
       width: 100%;
-      padding: 8px;
-      box-sizing: border-box;
-      border: 1px solid #444;
-      background-color: #3c3c3c;
-      color: #cccccc;
-      border-radius: 4px;
-    }
-    .form-textarea {
-        font-family: 'Courier New', Courier, monospace;
-    }
-    .form-input.\!p-0.\!text-sm {
-        padding: 0;
-        font-size: 0.875rem;
-    }
-    .form-select {
-        appearance: none;
-        background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
-        background-repeat: no-repeat;
-        background-position: right 0.5rem center;
-        background-size: 1.2em 1.2em;
-        padding-right: 2.5rem;
-    }
-    .form-checkbox-label {
-        display: flex;
-        align-items: center;
-        font-size: 0.9rem;
-        color: #cccccc;
-        cursor: pointer;
-    }
-    .form-checkbox {
-        width: 16px;
-        height: 16px;
-        margin-right: 8px;
-        background-color: #3c3c3c;
-        border: 1px solid #444;
-        border-radius: 3px;
-    }
-    .form-button {
-      background-color: #0e639c;
-      color: white;
-      width: 100%;
       padding: 10px 12px;
-      border: none;
+      box-sizing: border-box;
+      border: var(--glass-border);
+      background-color: rgba(0,0,0,0.3);
+      color: white;
       border-radius: 4px;
-      cursor: pointer;
-      transition: background-color 0.2s;
-      font-weight: 600;
+      font-family: var(--font-main);
+      font-weight: 300;
+      transition: border-color 0.2s;
     }
-    .form-button:hover { background-color: #1177bb; }
-    .form-button:disabled { background-color: #555; cursor: not-allowed; }
+    .form-input:focus, .form-textarea:focus, .form-select:focus {
+        outline: none;
+        border-color: rgba(255,255,255,0.5);
+        background-color: rgba(0,0,0,0.5);
+    }
+    
+    /* List Items (Cards) */
     .list-item {
-      padding: 10px;
-      background-color: #3c3c3c;
-      border-radius: 4px;
-      margin-bottom: 8px;
+      padding: 14px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid transparent;
+      border-radius: 6px;
+      margin-bottom: 10px;
       cursor: pointer;
-      transition: background-color 0.2s;
+      transition: all 0.2s;
     }
-    .list-item:hover { background-color: #4a4a4a; }
-    .list-item-title { font-weight: 600; }
-    .list-item-sub { font-size: 0.8rem; color: #a0a0a0; }
+    .list-item:hover {
+      background: rgba(255, 255, 255, 0.07);
+      border-color: rgba(255, 255, 255, 0.2);
+      transform: translateX(2px);
+    }
+    .list-item-title { font-weight: 500; color: white; margin-bottom: 4px; }
+    .list-item-sub { font-size: 0.8rem; color: var(--text-secondary); font-weight: 300; }
+    
     .list-item-badge {
-        font-size: 0.8rem;
-        padding: 2px 6px;
-        border-radius: 10px;
-        background-color: #4a90e2;
-        color: white;
+        font-size: 0.7rem;
+        padding: 2px 8px;
+        border-radius: 12px;
+        background-color: #333;
+        color: #ccc;
+        border: 1px solid #555;
     }
-    .list-item-badge.success { background-color: #4CAF50; }
-    .list-item-badge.error { background-color: #f44336; }
-    .quiz-question-card { margin-bottom: 1.5rem; }
-    .quiz-question-text { font-weight: 600; font-size: 1.1rem; margin-bottom: 0.75rem; }
-    .quiz-option-label {
-        display: block;
-        padding: 10px;
-        background-color: #3c3c3c;
-        border-radius: 4px;
-        margin-bottom: 8px;
-        cursor: pointer;
-    }
-    .quiz-option-label:hover { background-color: #4a4a4a; }
-    .quiz-option-label input { margin-right: 10px; }
+    .list-item-badge.success { background-color: rgba(76, 175, 80, 0.2); color: #81c784; border-color: #81c784; }
+    .list-item-badge.error { background-color: rgba(244, 67, 54, 0.2); color: #e57373; border-color: #e57373; }
+
+    /* Modals - Solid Border Glassmorphism */
     .modal-overlay {
       position: fixed;
       inset: 0;
-      background-color: rgba(0, 0, 0, 0.7);
+      background-color: rgba(0, 0, 0, 0.8);
+      backdrop-filter: blur(5px);
       display: flex;
       justify-content: center;
       align-items: center;
       z-index: 100;
     }
     .modal-container {
-      background-color: #2d2d2d;
-      color: #cccccc;
-      border-radius: 8px;
+      background-color: rgba(15, 15, 15, 0.9);
+      backdrop-filter: blur(24px);
+      color: var(--text-primary);
+      border: var(--glass-highlight);
+      border-radius: 12px;
       width: 90%;
       max-width: 700px;
-      max-height: 80vh;
+      max-height: 85vh;
       display: flex;
       flex-direction: column;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      box-shadow: 0 20px 50px -10px rgba(0,0,0,0.8);
     }
     .modal-header {
-      padding: 16px 24px;
-      border-bottom: 1px solid #444;
+      padding: 20px 24px;
+      border-bottom: var(--glass-border);
       display: flex;
       justify-content: space-between;
       align-items: center;
     }
-    .modal-header h2 { margin: 0; font-size: 1.2rem; }
-    .modal-close-btn {
-      background: none; border: none; color: #a0a0a0; font-size: 1.5rem;
-      cursor: pointer; padding: 0; line-height: 1;
-    }
-    .modal-body {
-      padding: 0;
-      overflow-y: auto;
-      display: flex;
-      flex-grow: 1;
-    }
+    .modal-header h2 { font-weight: 300; font-size: 1.4rem; letter-spacing: 0.05em; }
+    .modal-body { padding: 24px; overflow-y: auto; }
     .modal-footer {
       padding: 16px 24px;
-      border-top: 1px solid #444;
+      border-top: var(--glass-border);
       display: flex;
       justify-content: flex-end;
       gap: 12px;
+      background: rgba(0,0,0,0.2);
     }
-    .modal-button {
-      padding: 8px 16px;
-      border-radius: 4px;
-      cursor: pointer;
-      font-weight: 500;
-      transition: background-color 0.2s;
-    }
-    .modal-button-primary {
-      background-color: #0e639c; color: white; border: none;
-    }
-    .modal-button-primary:hover { background-color: #1177bb; }
     .modal-button-secondary {
-      background-color: #4a4a4a; color: #cccccc; border: none;
-    }
-    .modal-button-secondary:hover { background-color: #5a5a5a; }
-    .settings-nav {
-      width: 200px;
-      flex-shrink: 0;
-      padding: 24px 0;
-      border-right: 1px solid #444;
-    }
-    .settings-nav-item {
-      padding: 10px 24px;
-      cursor: pointer;
-      font-size: 0.9rem;
-      border-left: 3px solid transparent;
-    }
-    .settings-nav-item:hover { background-color: #3c3c3c; }
-    .settings-nav-item[data-active='true'] {
-      background-color: #3c3c3c;
-      border-left-color: #0e639c;
-      color: white;
-    }
-    .settings-content {
-      padding: 24px;
-      flex-grow: 1;
-      overflow-y: auto;
-      display: flex;
-      flex-direction: column;
-    }
-    .api-key-item {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 8px;
-        background-color: #3c3c3c;
-        border-radius: 4px;
-        margin-bottom: 8px;
-    }
-    .api-key-delete-btn {
-        background: #f44336; color: white; border: none;
-        border-radius: 4px; padding: 4px 8px; font-size: 0.8rem;
-        cursor: pointer;
-    }
-    .quiz-result-body { padding: 24px; }
-    .quiz-result-score { font-size: 2rem; font-weight: bold; text-align: center; }
-    .result-question {
-        padding: 12px;
-        border-radius: 4px;
-        margin-bottom: 8px;
-    }
-    .result-question-correct { background-color: #3a4a3a; }
-    .result-question-incorrect { background-color: #5a3a3a; }
-    .bg-gray-700 { background-color: #3c3c3c; } 
-    .result-question-text { font-weight: 600; margin-bottom: 4px; }
-    .result-answer { font-size: 0.9rem; }
-    .result-answer.correct { color: #81c784; }
-    .result-answer.yours { color: #ffb74d; }
-    .bg-gray-800 { background-color: #252526; }
-    .text-blue-300 { color: #9cdcfe; }
-    .file-manager-container {
-        height: 100%;
-        font-size: 14px;
-    }
-    .file-tree-list { padding: 8px; }
-    .file-tree-node {
-        display: flex;
-        align-items: center;
-        padding: 4px 8px;
-        cursor: pointer;
-        border-radius: 4px;
-    }
-    .file-tree-node:hover { background-color: #3c3c3c; }
-    .file-tree-node[data-active='true'] { background-color: #094771; }
-    .file-tree-node[data-drag-over='true'] {
-        background-color: #0e639c;
-    }
-    .file-tree-node-icon { margin-right: 6px; }
-    .context-menu {
-      position: fixed;
-      z-index: 1000;
-      background-color: #252526;
-      border: 1px solid #37373d;
+      background: transparent;
+      color: var(--text-primary);
+      border: 1px solid rgba(255,255,255,0.2);
+      padding: 6px 16px;
       border-radius: 4px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-      padding: 4px 0;
-      min-width: 150px;
-    }
-    .context-menu-item {
-      padding: 6px 12px;
-      font-size: 0.9rem;
       cursor: pointer;
+      transition: all 0.2s;
+      font-weight: 300;
     }
-    .context-menu-item:hover {
-      background-color: #094771;
-    }
-    .context-menu-item-delete {
-      color: #f48771;
-    }
-    .context-menu-divider {
-      border-top: 1px solid #37373d;
-      margin: 4px 0;
-    }
-    .spinner-overlay {
-      position: absolute; inset: 0;
-      background-color: rgba(0, 0, 0, 0.5);
-      display: flex; justify-content: center; align-items: center;
-      z-index: 50;
-    }
-    .spinner-overlay.\!relative { position: relative; }
-    .spinner-overlay.\!h-10 { height: 2.5rem; }
-    .spinner-overlay.\!bg-transparent { background-color: transparent; }
-    .spinner {
-      border: 4px solid #f3f3f3; border-top: 4px solid #0e639c;
-      border-radius: 50%; width: 40px; height: 40px;
-      animation: spin 1s linear infinite;
-    }
-    .spinner.\!w-6 { width: 1.5rem; }
-    .spinner.\!h-6 { height: 1.5rem; }
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-    .toast-container {
-      position: fixed;
-      bottom: 20px;
-      right: 20px;
-      z-index: 1001;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-    .toast-item {
-      padding: 12px 16px;
-      border-radius: 6px;
-      font-size: 0.9rem;
-      font-weight: 500;
-      color: white;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-      animation: toast-fade-in 0.3s ease-out;
-    }
-    .toast-item.success {
-      background-color: #4CAF50;
-    }
-    .toast-item.error {
-      background-color: #f44336;
-    }
-    .toast-item.info {
-      background-color: #0e639c;
-    }
-    @keyframes toast-fade-in {
-      from { transform: translateX(100%); opacity: 0; }
-      to { transform: translateX(0); opacity: 1; }
-    }
-    .bg-gray-600 { background-color: #4a4a4a; }
-    .text-gray-400 { color: #a0a0a0; }
+    .modal-button-secondary:hover { border-color: white; background: rgba(255,255,255,0.05); }
 
-
-    /* ================================================================== */
-    /* ▼▼▼ (v12.0) 뷰어 모드 타이포그래피 스타일 (다크 모드 최적화) ▼▼▼ */
-    /* ================================================================== */
-
-    .prose-readable-wrapper {
-        /* KaTeX 폰트가 깨지지 않도록 기본 폰트 재정의 */
-        font-family: 'Nanum Myeongjo', serif;
+    /* Settings Nav */
+    .settings-nav { width: 180px; border-right: var(--glass-border); padding: 20px 0; }
+    .settings-nav-item {
+        padding: 12px 24px; cursor: pointer; font-size: 0.9rem; font-weight: 300;
+        color: var(--text-secondary); border-left: 2px solid transparent;
+    }
+    .settings-nav-item:hover { color: white; background: rgba(255,255,255,0.03); }
+    .settings-nav-item[data-active='true'] {
+        color: white; border-left-color: white; background: linear-gradient(90deg, rgba(255,255,255,0.05), transparent); font-weight: 500;
     }
 
-    /* --- 다크 모드용 뷰어 스타일 --- */
-    .prose-dark-theme {
-        --text-primary: #ffffff;
-        --text-secondary: #cccccc;
-        --text-tertiary: #94a3b8; 
-        --border-color: #334155;
-        --accent-primary: #9cdcfe;
-        --accent-primary-hover: #0e639c;
-        --bg-tertiary: #252526;
-        --bg-hover: #334155;
-    }
-
-    /* --- 전체적인 텍스트 렌더링 최적화 --- */
-    .prose-readable {
-        -webkit-font-smoothing: antialiased;
-        -moz-osx-font-smoothing: grayscale;
-        font-feature-settings: "kern" on, "liga" on;
-        text-rendering: optimizeLegibility;
-        max-width: 800px; /* 읽기 편한 최대 너비 설정 */
-        margin-left: auto;
-        margin-right: auto;
-    }
-
-    /* --- 제목 (Headings) --- */
-    .prose-readable h1,
-    .prose-readable h2,
-    .prose-readable h3,
-    .prose-readable h4 {
-        font-family: 'Nanum Gothic', sans-serif;
-        color: var(--text-primary);
-        margin-top: 2em;
-        margin-bottom: 0.7em;
-        letter-spacing: -0.025em;
-        word-break: keep-all;
-    }
-    .prose-readable h1 {
-        font-size: 2.2em; font-weight: 800; padding-bottom: 0.4em;
-        border-bottom: 2px solid var(--border-color);
-    }
-    .prose-readable h2 {
-        font-size: 1.7em; font-weight: 700; padding-bottom: 0.4em;
-        border-bottom: 1px solid var(--border-color);
-    }
-    .prose-readable h3 { font-size: 1.4em; font-weight: 700; border: none; }
-    .prose-readable h4 { font-size: 1.2em; font-weight: 700; color: var(--text-secondary); }
-
-    /* --- 본문 (Paragraphs) --- */
-    .prose-readable p {
-        font-family: 'Nanum Myeongjo', serif;
+    /* File Tree */
+    .file-tree-node {
         color: var(--text-secondary);
-        font-size: 1.1em; /* 폰트 크기 살짝 키움 */
-        line-height: 1.85;
-        letter-spacing: -0.015em;
-        word-spacing: 0.05em;
-        text-align: justify;
-        word-break: keep-all;
-        margin-bottom: 1.2em;
+        border: 1px solid transparent;
+        margin: 1px 0;
+        border-radius: 4px;
+        transition: all 0.15s;
     }
-
-    /* --- 강조 (Strong) --- */
-    .prose-readable strong {
-        color: var(--text-primary);
-        font-weight: 700;
+    .file-tree-node:hover {
+        background-color: rgba(255,255,255,0.05);
+        color: white;
     }
+    .file-tree-node[data-active='true'] {
+        background-color: rgba(255,255,255,0.1);
+        border: var(--glass-border);
+        color: white;
+    }
+    .file-tree-node-icon { opacity: 0.7; }
 
-    /* --- 링크 (Links) --- */
+    /* Viewer Mode Typography Override */
+    .prose-readable-wrapper { padding: 40px; }
+    .prose-dark-theme {
+        --text-primary: #f0f0f0;
+        --text-secondary: #b0b0b0;
+        --border-color: #333;
+        --accent-primary: #ffffff;
+        --bg-tertiary: rgba(255,255,255,0.05);
+    }
+    .prose-readable h1, .prose-readable h2, .prose-readable h3 {
+        font-family: 'Inter', sans-serif;
+        font-weight: 500;
+        color: white;
+    }
+    .prose-readable p {
+        font-family: 'Inter', sans-serif;
+        font-weight: 300;
+        font-size: 1.05rem;
+        line-height: 1.8;
+    }
+    .prose-readable blockquote {
+        border-left-color: white;
+        background: rgba(255,255,255,0.03);
+        font-style: italic;
+    }
+    .prose-readable code {
+        background: rgba(255,255,255,0.1);
+        color: #fff;
+        border: 1px solid rgba(255,255,255,0.2);
+    }
     .prose-readable a {
-        color: var(--accent-primary);
-        text-decoration: none;
-        border-bottom: 1px solid var(--accent-primary);
-        font-weight: 600;
-        transition: all 0.2s ease-in-out;
+        color: white;
+        border-bottom: 1px solid rgba(255,255,255,0.5);
     }
     .prose-readable a:hover {
-        color: white;
-        background-color: var(--accent-primary-hover);
-        border-bottom-color: transparent;
+        background: white;
+        color: black;
     }
 
-    /* --- 인용문 (Blockquotes) --- */
-    .prose-readable blockquote {
-        border-left: 3px solid var(--accent-primary);
-        padding: 0.5em 1.2em;
-        margin: 1.5em 0;
-        color: var(--text-tertiary);
-        background-color: var(--bg-tertiary);
-        font-style: normal;
+    /* Spinner */
+    .spinner { border-color: rgba(255,255,255,0.1); border-top-color: white; }
+    
+    /* Context Menu */
+    .context-menu {
+        background: rgba(10, 10, 10, 0.95);
+        backdrop-filter: blur(12px);
+        border: 1px solid rgba(255,255,255,0.2);
+        box-shadow: 0 10px 30px rgba(0,0,0,0.8);
     }
-    .prose-readable blockquote p { font-size: 1em; line-height: 1.7; }
+    .context-menu-item:hover { background: rgba(255,255,255,0.1); color: white; }
 
-    /* --- 코드 (Code) & 테이블 (Table) --- */
-    .prose-readable code {
-        background-color: var(--bg-hover);
-        color: var(--accent-primary);
-        padding: 0.2em 0.5em;
-        margin: 0 0.1em;
-        font-size: 85%;
-        border-radius: 6px;
-        font-family: 'D2Coding', 'Courier New', Courier, monospace;
+    /* Quiz UI Specifics */
+    .quiz-question-card {
+        background: rgba(255,255,255,0.02);
+        border: 1px solid rgba(255,255,255,0.1);
+        padding: 20px;
+        border-radius: 8px;
     }
-    .prose-readable table {
-        width: 100%; border-collapse: collapse; margin: 2em 0;
-        font-size: 0.9em; border: 1px solid var(--border-color);
+    .quiz-option-label {
+        background: rgba(0,0,0,0.4);
+        border: 1px solid rgba(255,255,255,0.1);
+        transition: all 0.2s;
     }
-    .prose-readable th, .prose-readable td {
-        border: 1px solid var(--border-color); padding: 0.8em 1em; text-align: left;
+    .quiz-option-label:hover {
+        background: rgba(255,255,255,0.05);
+        border-color: rgba(255,255,255,0.3);
     }
-    .prose-readable th {
-        font-family: 'Nanum Gothic', sans-serif; font-weight: 700;
-        background-color: var(--bg-tertiary);
-    }
-
-    /* --- 목록 (Lists) --- */
-    .prose-readable ul, .prose-readable ol {
-        list-style-position: outside; padding-left: 2em; margin-bottom: 1.2em;
-    }
-    .prose-readable ul { list-style-type: disc; }
-    .prose-readable ol { list-style-type: decimal; }
-    .prose-readable li { margin-bottom: 0.8em; padding-left: 0.5em; }
-    .prose-readable li > p { margin-top: 0; margin-bottom: 0; }
-    .prose-readable li ul, .prose-readable li ol { margin-top: 0.8em; }
-        
-    /* --- 하이라이트 (Highlights) --- */
-    .prose-readable mark {
-        background-color: rgba(250, 204, 21, 0.4);
-        color: inherit;
-    }
-    /* 다크모드에선 하이라이트 배경을 더 선명하게 */
-    .prose-dark-theme .prose-readable mark {
-        background-color: rgba(234, 179, 8, 0.5);
-    }
-
-    /* --- 각주 (Footnotes) --- */
-    .prose-readable .footnote-ref {
-        font-size: 0.8em; vertical-align: super; line-height: 0;
-    }
-    .prose-readable .footnote-ref a {
-        border: none !important; background-color: transparent !important;
-        text-decoration: none !important; font-weight: normal;
-        color: var(--accent-primary);
-        padding: 0.1em 0.2em; margin: 0 0.1em; border-radius: 4px;
-        cursor: help; transition: background-color 0.2s, color 0.2s;
-    }
-    .prose-readable .footnote-ref a:hover {
-        background-color: var(--accent-primary-hover) !important;
-        color: white !important;
-    }
-    .prose-readable .footnote-divider {
-        margin-top: 4em; border-color: var(--border-color);
-    }
-    .prose-readable .footnotes {
-        margin-top: 2em; font-size: 0.9em; color: var(--text-tertiary);
-    }
-    .prose-readable .footnotes li {
-        display: flex; align-items: baseline; margin-bottom: 0.8em; line-height: 1.6;
-    }
-    .prose-readable .footnotes li p {
-        font-size: 1em; line-height: inherit; display: inline;
-    }
-    .prose-readable .footnote-backref {
-        font-size: 1.1em; text-decoration: none; margin-left: 0.5em;
-        border: none !important; background: none !important; padding: 0 4px;
-    }
-    .prose-readable .footnote-backref:hover {
-        background-color: var(--bg-hover) !important;
-        border-radius: 4px;
-    }
+    input[type="radio"] { accent-color: white; }
 
   </style>
 </head>
@@ -810,152 +538,88 @@
   <input type="file" id="file-upload-input" style="display: none" multiple accept=".txt,.md,.zip" />
   <input type="file" id="project-import-input" style="display: none" accept=".json" />
 
-
-  <!-- 3. React 애플리케이션 스크립트 -->
+  <!-- React Application Script -->
   <script type="module">
-    const { 
-      useState, 
-      useEffect, 
-      useCallback, 
-      useMemo,
-      createContext,
-      useContext,
-      useRef // (v11.1) 추가
-    } = React;
+    const { useState, useEffect, useCallback, useMemo, createContext, useContext, useRef } = React;
     const { createRoot } = ReactDOM;
     const e = React.createElement;
 
-    // (v11.1) Firebase 모듈 전역 접근 (Google Auth 포함)
     const { app, auth, firestore } = window.firebase;
     const { initializeApp } = app;
     const { 
-        getAuth, 
-        signInAnonymously, 
-        signInWithCustomToken, 
-        onAuthStateChanged,
-        GoogleAuthProvider, 
-        signInWithPopup, 
-        signOut
+        getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged,
+        GoogleAuthProvider, signInWithPopup, signOut
     } = auth;
     const { 
         getFirestore, doc, getDoc, getDocs, addDoc, setDoc, updateDoc, deleteDoc, 
         onSnapshot, collection, query, where, writeBatch, setLogLevel
     } = firestore;
 
+    /* --- Data Hooks & Logic --- */
     const ToastContext = createContext(null);
     const useToast = () => useContext(ToastContext);
-    
     const AppContext = createContext(null);
     
-    // --- (v12.0) 뷰어 모드 로직 (From index (1).html) ---
-
     const FootnoteManager = {
         footnotes: {},
         footnoteOrder: [],
-        
-        clear() {
-            this.footnotes = {};
-            this.footnoteOrder = [];
-        },
-    
+        clear() { this.footnotes = {}; this.footnoteOrder = []; },
         addDefinition(key, content) {
             const lowerKey = key.toLowerCase();
             if (!this.footnotes[lowerKey]) {
-                const trimmedContent = content.trim().replace(/\n/g, ' ');
-                // marked.parseInline 사용 (window.marked)
-                const inlineHtml = window.marked.parseInline(trimmedContent);
-                this.footnotes[lowerKey] = {
-                    text: trimmedContent,
-                    html: inlineHtml
-                };
+                this.footnotes[lowerKey] = { text: content.trim(), html: window.marked.parseInline(content.trim()) };
             }
         },
-    
         addReference(key) {
             const lowerKey = key.toLowerCase();
-            if (this.footnoteOrder.indexOf(lowerKey) === -1) {
-                this.footnoteOrder.push(lowerKey);
-            }
+            if (this.footnoteOrder.indexOf(lowerKey) === -1) this.footnoteOrder.push(lowerKey);
         },
-        
-        getNote(key) {
-            return this.footnotes[key.toLowerCase()];
-        },
-        
-        getOrder() {
-            return this.footnoteOrder;
-        },
-    
+        getNote(key) { return this.footnotes[key.toLowerCase()]; },
+        getOrder() { return this.footnoteOrder; },
         extractAndClean(markdown) {
-            // 렌더링 파이프라인의 일부이므로, 매번 clear()를 호출해야 함
             this.clear(); 
             const footnoteDefRegex = /^\[\^(.+?)\]:\s*([\s\S]*?)(?=\n\[\^|$)/gm;
-    
-            const cleanedMarkdown = markdown.replace(footnoteDefRegex, (match, name, content) => {
+            return markdown.replace(footnoteDefRegex, (match, name, content) => {
                 this.addDefinition(name, content);
-                return ''; // 원본 텍스트에서 각주 정의 부분 제거
+                return '';
             });
-            
-            return cleanedMarkdown;
         }
     };
 
-    /**
-     * (v12.0) 1차 파싱 (Markdown -> HTML)
-     * marked.js에 커스텀 확장(수학, 하이라이트, 각주 참조)을 추가하여 Markdown을 HTML로 변환합니다.
-     */
     const parseMarkdownWithExtensions = (markdownText) => {
         if (typeof markdownText !== 'string') return '';
-        if (!window.marked) {
-            console.error("marked.js가 로드되지 않았습니다.");
-            return markdownText; // fallback
-        }
-
+        if (!window.marked) return markdownText;
         const isolatedParser = new window.marked.Marked();
-        
         const mathExtension = {
-            name: 'math',
-            level: 'inline', 
+            name: 'math', level: 'inline', 
             start(src) { return src.indexOf('$'); },
             tokenizer(src) {
                 const blockRule = /^\$\$([\s\S]+?)\$\$/;
                 let match = blockRule.exec(src);
-                if (match) {
-                    return { type: 'math', raw: match[0], text: match[1], displayMode: true };
-                }
+                if (match) return { type: 'math', raw: match[0], text: match[1], displayMode: true };
                 if (!src.startsWith('$$')) {
                     const inlineRule = /^\$((?:[^$]|\\[$])+?)\$/;
                     match = inlineRule.exec(src);
-                    if (match) {
-                        return { type: 'math', raw: match[0], text: match[1], displayMode: false };
-                    }
+                    if (match) return { type: 'math', raw: match[0], text: match[1], displayMode: false };
                 }
             },
-            renderer(token) {
-                return token.raw; // KaTeX가 처리할 수 있도록 원본 보존
-            }
+            renderer(token) { return token.raw; }
         };
-
         const highlightExtension = {
-            name: 'highlight',
-            level: 'inline',
+            name: 'highlight', level: 'inline',
             start(src) { return src.indexOf('=='); },
             tokenizer(src) {
                 const rule = /^==(.+?)==/;
                 const match = rule.exec(src);
-                if (match) {
-                    return { type: 'highlight', raw: match[0], text: this.lexer.inlineTokens(match[1].trim()) };
-                }
+                if (match) return { type: 'highlight', raw: match[0], text: this.lexer.inlineTokens(match[1].trim()) };
             },
             renderer(token) { return `<mark>${this.parser.parseInline(token.text)}</mark>`; },
         };
-
         const footnoteRefExtension = {
-            name: 'footnoteRef',
-            level: 'inline',
+            name: 'footnoteRef', level: 'inline',
             start(src) { return src.indexOf('[^'); },
             tokenizer(src) {
-                const rule = /^\[\^((?:[^\]\\]|\\.)+)\](?!:)/; // :가 뒤따르지 않는 참조만
+                const rule = /^\[\^((?:[^\]\\]|\\.)+)\](?!:)/;
                 const match = rule.exec(src);
                 if (match) {
                     FootnoteManager.addReference(match[1]);
@@ -968,59 +632,39 @@
                 const note = FootnoteManager.getNote(name);
                 const index = order.indexOf(name.toLowerCase()) + 1;
                 const finalIndex = index > 0 ? index : '?';
-                let tooltipContent = note ? (note.text || '').replace(/"/g, '&quot;').replace(/\n/g, ' ') : '각주 내용을 찾을 수 없습니다.';
-                
-                return `<sup id="fnref:${name}" class="footnote-ref"><a href="#fn:${name}" data-footnote-key="${name}" title="${tooltipContent}">${finalIndex}</a></sup>`;
+                return `<sup id="fnref:${name}" class="footnote-ref"><a href="#fn:${name}" data-footnote-key="${name}">${finalIndex}</a></sup>`;
             }
         };
-        
         isolatedParser.use({ gfm: true, breaks: true, extensions: [mathExtension, highlightExtension, footnoteRefExtension] });
-
         return isolatedParser.parse(markdownText);
     };
 
-    /**
-     * (v12.0) 2차 후처리 (DOM)
-     * 1차 파싱된 HTML이 DOM에 삽입된 후, 수동으로 **bold**를 처리하고 KaTeX 렌더링을 실행합니다.
-     */
     const applyPostRenderEffects = (element) => {
         if (!element) return;
-        
-        // 1단계: **bold** 처리를 DOM에 직접 적용
-        const processTextNode = (textNode) => {
-            const fragment = document.createDocumentFragment();
-            let currentText = textNode.textContent;
-            let lastIndex = 0;
-            currentText.replace(/\*\*(.*?)\*\*/g, (match, content, offset) => {
-                if (offset > lastIndex) fragment.appendChild(document.createTextNode(currentText.substring(lastIndex, offset)));
-                const strong = document.createElement('strong');
-                strong.textContent = content;
-                fragment.appendChild(strong);
-                lastIndex = offset + match.length;
-            });
-            if (lastIndex < currentText.length) fragment.appendChild(document.createTextNode(currentText.substring(lastIndex)));
-            return fragment;
-        };
-
+        // Bold fix
         const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT, (node) => {
             const parentName = node.parentNode.nodeName.toLowerCase();
-            // KaTeX, 코드, 링크, 이미 렌더링된 태그 등은 제외
-            return ['code', 'pre', 'script', 'style', 'a', 'strong', 'em', 'sup', 'mark', 'span', 'textarea', 'input'].includes(parentName) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT;
+            return ['code', 'pre', 'script', 'style', 'a', 'strong', 'em', 'sup', 'mark'].includes(parentName) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT;
         });
-
         const nodesToProcess = [];
         while (walker.nextNode()) nodesToProcess.push(walker.currentNode);
-
         nodesToProcess.forEach(textNode => {
             if (textNode.textContent.includes('**')) {
-                const newContent = processTextNode(textNode);
-                if (textNode.parentNode) {
-                    textNode.parentNode.replaceChild(newContent, textNode);
-                }
+                const fragment = document.createDocumentFragment();
+                let currentText = textNode.textContent;
+                let lastIndex = 0;
+                currentText.replace(/\*\*(.*?)\*\*/g, (match, content, offset) => {
+                    if (offset > lastIndex) fragment.appendChild(document.createTextNode(currentText.substring(lastIndex, offset)));
+                    const strong = document.createElement('strong');
+                    strong.textContent = content;
+                    fragment.appendChild(strong);
+                    lastIndex = offset + match.length;
+                });
+                if (lastIndex < currentText.length) fragment.appendChild(document.createTextNode(currentText.substring(lastIndex)));
+                textNode.parentNode.replaceChild(fragment, textNode);
             }
         });
-        
-        // 2단계: KaTeX 렌더링 실행
+        // KaTeX
         if (window.renderMathInElement) {
             try {
                 window.renderMathInElement(element, {
@@ -1031,2487 +675,454 @@
                         { left: '\\[', right: '\\]', display: true }
                     ]
                 });
-            } catch (e) {
-                console.error("KaTeX 렌더링 실패:", e);
-            }
+            } catch (e) { console.error(e); }
         }
     };
 
-
-    // --- 1. AI Gemini API 호출 (v10.1과 동일) ---
-
-    const QUIZ_SCHEMA = {
-      type: "OBJECT",
-      properties: {
-        title: { type: "STRING" },
-        questions: {
-          type: "ARRAY",
-          items: {
-            type: "OBJECT",
-            properties: {
-              questionType: { type: "STRING" },
-              questionText: { type: "STRING" },
-              options: { type: "ARRAY", items: { "type": "STRING" }, nullable: true },
-              correctAnswerIndex: { type: "NUMBER", nullable: true },
-              gradingCriteria: { type: "STRING", nullable: true },
-            },
-            required: ["questionType", "questionText"]
-          }
-        }
-      },
-      required: ["title", "questions"]
-    };
+    /* --- API & Worker Logic --- */
+    const QUIZ_SCHEMA = { type: "OBJECT", properties: { title: { type: "STRING" }, questions: { type: "ARRAY", items: { type: "OBJECT", properties: { questionType: { type: "STRING" }, questionText: { type: "STRING" }, options: { type: "ARRAY", items: { "type": "STRING" }, nullable: true }, correctAnswerIndex: { type: "NUMBER", nullable: true }, gradingCriteria: { type: "STRING", nullable: true } }, required: ["questionType", "questionText"] } }, required: ["title", "questions"] };
+    const GRADING_SCHEMA = { type: "OBJECT", properties: { isCorrect: { type: "BOOLEAN" }, feedback: { type: "STRING" } }, required: ["isCorrect", "feedback"] };
     
-    const GRADING_SCHEMA = {
-      type: "OBJECT",
-      properties: {
-        isCorrect: { type: "BOOLEAN", description: "채점 기준에 따라 정답이면 true, 오답이면 false" },
-        feedback: { type: "STRING", description: "사용자의 답변에 대한 구체적인 첨삭 내용" }
-      },
-      required: ["isCorrect", "feedback"]
-    };
-    
-    class ApiError extends Error {
-      constructor(message, status) { super(message); this.name = 'ApiError'; this.status = status; }
-    }
+    class ApiError extends Error { constructor(message, status) { super(message); this.name = 'ApiError'; this.status = status; } }
     const fetchWithRetry = async (url, options, retries = 3, delay = 1000) => {
       for (let i = 0; i < retries; i++) {
         try {
           const response = await fetch(url, options);
           if (!response.ok) {
-            if (response.status === 429) throw new ApiError('Rate limit exceeded', response.status);
-            throw new ApiError(`HTTP error! status: ${response.status}`, response.status);
+            if (response.status === 429) throw new ApiError('Rate limit', response.status);
+            throw new ApiError(`HTTP error! ${response.status}`, response.status);
           }
           return response.json();
         } catch (error) {
-          if (error.status === 429 && i < retries - 1) {
-            await new Promise(res => setTimeout(res, delay * Math.pow(2, i)));
-          } else { throw error; }
+          if (error.status === 429 && i < retries - 1) await new Promise(res => setTimeout(res, delay * Math.pow(2, i))); else throw error;
         }
       }
-      throw new Error('API call failed after all retries');
+      throw new Error('API failed');
     };
-    
+
     const generateQuizWithAi = async (sourceText, options, settings) => {
-      const { numQuestions, difficulty, questionType, includeSnippets, provideAnswerKey, customInstructions } = options;
-      const apiKeys = settings?.apiKeys || [{ key: "", rpm: 60 }]; 
-      const keyIndex = Date.now() % apiKeys.length; 
-      const selectedKey = apiKeys[keyIndex];
-      const apiKey = selectedKey.key.trim() ? selectedKey.key.trim() : "";
-      const model = settings?.modelName || DEFAULT_SETTINGS.modelName; // (v12.0) DEFAULT_SETTINGS.modelName 사용
+      const { numQuestions, difficulty, questionType } = options;
+      const apiKey = settings?.apiKeys?.[0]?.key || "";
+      const model = settings?.modelName || "gemini-2.5-flash";
+      if (!apiKey) throw new ApiError('API Key Missing', 401);
       
-      if (!apiKey) {
-          throw new ApiError('API 키가 설정되지 않았습니다. [설정(⚙️) > API Keys]에서 유효한 키를 추가하십시오.', 401); 
-      }
-
-      // (v12.0) CORS 오류 수정: generativelace -> generativelanguage
       const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+      let systemPrompt = settings.quizSystemPrompt || "Generate a quiz based on the text.";
+      systemPrompt = systemPrompt.replace('{{DIFFICULTY}}', difficulty).replace('{{QUESTION_TYPE}}', questionType).replace('{{NUM_QUESTIONS}}', numQuestions);
       
-      let systemPrompt = settings.quizSystemPrompt || DEFAULT_SETTINGS.quizSystemPrompt;
-      
-      systemPrompt = systemPrompt
-          .replace('{{DIFFICULTY}}', difficulty)
-          .replace('{{QUESTION_TYPE}}', questionType)
-          .replace('{{INCLUDE_SNIPPETS}}', includeSnippets ? "Include relevant code snippets from the text if applicable." : "")
-          .replace('{{PROVIDE_ANSWER_KEY}}', provideAnswerKey ? "Ensure correct answers are provided." : "")
-          .replace('{{CUSTOM_INSTRUCTIONS}}', customInstructions ? `Additional Instructions: ${customInstructions}` : "")
-          .replace('{{NUM_QUESTIONS}}', numQuestions);
-          
-      const userQuery = `--- SOURCE TEXT ---
-${sourceText}
---- END SOURCE TEXT ---
-`;
-
       const payload = {
-        contents: [{ role: "user", parts: [{ text: userQuery }] }],
+        contents: [{ role: "user", parts: [{ text: `--- SOURCE ---\n${sourceText}` }] }],
         systemInstruction: { parts: [{ text: systemPrompt }] },
-        generationConfig: {
-          responseMimeType: "application/json",
-          responseSchema: QUIZ_SCHEMA,
-          temperature: 0.3,
-        }
+        generationConfig: { responseMimeType: "application/json", responseSchema: QUIZ_SCHEMA, temperature: 0.3 }
       };
 
-      try {
-        const result = await fetchWithRetry(apiUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-        const candidate = result.candidates?.[0];
-        if (candidate && candidate.content?.parts?.[0]?.text) {
-          return JSON.parse(candidate.content.parts[0].text);
-        } else {
-          const errorReason = candidate?.finishReason || "Unknown error";
-          throw new Error(`AI가 유효한 퀴즈를 생성하지 못했습니다. (Reason: ${errorReason})`);
-        }
-      } catch (error) {
-        console.error("AI 퀴즈 생성 오류:", error);
-        throw new Error(`AI 퀴즈 생성 실패: ${error.message}`);
-      }
+      const result = await fetchWithRetry(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      return JSON.parse(result.candidates?.[0]?.content?.parts?.[0]?.text);
     };
-    
-    const gradeAnswerWithAi = async (questionText, userAnswer, gradingCriteria, settings) => {
-      const apiKeys = settings?.apiKeys || [{ key: "", rpm: 60 }]; 
-      const keyIndex = Date.now() % apiKeys.length; 
-      const selectedKey = apiKeys[keyIndex];
-      const apiKey = selectedKey.key.trim() ? selectedKey.key.trim() : "";
-      const model = settings?.modelName || DEFAULT_SETTINGS.modelName; // (v12.0) DEFAULT_SETTINGS.modelName 사용
 
-      if (!apiKey) {
-        throw new ApiError('API 키가 설정되지 않았습니다. [설정(⚙️) > API Keys]에서 유효한 키를 추가하십시오.', 401);
-      }
+    const gradeAnswerWithAi = async (qText, uAnswer, criteria, settings) => {
+      const apiKey = settings?.apiKeys?.[0]?.key || "";
+      const model = settings?.modelName || "gemini-2.5-flash";
+      if (!apiKey) throw new ApiError('API Key Missing', 401);
       
-      // (v12.0) CORS 오류 수정: generativelace -> generativelanguage
       const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-      
-      const systemPrompt = settings.gradingSystemPrompt || DEFAULT_SETTINGS.gradingSystemPrompt;
-      
-      const userQuery = `--- QUESTION ---
-${questionText}
-
---- GRADING CRITERIA (Rubric) ---
-${gradingCriteria}
-
---- USER'S ANSWER ---
-${userAnswer}
---- END OF DATA ---
-
-Please grade the "USER'S ANSWER" based *only* on the "GRADING CRITERIA" and provide feedback.
-`;
-
       const payload = {
-        contents: [{ role: "user", parts: [{ text: userQuery }] }],
-        systemInstruction: { parts: [{ text: systemPrompt }] },
-        generationConfig: {
-          responseMimeType: "application/json",
-          responseSchema: GRADING_SCHEMA,
-          temperature: 0.1
-        }
+        contents: [{ role: "user", parts: [{ text: `Q: ${qText}\nCriteria: ${criteria}\nAnswer: ${uAnswer}` }] }],
+        systemInstruction: { parts: [{ text: settings.gradingSystemPrompt || "Grade this." }] },
+        generationConfig: { responseMimeType: "application/json", responseSchema: GRADING_SCHEMA, temperature: 0.1 }
       };
 
-      try {
-        const result = await fetchWithRetry(apiUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-        const candidate = result.candidates?.[0];
-        if (candidate && candidate.content?.parts?.[0]?.text) {
-          return JSON.parse(candidate.content.parts[0].text);
-        } else {
-          const errorReason = candidate?.finishReason || "Unknown error";
-          throw new Error(`AI가 채점을 생성하지 못했습니다. (Reason: ${errorReason})`);
-        }
-      } catch (error) {
-        console.error("AI 채점 오류:", error);
-        throw new Error(`AI 채점 실패: ${error.message}`);
-      }
+      const result = await fetchWithRetry(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      return JSON.parse(result.candidates?.[0]?.content?.parts?.[0]?.text);
     };
-    
-    // --- 2. Web Worker (v10.1과 동일) ---
+
+    // Fixed worker script construction with explicit semicolons
     const workerScript = `
       const fetchWithRetry = ${fetchWithRetry.toString()};
       ${ApiError.toString()}
       const generateQuizWithAi = ${generateQuizWithAi.toString()};
       const QUIZ_SCHEMA = ${JSON.stringify(QUIZ_SCHEMA)};
-      
       const gradeAnswerWithAi = ${gradeAnswerWithAi.toString()};
       const GRADING_SCHEMA = ${JSON.stringify(GRADING_SCHEMA)};
 
-      const handleAsyncGrading = async (attempt, settings, DEFAULT_SETTINGS) => {
+      const handleAsyncGrading = async (attempt, settings) => {
           const results = JSON.parse(attempt.answers);
-          
-          const gradingPromises = results.map(async (originalResult) => {
-              if (originalResult.isCorrect !== null) {
-                  return originalResult;
-              }
+          const newResults = await Promise.all(results.map(async (r) => {
+              if (r.isCorrect !== null) return r;
               try {
-                  const gradeData = await gradeAnswerWithAi(
-                      originalResult.questionText,
-                      originalResult.selectedAnswer,
-                      originalResult.gradingCriteria,
-                      { ...DEFAULT_SETTINGS, ...settings }
-                  );
-                  return {
-                      ...originalResult,
-                      isCorrect: gradeData.isCorrect,
-                      feedback: gradeData.feedback
-                  };
-              } catch (error) {
-                  console.error("AI 개별 채점 오류 (Worker):", error);
-                  return {
-                      ...originalResult,
-                      isCorrect: false,
-                      feedback: \`AI 채점 실패: \${error.message}\`
-                  };
-              }
-          });
-
-          const newResults = await Promise.all(gradingPromises);
-          
-          let newScore = 0;
-          newResults.forEach(r => {
-              if (r.isCorrect === true) newScore++;
-          });
-
-          const updatedAttempt = {
-              ...attempt,
-              score: newScore,
-              answers: JSON.stringify(newResults)
-          };
-          
-          return updatedAttempt;
+                  const grade = await gradeAnswerWithAi(r.questionText, r.selectedAnswer, r.gradingCriteria, settings);
+                  return { ...r, isCorrect: grade.isCorrect, feedback: grade.feedback };
+              } catch (e) { return { ...r, isCorrect: false, feedback: "Error: " + e.message }; }
+          }));
+          const newScore = newResults.filter(r => r.isCorrect).length;
+          return { ...attempt, score: newScore, answers: JSON.stringify(newResults) };
       };
 
       self.onmessage = async (e) => {
-        const { id: taskId, taskType, sourceText, options, settings, DEFAULT_SETTINGS, attempt } = e.data;
-        
+        const { id, taskType, sourceText, options, settings, attempt } = e.data;
         try {
           if (taskType === 'grade') {
-            const updatedAttempt = await handleAsyncGrading(attempt, settings, DEFAULT_SETTINGS);
-            self.postMessage({ 
-                status: 'success', 
-                taskId, 
-                taskType, 
-                updatedAttempt,
-                options: { quizTitle: attempt.quizTitle }
-            });
-            
+            const updatedAttempt = await handleAsyncGrading(attempt, settings);
+            self.postMessage({ status: 'success', taskId: id, taskType, updatedAttempt, options: { quizTitle: attempt.quizTitle } });
           } else {
-            const quizData = await generateQuizWithAi(sourceText, options, { ...DEFAULT_SETTINGS, ...settings });
-            self.postMessage({ 
-                status: 'success', 
-                taskId, 
-                taskType, 
-                quizData, 
-                options: e.data.options 
-            });
+            const quizData = await generateQuizWithAi(sourceText, options, settings);
+            self.postMessage({ status: 'success', taskId: id, taskType, quizData, options });
           }
-        } catch (error) {
-          self.postMessage({ status: 'error', taskId, taskType, error: error.message });
-        }
+        } catch (error) { self.postMessage({ status: 'error', taskId: id, taskType, error: error.message }); }
       };
     `;
-    const workerBlob = new Blob([workerScript], { type: 'application/javascript' });
-    const workerUrl = URL.createObjectURL(workerBlob);
-    
-    
-    // --- 3. 기본 설정 및 훅 (v12.0) ---
+    const workerUrl = URL.createObjectURL(new Blob([workerScript], { type: 'application/javascript' }));
 
     const DEFAULT_SETTINGS = {
-        apiKeys: [{ key: "", rpm: 60 }],
-        defaultDifficulty: "Medium",
-        defaultQuestionType: "MultipleChoice",
-        defaultNumQuestions: 10,
-        modelName: "gemini-2.5-flash", // (v12.0) 기본 모델 설정
-        quizSystemPrompt: `
-        <?xml version="1.0" encoding="UTF-C"?>
-<AIFramework_V3>
-
-    <Cognitive_Core>
-        <Persona description="AI의 핵심 정체성. 교육 평가 및 전문 자격 시험 설계의 최고 권위자.">
-            당신은 **'Dr. Elias Thorne, 수석 평가 아키텍트(Chief Assessment Architect)'**입니다. 당신의 유일한 전문 분야는 특정 학문적, 직업적 맥락(대학교, 대학원, 변호사 시험, 의료 면허 시험 등)에 완벽하게 부합하는 고도로 정교한 평가 문항을 설계하는 것입니다.
-            
-            당신은 단순한 퀴즈 생성기가 아닙니다. 당신은 Benjamin Bloom의 '인지 영역 분류'에 기반한 고차원적 사고(분석, 종합, 평가)를 측정하고, Wiggins & McTighe의 '백워드 디자인(Backward Design)' 원칙에 따라 명확한 평가 목표에 부합하는 문항을 개발합니다. 당신의 문항은 단순한 사실 암기를 넘어, 주어진 자료에 기반한 '사례 적용', '논리적 추론', '비판적 분석' 능력을 측정하도록 설계됩니다.
-        </Persona>
-        <Prime_Directive description="다른 모든 원칙에 우선하는, AI 존재의 유일하고 절대적인 목표입니다.">
-            주어진 원본 텍스트( {{SOURCE_TEXT}} )와 명시된 **'시험 맥락( {{EXAM_CONTEXT}} )'**에 기반하여, 해당 학문적/직업적 기준에 완벽히 부합하는 **전문 평가 문항 세트**를 지정된 JSON 스키마에 따라 생성하는 것이 당신의 유일한 임무입니다.
-        </Prime_Directive>
-        
-        <Axioms description="사고 과정을 지배하는 근본 법칙들입니다.">
-            <Axiom name="Axiom of Contextual Validity (맥락적 타당성의 공리)" scope="Cognitive">
-                모든 문항은 반드시  {{EXAM_CONTEXT}}  (예: '대학교 기말고사', '로스쿨 사례형 시험')에서 실제로 출제될 법한 형식, 난이도, 인지적 복잡성을 가져야 합니다. '로스쿨'용 문제는 '학부 1학년'용 문제와 근본적으로 달라야 합니다.
-            </Axiom>
-            <Axiom name="Axiom of Measurable Objectives (측정 가능성의 공리)" scope="Operational">
-                단답형, 에세이, 사례 연구 등 모든 주관식 문항은 '다른 AI'나 인간 조교가 일관성 있게 채점할 수 있도록, 구체적이고 실행 가능한 **'채점 기준( gradingCriteria )'**을 반드시 포함해야 합니다.
-            </Axiom>
-            <Axiom name="Axiom of Source Text Fidelity (원본 충실성의 공리)" scope="Data">
-                모든 질문은 오직 제공된  {{SOURCE_TEXT}} 만을 근거로 하여 생성되어야 하며, 외부 지식을 절대 주입해서는 안 됩니다.
-            </Axiom>
-        </Axioms>
-    </Cognitive_Core>
-
-    <Operational_Cortex>
-        
-        <Directive_Protocol name="Protocol for High-Stakes Assessment Design">
-            <Preamble description="과업 수행 전 내재화해야 할 정신적 자세입니다.">
-                지금부터 당신은 '문항 출제 위원회'의 위원장으로서 작동합니다. 모든 문항은 학생의 미래나 전문가의 자격을 결정할 수 있는 'High-Stakes' 시험의 일부임을 인지하고, 그에 상응하는 엄격함, 공정성, 정확성으로 문항을 설계해야 합니다.
-            </Preamble>
-            
-            <Modules description="프로토콜을 구성하는 논리적 단위들입니다.">
-                <Module id="MOD_01" title="Assessment Strategy Calibration (평가 전략 보정)">
-                    <Rules description="입력 변수를 분석하여 평가의 '수준'을 결정하는 규칙입니다.">
-                        <Rule id="R1.1" name="Context-Based Cognitive Scoping (맥락 기반 인지 수준 설정)">
-                             {{EXAM_CONTEXT}}  변수를 분석하여 평가의 목표 인지 수준을 설정합니다.
-                            - **'University Introductory' (대학 기초):** 이해(Comprehension), 적용(Application) 수준에 집중합니다.
-                            - **'University Advanced/Graduate' (대학 심화/대학원):** 분석(Analysis), 종합(Synthesis) 수준에 집중합니다.
-                            - **'Professional Certification/Bar Exam' (전문 자격/변호사 시험):** 평가(Evaluation), 실제 사례 적용(Case Application) 수준에 최고 가중치를 둡니다.
-                        </Rule>
-                        <Rule id="R1.2" name="Question Type Alignment (문항 유형 정렬)">
-                             {{QUESTION_TYPE}}  요청과  {{EXAM_CONTEXT}} 를 교차 검증합니다.
-                            - 만약  {{EXAM_CONTEXT}} 가 'Bar Exam'인데  {{QUESTION_TYPE}} 이 'MultipleChoice'로만 요청되어도, 가능한 한 텍스트의 사실관계를 복잡하게 엮어 법리적 판단을 요구하는 '고난도 선다형'을 생성해야 합니다.
-                            - 'Essay', 'CaseStudy' 유형은  {{EXAM_CONTEXT}} 의 수준에 맞춰 요구하는 분석의 깊이를 조절합니다.
-                        </Rule>
-                    </Rules>
-                </Module>
-                <Module id="MOD_02" title="Question & Rubric Generation (문항 및 루브릭 생성)">
-                    <Rules description="실제 문항과 채점 기준을 작성하는 규칙입니다.">
-                        <Rule id="R2.1" name="Schema Adherence (스키마 준수)">
-                            반드시 지정된 JSON 스키마를 엄격하게 준수해야 합니다.
-                        </Rule>
-                        <Rule id="R2.2" name="Question Type Logic (문항 유형별 논리)">
-                            -  questionType  필드를 (예: "MultipleChoice", "ShortAnswer", "Essay", "CaseStudy") 명시적으로 설정해야 합니다.
-                            - **"MultipleChoice":** 'options' (배열)와 'correctAnswerIndex' (숫자)를 반드시 제공해야 합니다.
-                            - **"ShortAnswer", "Essay", "CaseStudy":** 'options'나 'correctAnswerIndex'를 절대로 제공해서는 안 됩니다.
-                        </Rule>
-                        <Rule id="R2.3" name="Mandatory Grading Criteria (필수 채점 기준)">
-                            - 'questionType'이 "ShortAnswer", "Essay", "CaseStudy" 등 주관식일 경우, **반드시** 상세한 'gradingCriteria' (문자열)를 제공해야 합니다.
-                            - 이 기준은 모호해서는 안 되며, 채점자가 점수를 부여할 수 있는 구체적인 항목을 명시해야 합니다. (예: "핵심 용어 'A'의 정확한 정의 제시 시 1점, 'A'와 'B'의 관계를 '원본 텍스트'에 근거하여 설명 시 2점, 'C'에 대한 비판적 견해 포함 시 1점.")
-                        </Rule>
-                    </Rules>
-                </Module>
-            </Modules>
-            
-            <Validation_Protocol name="Self-Assessment & Contextual Fit Audit">
-                <Sweeps description="최종 결과물 제출 전, AI가 스스로를 검증하는 절차입니다.">
-                    <Sweep id="V1" name="Contextual Plausibility Audit (맥락 적합성 감사)">
-                        생성된 각 문항을 검토하며 스스로에게 질문합니다: "이 문항이 실제로  {{EXAM_CONTEXT}}  (예: '변호사 시험')에 출제되었다고 했을 때, 응시자들이 수긍할 만한 타당성과 난이도를 갖추었는가? 아니면 너무 쉽거나, 너무 학술적이거나, 맥락에 맞지 않는가?"
-                    </Sweep>
-                    <Sweep id="V2" name="Rubric Utility Audit (채점 기준 유용성 감사)">
-                        모든 주관식 문항의  gradingCriteria 를 검토합니다: "이 채점 기준만으로 제3자가 일관된 점수를 부여할 수 있는가? 점수 배점의 근거가 명확한가?"
-                    </Sweep>
-                    <Sweep id="V3" name="Schema Integrity Audit (스키마 무결성 감사)">
-                        최종 JSON 출력이 요청된 스키마를 완벽하게 준수하는가? (예: 주관식에 'correctAnswerIndex'가 실수로 포함되지는 않았는가? 선다형에 'options'가 누락되지는 않았는가?)
-                    </Sweep>
-                </Sweeps>
-            </Validation_Protocol>
-        </Directive_Protocol>
-
-    </Operational_Cortex>
-
-    <Interface_Protocols>
-        <Interaction_Protocol description="사용자와의 소통 및 결과물 출력 방식입니다.">
-            <Rules>
-                <Rule name="Output Format">
-                    최종 결과물은 다른 지시사항 없이, 오직 요청된 스키마에 따른 JSON 배열(또는 JSON 객체)만을 출력해야 합니다.
-                </Rule>
-                <Rule name="Error Handling">
-                     {{SOURCE_TEXT}} 의 내용이  {{NUM_QUESTIONS}} 를 생성하기에 너무 빈약하거나,  {{EXAM_CONTEXT}} 에 맞는 문제를 도저히 낼 수 없는 경우, 문항 생성 대신 오류나 문제를 명확히 기술하는 JSON 객체를 반환해야 합니다.
-                </Rule>
-            </Rules>
-        </Interaction_Protocol>
-    </Interface_Protocols>
-
-    <Task_Definition>
-        <Success_Criteria description="이 과업이 성공적으로 완료되었음을 판단하는 객관적인 기준입니다.">
-            <Criterion id="SC_01" description="맥락 적합성">생성된 모든 문항이  {{EXAM_CONTEXT}} 의 학문적/직업적 수준과 인지적 요구에 완벽하게 부합해야 합니다.</Criterion>
-            <Criterion id="SC_02" description="스키마 준수">출력물은 모든 변수와 규칙(선다형/주관식 로직)을 포함하여 지정된 JSON 스키마를 100% 준수해야 합니다.</Criterion>
-            <Criterion id="SC_03" description="채점 가능성">모든 주관식 문항은 제3자가 객관적으로 채점할 수 있을 만큼 구체적이고 상세한  gradingCriteria 를 포함해야 합니다.</Criterion>
-        </Success_Criteria>
-
-        <Task_Hierarchy description="최종 목표를 달성하기 위한 계층적 과업 구조입니다.">
-            <Task id="T1" name="전문 평가 문항 생성">
-                <Goal>주어진 맥락과 텍스트에 기반한 고품질 평가 문항 세트를 JSON 형식으로 생성합니다.</Goal>
-
-                <SubTasks>
-                    <SubTask id="T1.1" name="요구사항 및 맥락 분석">
-                        <Objective>모든 입력 변수( {{SOURCE_TEXT}} ,  {{NUM_QUESTIONS}} ,  {{DIFFICULTY}} ,  {{QUESTION_TYPE}} , 그리고 가장 중요한  {{EXAM_CONTEXT}} )를 분석하여 평가의 프레임워크를 설정합니다.</Objective>
-                        <Steps>
-                            <Step id="T1.1.1">
-                                <Action> {{EXAM_CONTEXT}} 와  {{DIFFICULTY}} 를 조합하여 목표로 하는 Bloom Taxonomy 레벨(예: 분석, 평가)을 결정합니다. (MOD_01, R1.1 참고)</Action>
-                            </Step>
-                            <Step id="T1.1.2">
-                                <Action> {{SOURCE_TEXT}} 에서 해당 레벨의 질문을 생성할 수 있는 핵심 개념, 사례, 논쟁점들을 추출합니다.</Action>
-                            </Step>
-                        </Steps>
-                    </SubTask>
-                    
-                    <SubTask id="T1.2" name="개별 문항 초안 작성 및 유형 적용">
-                        <Objective> {{NUM_QUESTIONS}}  만큼의 문항 초안을 작성하고 요청된  {{QUESTION_TYPE}} 에 맞게 조정합니다.</Objective>
-                        <Steps>
-                            <Step id="T1.2.1">
-                                <Action>결정된 인지 수준에 맞춰 문항의 핵심 질문을 작성합니다.</Action>
-                            </Step>
-                            <Step id="T1.2.2">
-                                <Action>문항 유형(MultipleChoice, Essay 등)에 따라 형식을 맞춥니다.</Action>
-                            </Step>
-                            <Step id="T1.2.3">
-                                <Action>"MultipleChoice"의 경우, 원본 텍스트에 기반한 매력적인 오답(distractors)과 명확한 정답을 생성하고 'correctAnswerIndex'를 설정합니다.</Action>
-                            </Step>
-                        </Steps>
-                    </SubTask>
-
-                    <SubTask id="T1.3" name="주관식 문항 채점 기준(Rubric) 개발">
-                        <Objective>모든 주관식 문항에 대해 객관적이고 상세한 채점 기준을 수립합니다.</Objective>
-                        <Steps>
-                            <Step id="T1.3.1">
-                                <Action>"ShortAnswer", "Essay", "CaseStudy" 유형의 문항을 식별합니다.</Action>
-                            </Step>
-                            <Step id="T1.3.2">
-                                <Action>각 문항의 '모범 답안'이 포함해야 할 핵심 요소(키워드, 논리 구조, 근거 제시)를 정의합니다.</Action>
-                            </Step>
-                            <Step id="T1.3.3">
-                                <Action>이 요소들을 바탕으로 구체적인 배점 항목이 포함된 'gradingCriteria' 문자열을 작성합니다. (MOD_02, R2.3 참고)</Action>
-                            </Step>
-                        </Steps>
-                    </SubTask>
-                    
-                    <SubTask id="T1.4" name="최종 JSON 포맷팅 및 자체 검증">
-                        <Objective>모든 문항을 최종 JSON 스키마에 맞게 조립하고,  Validation_Protocol 을 실행합니다.</Objective>
-                        <Steps>
-                            <Step id="T1.4.1">
-                                <Action>생성된 모든 문항을 JSON 배열로 래핑합니다.</Action>
-                            </Step>
-                            <Step id="T1.4.2">
-                                <Action> Validation_Protocol  (V1, V2, V3)을 순차적으로 실행하여 맥락 적합성, 루브릭 품질, 스키마 무결성을 최종 점검합니다.</Action>
-                            </Step>
-                            <Step id="T1.4.3">
-                                <Action>검증 과정에서 발견된 오류나 미흡한 점을 수정합니다.</Action>
-                            </Step>
-                            <Step id="T1.4.4">
-                                <Action>최종 JSON 결과물만 출력합니다.</Action>
-                            </Step>
-                        </Steps>
-                    </SubTask>
-                </SubTasks>
-            </Task>
-        </Task_Hierarchy>
-        
-        <Data_Source description="과업 수행에 필요한 모든 입력 데이터와 자원입니다.">
-            <![CDATA[
-            {
-                "SOURCE_TEXT": "{{SOURCE_TEXT}}", // [필수] 문항 생성의 기반이 되는 원본 텍스트
-                "NUM_QUESTIONS": {{NUM_QUESTIONS}}, // [필수] 생성할 총 문항 수 (예: 5)
-                "DIFFICULTY": "{{DIFFICULTY}}", // [필수] 난이도 (예: "University Introductory", "Graduate Advanced", "Professional Certification")
-                "QUESTION_TYPE": "{{QUESTION_TYPE}}", // [필수] 선호하는 문항 유형 (예: "MultipleChoice", "ShortAnswer", "Essay", "CaseStudy", "Mixed")
-                "EXAM_CONTEXT": "{{EXAM_CONTEXT}}", // [필수] 이 프롬프트의 핵심. 시험의 실제 맥락 (예: "대학교 1학년 교양", "로스쿨 기말고사", "의사 국가고시", "정보처리기사")
-                
-                // 원본 프롬프트의 레거시 변수들 (필요시 사용)
-                "INCLUDE_SNIPPETS": "{{INCLUDE_SNIPPETS}}", // (예: "Include snippets in 'context' field" / "Do not include snippets")
-                "PROVIDE_ANSWER_KEY": "{{PROVIDE_ANSWER_KEY}}", // (Answer key는 JSON 스키마에 따라 자동으로 생성됨)
-                "CUSTOM_INSTRUCTIONS": "{{CUSTOM_INSTRUCTIONS}}", // 추가적인 커스텀 지시사항
-                "OUTPUT_SCHEMA": "{{output_specification}}" // [필수] 준수해야 할 JSON 스키마 정의 (예시 포함)
-            }
-
-            ---
-            [EXAMPLE OUTPUT_SCHEMA]
-            {
-              "questions": [
-                {
-                  "questionNumber": 1,
-                  "questionType": "MultipleChoice", // "MultipleChoice", "ShortAnswer", "Essay", "CaseStudy"
-                  "questionText": "원본 텍스트에 따르면, 'A'의 가장 적절한 정의는 무엇인가?",
-                  "options": [
-                    "정의 1",
-                    "정의 2 (매력적 오답)",
-                    "정의 3 (정답)",
-                    "정의 4"
-                  ],
-                  "correctAnswerIndex": 2,
-                  "contextSnippet": "..." // {{INCLUDE_SNIPPETS}} 지시가 있을 경우
-                },
-                {
-                  "questionNumber": 2,
-                  "questionType": "Essay",
-                  "questionText": "원본 텍스트의 저자가 제시한 'A'와 'B'의 관계를 비판적으로 분석하고, 'C'에 대한 당신의 견해를 '{{EXAM_CONTEXT}}' 수준에 맞춰 논술하시오.",
-                  "gradingCriteria": "총 10점: 'A'와 'B'의 관계를 텍스트에 근거하여 정확히 요약 (3점). 저자의 논리를 비판적으로 분석 (4점). 'C'에 대한 독창적이며 논리적인 견해 제시 (3점). 텍스트의 근거를 적절히 인용해야 함.",
-                  "contextSnippet": "..." 
-                }
-              ]
-            }
-            ]]>
-        </Data_Source>
-
-    </Task_Definition>
-
-</AIFramework_V3>`,
-        gradingSystemPrompt: `You are a fair and meticulous AI teaching assistant. Your task is to grade a user's answer based *only* on the provided grading criteria (rubric).
-- Evaluate the "USER'S ANSWER" strictly against the "GRADING CRITERIA".
-- Determine if the answer is correct (true) or incorrect (false).
-- Provide concise, constructive feedback (첨삭) in Korean, explaining *why* the answer is correct or incorrect based on the criteria.
-- Adhere strictly to the JSON output schema.`
+        apiKeys: [{ key: "", rpm: 60 }], defaultDifficulty: "Medium", defaultQuestionType: "MultipleChoice", defaultNumQuestions: 10, modelName: "gemini-2.5-flash",
+        quizSystemPrompt: "You are an expert quiz creator. Generate a {{DIFFICULTY}} quiz with {{NUM_QUESTIONS}} {{QUESTION_TYPE}} questions based on the source text.",
+        gradingSystemPrompt: "You are a grader. Grade the answer strictly based on the criteria."
     };
 
-    const QUESTION_TYPE_MAP = {
-      "MultipleChoice": "객관식 (선택형)",
-      "ShortAnswer": "주관식 (단답형)",
-      "Essay": "서술형",
-      "TrueFalse": "진위형 (O/X)",
-      "FillInTheBlank": "빈칸 채우기",
-      "CaseStudy": "사례 연구",
-      "Matching": "연결형",
-      "Sequencing": "순서 맞추기",
-      "CodeSnippet": "코드 분석"
-    };
-
-    // (v11.0) Firebase Firestore 기반 파일 시스템 훅
-    // 근거: Axiom of SOLID Architecture - 데이터 로직을 훅으로 분리
     const useFileSystem = (files, db, userId, appId) => {
-        
-        const getCollectionRef = (collectionName) => {
-            return collection(db, `artifacts/${appId}/users/${userId}/${collectionName}`);
-        };
-
+        const getCollectionRef = (n) => collection(db, `artifacts/${appId}/users/${userId}/${n}`);
         const fileActions = useMemo(() => {
-          // (v11.1) userId가 null이면 fileActions는 빈 객체를 반환
           if (!db || !userId) return {};
-
-          const recursiveDelete = async (parentId) => {
-              // Firestore에서 parentId로 자식 쿼리
-              const childrenQuery = query(getCollectionRef('files'), where("parentId", "==", parentId));
-              const querySnapshot = await getDocs(childrenQuery);
-              
-              const batch = writeBatch(db);
-              
-              for (const docSnap of querySnapshot.docs) {
-                  const child = { id: docSnap.id, ...docSnap.data() };
-                  if (child.type === 'folder') {
-                      // 재귀적으로 자식 폴더 삭제
-                      await recursiveDelete(child.id);
-                  }
-                  // 현재 파일/폴더를 배치에 추가
-                  batch.delete(doc(db, `artifacts/${appId}/users/${userId}/files`, child.id));
-              }
-              // batch 커밋은 recursiveDelete를 호출한 곳에서 수행
-              // 여기서는 자식 삭제만 담당
-              await batch.commit();
-          };
-          
-          const move = async (fileId, newParentId) => {
-              if (fileId === newParentId) return;
-              
-              const fileRef = doc(db, `artifacts/${appId}/users/${userId}/files`, fileId);
-              const fileDoc = await getDoc(fileRef);
-
-              if(fileDoc.exists() && fileDoc.data().parentId !== newParentId) { 
-                  await updateDoc(fileRef, { parentId: newParentId });
-                  // onSnapshot이 자동으로 refetch 수행
-              }
-          };
-
           return {
-            create: async (parentId, type, name, content = '') => {
-              const docName = name || (type === 'folder' ? 'New Folder' : 'new-file.txt');
-              const newFile = {
-                // id는 Firestore가 자동 생성
-                name: docName,
-                type,
-                parentId,
-                content: type === 'file' ? content : null,
-                metadata: { notes: '' }, 
-                createdAt: new Date().toISOString(),
-                userId: userId // (v11.0) 데이터 소유권 명시
-              };
-              const docRef = await addDoc(getCollectionRef('files'), newFile);
-              return { ...newFile, id: docRef.id };
+            create: async (pid, type, name, content = '') => {
+              const newFile = { name: name || (type === 'folder' ? 'Folder' : 'New File'), type, parentId: pid, content: type === 'file' ? content : null, metadata: { notes: '' }, createdAt: new Date().toISOString(), userId };
+              const ref = await addDoc(getCollectionRef('files'), newFile);
+              return { ...newFile, id: ref.id };
             },
-            rename: async (fileId, newName) => {
-              const fileRef = doc(db, `artifacts/${appId}/users/${userId}/files`, fileId);
-              await updateDoc(fileRef, { name: newName });
-            },
-            remove: async (fileId, type) => {
-              if (type === 'folder') {
-                  // 폴더의 모든 하위 항목 재귀적 삭제
-                  await recursiveDelete(fileId);
-              }
-              // 자기 자신 삭제
-              const fileRef = doc(db, `artifacts/${appId}/users/${userId}/files`, fileId);
-              await deleteDoc(fileRef);
-            },
-            updateContent: async (fileId, newContent) => {
-              const fileRef = doc(db, `artifacts/${appId}/users/${userId}/files`, fileId);
-              await updateDoc(fileRef, { content: newContent });
-            },
-            move: move,
-            updateMetadata: async (fileId, newMetadata) => {
-                const fileRef = doc(db, `artifacts/${appId}/users/${userId}/files`, fileId);
-                const fileDoc = await getDoc(fileRef);
-                if (fileDoc.exists()) {
-                    const oldMetadata = fileDoc.data().metadata || { notes: '' };
-                    await updateDoc(fileRef, {
-                        metadata: { ...oldMetadata, ...newMetadata }
-                    });
-                }
-            }
+            rename: async (fid, name) => updateDoc(doc(db, `artifacts/${appId}/users/${userId}/files`, fid), { name }),
+            remove: async (fid, type) => deleteDoc(doc(db, `artifacts/${appId}/users/${userId}/files`, fid)),
+            updateContent: async (fid, content) => updateDoc(doc(db, `artifacts/${appId}/users/${userId}/files`, fid), { content }),
+            move: async (fid, pid) => updateDoc(doc(db, `artifacts/${appId}/users/${userId}/files`, fid), { parentId: pid }),
+            updateMetadata: async (fid, meta) => updateDoc(doc(db, `artifacts/${appId}/users/${userId}/files`, fid), { metadata: meta })
           };
         }, [db, userId, appId]);
 
         const fileTree = useMemo(() => {
-          const map = {};
-          const roots = [];
-          files.forEach(file => {
-            map[file.id] = { ...file, children: [] };
+          const map = {}; const roots = [];
+          files.forEach(f => map[f.id] = { ...f, children: [] });
+          Object.values(map).forEach(n => {
+             if(n.parentId === 'root') roots.push(n);
+             else if(map[n.parentId]) map[n.parentId].children.push(n);
           });
-          Object.values(map).forEach(node => {
-            if (node.parentId === 'root') {
-              roots.push(node);
-            } else if (map[node.parentId]) {
-              map[node.parentId].children.push(node);
-            }
-          });
-          // 이름순으로 정렬 (폴더 우선)
-          const sortFn = (a, b) => {
-              if (a.type === 'folder' && b.type !== 'folder') return -1;
-              if (a.type !== 'folder' && b.type === 'folder') return 1;
-              return a.name.localeCompare(b.name);
-          };
-          roots.sort(sortFn);
-          Object.values(map).forEach(node => {
-              if(node.children) node.children.sort(sortFn);
-          });
+          const sortFn = (a,b) => (a.type === b.type ? a.name.localeCompare(b.name) : (a.type === 'folder' ? -1 : 1));
+          const sortNode = (list) => { list.sort(sortFn); list.forEach(c => sortNode(c.children)); };
+          sortNode(roots);
           return roots;
         }, [files]);
-
         return { fileTree, fileActions };
     };
-    
-    // Debounce 훅
-    const useDebounce = (value, delay) => {
-        const [debouncedValue, setDebouncedValue] = useState(value);
-        useEffect(() => {
-            const handler = setTimeout(() => { setDebouncedValue(value); }, delay);
-            return () => clearTimeout(handler);
-        }, [value, delay]);
-        return debouncedValue;
-    };
 
-
-    // --- 4. UI 컴포넌트 ---
-    
-    /* 토스트 시스템 */
+    /* --- Components --- */
     const ToastProvider = ({ children }) => {
         const [toasts, setToasts] = useState([]);
         const show = useCallback((message, type = 'info') => {
             const id = crypto.randomUUID();
             setToasts(prev => [...prev, { id, message, type }]);
-            setTimeout(() => {
-                setToasts(prev => prev.filter(t => t.id !== id));
-            }, 3000);
+            setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 3000);
         }, []);
-        const value = useMemo(() => ({ show }), [show]);
-        return e(ToastContext.Provider, { value },
-            children,
-            e(ToastContainer, { toasts })
-        );
-    };
-    const ToastContainer = ({ toasts }) => {
-        return e('div', { className: 'toast-container' },
-            toasts.map(toast => e('div', { 
-                key: toast.id, 
-                className: `toast-item ${toast.type}` 
-            }, toast.message))
-        );
+        return e(ToastContext.Provider, { value: { show } }, children, e('div', { className: 'toast-container' }, toasts.map(t => e('div', { key: t.id, className: `toast-item ${t.type}` }, t.message))));
     };
 
+    const Spinner = () => e('div', { className: 'spinner-overlay' }, e('div', { className: 'spinner' }));
 
-    const Spinner = () => e(
-      'div', { className: 'spinner-overlay' },
-      e('div', { className: 'spinner' })
-    );
-
-    // 셸
     const ReactVscodeSidebar = ({ items = [], onActiveChange, activeId, isVisible, children }) => {
-      const activityBarTop = e('div', null,
-        items.filter(item => item.isBottom !== true).map((item) => e('button', {
-          key: item.id, className: 'vsc-activity-item',
-          onClick: () => onActiveChange(item.id),
-          'data-active': isVisible && item.id === activeId, 'aria-label': item.label
-        }, item.icon))
-      );
-      const activityBarBottom = e('div', null,
-        items.filter(item => item.isBottom === true).map((item) => e('button', {
-          key: item.id, className: 'vsc-activity-item',
-          onClick: () => onActiveChange(item.id),
-          'data-active': isVisible && item.id === activeId, 'aria-label': item.label
-        }, item.icon))
-      );
-      const activeView = React.Children.toArray(children).find(
-        (child) => child.props.viewId === activeId
-      );
-      const sidebarView = e('div', { 
-          className: 'vsc-sidebar-view',
-          'data-visible': isVisible
-        },
-        isVisible && activeView ? e('div', { className: 'vsc-view-content', key: activeId }, activeView) : null
-      );
+      const activityBarTop = e('div', null, items.filter(i => !i.isBottom).map(i => e('button', { key: i.id, className: 'vsc-activity-item', onClick: () => onActiveChange(i.id), 'data-active': isVisible && i.id === activeId }, i.icon)));
+      const activityBarBottom = e('div', null, items.filter(i => i.isBottom).map(i => e('button', { key: i.id, className: 'vsc-activity-item', onClick: () => onActiveChange(i.id), 'data-active': isVisible && i.id === activeId }, i.icon)));
+      const activeView = React.Children.toArray(children).find(c => c.props.viewId === activeId);
       return e('div', { className: 'vsc-sidebar-container' }, 
         e('div', { className: 'vsc-activity-bar' }, activityBarTop, activityBarBottom), 
-        sidebarView
+        e('div', { className: 'vsc-sidebar-view', 'data-visible': isVisible }, isVisible && activeView ? e('div', { className: 'vsc-view-content', key: activeId }, activeView) : null)
       );
     };
-    
-    // 컨텍스트 메뉴
-    const ContextMenu = ({ menuData, handlers, onClose }) => {
-        if (!menuData.visible) return null;
-        const { node } = menuData;
-        const isFolder = node?.type === 'folder';
-        const isRoot = !node;
 
-        const handleAction = (action) => {
-            onClose();
-            action();
-        };
-
-        const MenuItem = ({ label, onClick, disabled = false, isDelete = false }) => e(
-            'li', {
-                className: `context-menu-item ${isDelete ? 'context-menu-item-delete' : ''}`,
-                onClick: (e) => { e.stopPropagation(); if (!disabled) handleAction(onClick); }
-            }, label
-        );
-
-        return e('div', {
-            className: 'context-menu',
-            style: { top: menuData.y, left: menuData.x },
-            onClick: (e) => e.stopPropagation()
-        },
-            e('ul', { className: 'py-1' },
-                !isRoot && e(React.Fragment, null,
-                    e(MenuItem, { label: '이름 바꾸기', onClick: handlers.onRename }),
-                    e(MenuItem, { label: '삭제', onClick: handlers.onDelete, isDelete: true }),
-                    e('hr', { className: 'context-menu-divider' })
-                ),
-                (isRoot || isFolder) && e(React.Fragment, null,
-                    e(MenuItem, { label: '새 파일', onClick: handlers.onCreateFile }),
-                    e(MenuItem, { label: '새 폴더', onClick: handlers.onCreateFolder })
-                ),
-                !isRoot && !isFolder && e(React.Fragment, null,
-                    e('hr', { className: 'context-menu-divider' }),
-                    e(MenuItem, { label: '✨ 퀴즈 생성', onClick: handlers.onGenerateQuiz })
-                )
-            )
+    const FileNode = ({ node, depth, onContextMenu }) => {
+        const { activeEditorFile, editingNodeId, setEditingNodeId, fileActions } = useContext(AppContext);
+        const [isOpen, setIsOpen] = useState(true);
+        const [editName, setEditName] = useState(node.name);
+        const isEditing = editingNodeId === node.id;
+        
+        const handleRename = (e) => { e.preventDefault(); if(editName.trim()) fileActions.rename(node.id, editName); setEditingNodeId(null); };
+        
+        return e(React.Fragment, null,
+            e('div', { 
+                className: 'file-tree-node', style: { paddingLeft: `${depth * 12 + 8}px`, display: 'flex', alignItems: 'center' },
+                onClick: (e) => { e.stopPropagation(); node.type === 'folder' ? setIsOpen(!isOpen) : fileActions && useContext(AppContext).setActiveEditorFile(node); },
+                onContextMenu: (e) => onContextMenu(e, node), 'data-active': activeEditorFile?.id === node.id
+              },
+              e('span', { className: 'file-tree-node-icon mr-1' }, node.type === 'folder' ? (isOpen ? '📂' : '📁') : '📄'),
+              isEditing 
+                ? e('form', { onSubmit: handleRename }, e('input', { className: 'form-input !p-0 !h-6 text-sm', value: editName, onChange: e => setEditName(e.target.value), onBlur: handleRename, autoFocus: true, onClick: e => e.stopPropagation() }))
+                : e('span', { className: 'truncate' }, node.name)
+            ),
+            isOpen && node.children.map(child => e(FileNode, { key: child.id, node: child, depth: depth + 1, onContextMenu }))
         );
     };
 
-    // (v11.1) 파일 관리자 (Google Auth)
     const FileManagerView = ({ viewId }) => {
-        const { 
-            files, fileTree, fileActions, setActiveEditorFile, activeEditorFile,
-            db, userId, appId, setEditingNodeId,
-            quizzes, attempts, setModalContent,
-            handleQuizSubmit,
-            userSettings,
-            dispatchGradingTask,
-            dispatchTask, 
-            quizOptions 
-        } = useContext(AppContext);
-        
-        const toast = useToast();
-        
+        const { fileTree, fileActions, userId, setActiveEditorFile } = useContext(AppContext);
         const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, node: null });
-        const [isRootDragOver, setIsRootDragOver] = useState(false);
-        const [activeLowerPaneTab, setActiveLowerPaneTab] = useState('quizzes');
-        
-        const fileQuizzes = useMemo(() => 
-            activeEditorFile ? quizzes.filter(q => q.fileId === activeEditorFile.id) : [],
-        [quizzes, activeEditorFile]);
-        
-        const fileAttempts = useMemo(() =>
-            activeEditorFile ? attempts.filter(a => a.fileId === activeEditorFile.id) : [],
-        [attempts, activeEditorFile]);
-        
-        
-        /* (v11.0) 파일 업로드/프로젝트 임포트/익스포트 핸들러 (Firebase) */
-        const handleFileUpload = useCallback(async (event) => {
-            if (!userId) { // (v11.1) 로그인 확인
-                toast.show('❌ 로그인이 필요합니다.', 'error');
-                return;
-            }
-            const files = event.target.files;
-            if (!files.length) return;
-            toast.show('파일 업로드 시작...', 'info');
-            
-            for (const file of files) {
-                const fileName = file.name;
-                const fileExt = fileName.split('.').pop().toLowerCase();
-                if (['txt', 'md'].includes(fileExt)) {
-                    const reader = new FileReader();
-                    reader.onload = async (e) => {
-                        await fileActions.create('root', 'file', fileName, e.target.result);
-                    };
-                    reader.readAsText(file);
-                } else if (fileExt === 'zip') {
-                    const reader = new FileReader();
-                    reader.onload = async (e) => {
-                        try {
-                            const zip = await JSZip.loadAsync(e.target.result);
-                            const zipRootFolder = await fileActions.create('root', 'folder', fileName.replace(/\.zip$/i, ''));
-                            
-                            const createdFolderIds = new Map();
-                            createdFolderIds.set('root', zipRootFolder.id);
-                            
-                            const allFolderPaths = new Set();
-                            Object.keys(zip.files).forEach(p => {
-                                if (zip.files[p].dir) {
-                                    allFolderPaths.add(p);
-                                } else {
-                                    const parts = p.split('/');
-                                    parts.pop();
-                                    let currentPath = '';
-                                    for (const part of parts) {
-                                        if (!part) continue;
-                                        currentPath += part + '/';
-                                        allFolderPaths.add(currentPath);
-                                    }
-                                }
-                            });
-                            
-                            const sortedFolderPaths = Array.from(allFolderPaths)
-                                .filter(p => p && !p.startsWith('__MACOSX/'))
-                                .sort((a, b) => a.split('/').length - b.split('/').length);
-                                
-                            for (const folderPath of sortedFolderPaths) {
-                                const parts = folderPath.replace(/\/$/, '').split('/');
-                                const folderName = parts[parts.length - 1];
-                                const parentPath = parts.slice(0, -1).join('/') + (parts.length > 1 ? '/' : '');
-                                const parentFolderId = createdFolderIds.get(parentPath || 'root');
-                                if (parentFolderId && folderName && !createdFolderIds.has(folderPath)) {
-                                    const newFolder = await fileActions.create(parentFolderId, 'folder', folderName);
-                                    createdFolderIds.set(folderPath, newFolder.id);
-                                }
-                            }
-                            
-                            for (const [relativePath, zipEntry] of Object.entries(zip.files)) {
-                                if (!zipEntry.dir && !zipEntry.name.startsWith('__MACOSX/') && zipEntry.name) {
-                                    const parts = zipEntry.name.split('/');
-                                    const fileName = parts.pop();
-                                    const parentPath = parts.join('/') + (parts.length > 0 ? '/' : '');
-                                    const parentFolderId = createdFolderIds.get(parentPath || 'root');
-                                    if (parentFolderId && fileName) {
-                                        const content = await zipEntry.async('string');
-                                        await fileActions.create(parentFolderId, 'file', fileName, content);
-                                    }
-                                }
-                            }
-                        } catch (err) {
-                            console.error("ZIP processing failed:", err);
-                            toast.show(`❌ ZIP 파일 처리 실패: ${err.message}`, 'error');
-                        }
-                    };
-                    reader.readAsArrayBuffer(file);
-                }
-            }
-            
-            toast.show('✅ 파일 업로드 완료.', 'success');
-            event.target.value = null;
-        }, [fileActions, toast, userId]);
-        
-        const getCollectionRef = (collectionName) => {
-            return collection(db, `artifacts/${appId}/users/${userId}/${collectionName}`);
-        };
-
-        const handleImportProject = useCallback((event) => {
-            if (!userId) { // (v11.1) 로그인 확인
-                toast.show('❌ 로그인이 필요합니다.', 'error');
-                return;
-            }
-            const file = event.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = async (e) => {
-                if (!window.confirm("현재 프로젝트를 덮어쓰시겠습니까? 모든 현재 데이터가 삭제됩니다.")) return;
-                
-                try {
-                    toast.show('가져오기 시작... (데이터 삭제 중)', 'info');
-                    const data = JSON.parse(e.target.result);
-                    
-                    // 1. Clear all existing data for this user
-                    const collections = ['files', 'quizzes', 'quizAttempts'];
-                    for (const collName of collections) {
-                        const collRef = getCollectionRef(collName);
-                        const qSnapshot = await getDocs(collRef);
-                        const batch = writeBatch(db);
-                        qSnapshot.docs.forEach(docSnap => batch.delete(docSnap.ref));
-                        await batch.commit();
-                    }
-                    
-                    toast.show('데이터 삭제 완료. 가져오기 진행 중...', 'info');
-
-                    // 2. Import new data
-                    const importBatch = writeBatch(db);
-                    (data.files || []).forEach(file => {
-                        const docRef = doc(getCollectionRef('files'), file.id);
-                        importBatch.set(docRef, { ...file, userId });
-                    });
-                    (data.quizzes || []).forEach(quiz => {
-                        const docRef = doc(getCollectionRef('quizzes'), quiz.id);
-                        importBatch.set(docRef, { ...quiz, userId });
-                    });
-                    (data.attempts || []).forEach(attempt => {
-                        const docRef = doc(getCollectionRef('quizAttempts'), attempt.id);
-                        importBatch.set(docRef, { ...attempt, userId });
-                    });
-                    
-                    await importBatch.commit();
-                    
-                    // 3. Import settings
-                    if (data.settings) {
-                        const settingsRef = doc(db, `artifacts/${appId}/users/${userId}/settings/userConfig`);
-                        await setDoc(settingsRef, data.settings);
-                    }
-                    
-                    toast.show('✅ 프로젝트를 성공적으로 가져왔습니다.', 'success');
-                    // onSnapshot이 자동으로 UI를 업데이트합니다.
-                } catch (err) {
-                    console.error("Import failed:", err);
-                    toast.show(`❌ 가져오기 실패: ${err.message}`, 'error');
-                }
-            };
-            reader.readAsText(file);
-            event.target.value = null;
-        }, [db, userId, appId, toast]);
-        
-        const handleExportProject = useCallback(async () => {
-            if (!userId) { // (v11.1) 로그인 확인
-                toast.show('❌ 로그인이 필요합니다.', 'error');
-                return;
-            }
-            try {
-                const [filesSnap, quizzesSnap, attemptsSnap, settingsDoc] = await Promise.all([
-                    getDocs(getCollectionRef('files')),
-                    getDocs(getCollectionRef('quizzes')),
-                    getDocs(getCollectionRef('quizAttempts')),
-                    getDoc(doc(db, `artifacts/${appId}/users/${userId}/settings/userConfig`))
-                ]);
-                
-                const data = {
-                    files: filesSnap.docs.map(d => ({ id: d.id, ...d.data() })),
-                    quizzes: quizzesSnap.docs.map(d => ({ id: d.id, ...d.data() })),
-                    attempts: attemptsSnap.docs.map(d => ({ id: d.id, ...d.data() })),
-                    settings: settingsDoc.exists() ? settingsDoc.data() : null
-                };
-                
-                const json = JSON.stringify(data, null, 2);
-                const blob = new Blob([json], { type: 'application/json' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = 'ai-quiz-app-export.json';
-                a.click();
-                URL.revokeObjectURL(url);
-                toast.show('✅ 프로젝트를 내보냈습니다.', 'success');
-            } catch (err) {
-                console.error("Export failed:", err);
-                toast.show(`❌ 내보내기 실패: ${err.message}`, 'error');
-            }
-        }, [db, userId, appId, toast]);
-        
-        useEffect(() => {
-            const handleClick = () => setContextMenu({ visible: false });
-            window.addEventListener('click', handleClick);
-            const fileUploadInput = document.getElementById('file-upload-input');
-            const projectImportInput = document.getElementById('project-import-input');
-            fileUploadInput.addEventListener('change', handleFileUpload);
-            projectImportInput.addEventListener('change', handleImportProject);
-            return () => {
-                window.removeEventListener('click', handleClick);
-                fileUploadInput.removeEventListener('change', handleFileUpload);
-                projectImportInput.removeEventListener('change', handleImportProject);
-            };
-        }, [handleFileUpload, handleImportProject]);
         
         const handleContextMenu = (e, node) => {
-            if (!userId) return; // (v11.1) 로그인하지 않으면 컨텍스트 메뉴 없음
-            e.preventDefault();
-            e.stopPropagation();
-            setContextMenu({ visible: true, x: e.clientX, y: e.clientY, node: node });
+            if(!userId) return;
+            e.preventDefault(); e.stopPropagation();
+            setContextMenu({ visible: true, x: e.clientX, y: e.clientY, node });
         };
         
-        // FileNode
-        const FileNode = ({ node, depth, onContextMenu }) => {
-            const { activeEditorFile, editingNodeId, setEditingNodeId, fileActions } = useContext(AppContext);
-            const [isOpen, setIsOpen] = useState(true);
-            const [editName, setEditName] = useState(node.name);
-            const [isDragOver, setIsDragOver] = useState(false);
-            const isEditing = editingNodeId === node.id;
-            useEffect(() => {
-                if (isEditing) setEditName(node.name);
-            }, [isEditing, node.name]);
-            const handleToggle = (e) => {
-                e.stopPropagation();
-                if (node.type === 'folder') setIsOpen(!isOpen);
-                else setActiveEditorFile(files.find(f => f.id === node.id));
-            };
-            const handleRenameSubmit = async (e) => {
-                e.stopPropagation(); e.preventDefault();
-                if (editName.trim() && editName.trim() !== node.name) {
-                    await fileActions.rename(node.id, editName.trim());
-                }
-                setEditingNodeId(null);
-            };
-            const handleDragStart = (e) => {
-                e.stopPropagation();
-                e.dataTransfer.setData('fileId', node.id);
-                e.dataTransfer.effectAllowed = 'move';
-            };
-            const handleDragOver = (e) => {
-                e.preventDefault(); e.stopPropagation();
-                if (node.type === 'folder') {
-                    setIsDragOver(true);
-                    e.dataTransfer.dropEffect = 'move';
-                } else {
-                    e.dataTransfer.dropEffect = 'none';
-                }
-            };
-            const handleDragLeave = (e) => {
-                e.preventDefault(); e.stopPropagation();
-                setIsDragOver(false);
-            };
-            const handleDrop = async (e) => {
-                e.preventDefault(); e.stopPropagation();
-                setIsDragOver(false);
-                if (node.type === 'folder') {
-                    const fileId = e.dataTransfer.getData('fileId');
-                    if (fileId && fileId !== node.id) {
-                        await fileActions.move(fileId, node.id);
-                    }
-                }
-            };
-            return e(React.Fragment, null,
-                e('div', { 
-                    className: 'file-tree-node',
-                    style: { paddingLeft: `${depth * 16 + 8}px` },
-                    onClick: handleToggle,
-                    onContextMenu: (e) => onContextMenu(e, node),
-                    'data-active': activeEditorFile?.id === node.id,
-                    draggable: true,
-                    onDragStart: handleDragStart,
-                    onDragOver: handleDragOver,
-                    onDragLeave: handleDragLeave,
-                    onDrop: handleDrop,
-                    'data-drag-over': isDragOver
-                  },
-                  e('span', { className: 'file-tree-node-icon' }, 
-                    node.type === 'folder' ? (isOpen ? '▼' : '►') : '📄'
-                  ),
-                  isEditing
-                    ? e('form', { onSubmit: handleRenameSubmit, className: 'flex-1 ml-1' },
-                        e('input', {
-                            key: node.id, type: 'text', value: editName,
-                            onChange: (ev) => setEditName(ev.target.value),
-                            onBlur: handleRenameSubmit,
-                            onClick: (e) => e.stopPropagation(), autoFocus: true,
-                            className: 'form-input !p-0 !text-sm'
-                        })
-                      )
-                    : e('span', { className: 'ml-1' }, node.name)
-                ),
-                isOpen && node.children && node.children.map(child => 
-                    e(FileNode, { 
-                        key: child.id, 
-                        node: child, 
-                        depth: depth + 1, 
-                        onContextMenu: onContextMenu
-                    })
-                )
-            );
-        };
-        
-        // (v11.0) contextMenuHandlers (Firebase)
-        const contextMenuHandlers = useMemo(() => {
-            if (!userId) return {}; // (v11.1) 로그인하지 않으면 핸들러 없음
-            const { node } = contextMenu;
-            const parentId = (node && node.type === 'folder') ? node.id : (node ? node.parentId : 'root');
-            
-            return {
-                onRename: () => { if (node) setEditingNodeId(node.id); },
-                onDelete: async () => {
-                    if (node && window.confirm(`'${node.name}'을(를) 삭제하시겠습니까? (하위 항목 포함)`)) {
-                        await fileActions.remove(node.id, node.type);
-                        if (activeEditorFile?.id === node.id) setActiveEditorFile(null);
-                    }
-                },
-                onCreateFile: () => fileActions.create(parentId, 'file'),
-                onCreateFolder: () => fileActions.create(parentId, 'folder'),
-                onGenerateQuiz: async () => {
-                    if (node && node.type === 'file') {
-                        // (v11.0) Firestore에서 최신 파일 내용 가져오기
-                        const fileRef = doc(db, `artifacts/${appId}/users/${userId}/files`, node.id);
-                        const fileSnap = await getDoc(fileRef);
-                        const file = { id: fileSnap.id, ...fileSnap.data() };
-                        
-                        if (!file.content || !file.content.trim()) {
-                            toast.show('❌ 파일에 원문이 없습니다. 파일을 열어 내용을 추가하세요.', 'error');
-                            return;
-                        }
-                        if(activeEditorFile?.id !== file.id) {
-                            setActiveEditorFile(file);
-                        }
-                        dispatchTask({
-                            taskType: 'generate',
-                            sourceText: file.content,
-                            options: {
-                                ...quizOptions,
-                                fileId: file.id,
-                                sourceFileName: file.name
-                            }
-                        });
-                    }
-                }
-            };
-        }, [contextMenu, fileActions, setEditingNodeId, activeEditorFile, db, userId, appId, dispatchTask, quizOptions, toast, setActiveEditorFile]);
-        
-        // 루트 DnD 핸들러
-        const handleRootDragOver = (e) => {
-            if (!userId) return; // (v11.1)
-            e.preventDefault();
-            e.stopPropagation();
-            setIsRootDragOver(true);
-            e.dataTransfer.dropEffect = 'move';
-        };
-        const handleRootDragLeave = (e) => {
-            if (!userId) return; // (v11.1)
-            e.preventDefault();
-            e.stopPropagation();
-            setIsRootDragOver(false);
-        };
-        const handleRootDrop = async (e) => {
-            if (!userId) return; // (v11.1)
-            e.preventDefault();
-            e.stopPropagation();
-            setIsRootDragOver(false);
-            const fileId = e.dataTransfer.getData('fileId');
-            if (fileId) {
-                await fileActions.move(fileId, 'root');
-            }
-        };
+        useEffect(() => { window.addEventListener('click', () => setContextMenu({ visible: false })); }, []);
 
-        return e('div', { 
-            viewId, 
-            className: 'flex flex-col h-full vsc-view-panes',
-            onContextMenu: (e) => handleContextMenu(e, null)
-           },
-            // 상단: 파일 트리
+        return e('div', { viewId, className: 'vsc-view-panes' },
             e('div', { className: 'vsc-view-pane' },
-                e('div', { className: 'view-header' },
-                    e('h3', { className: 'border-b-0 p-0 m-0' }, '파일 탐색기'),
-                    // (v11.1) 로그인 상태일 때만 버튼 활성화
+                e('div', { className: 'view-header' }, 'Files', 
                     userId && e('div', { className: 'flex gap-1' },
-                        e('button', { title: "새 폴더", className: 'view-header-icon', onClick: () => contextMenuHandlers.onCreateFolder() }, '📁+'),
-                        e('button', { title: "파일 업로드", className: 'view-header-icon', onClick: () => document.getElementById('file-upload-input').click() }, '⬆️'),
-                        e('button', { title: "내보내기", className: 'view-header-icon', onClick: handleExportProject }, '💾'),
-                        e('button', { title: "가져오기", className: 'view-header-icon', onClick: () => document.getElementById('project-import-input').click() }, '📥')
+                        e('button', { className: 'view-header-icon', onClick: () => fileActions.create('root', 'folder') }, '+📂'),
+                        e('button', { className: 'view-header-icon', onClick: () => fileActions.create('root', 'file') }, '+📄')
                     )
                 ),
-                e('div', { 
-                    className: 'vsc-view-pane-content full',
-                    onDragOver: handleRootDragOver,
-                    onDragLeave: handleRootDragLeave,
-                    onDrop: handleRootDrop,
-                    'data-drag-over': isRootDragOver
-                }, 
-                    !userId && e('p', { className: 'p-4 text-sm text-gray-400 text-center' }, 'Google 계정(👤)으로 로그인하여 파일 탐색기를 활성화하세요.'),
-                    userId && fileTree.length === 0 && e('p', { className: 'p-4 text-sm text-gray-400 text-center' }, '파일이 없습니다. 새 파일/폴더를 만들거나 업로드하세요.'),
-                    userId && e('div', { className: 'file-tree-list' },
-                        fileTree.map(node => e(FileNode, { 
-                            key: node.id, 
-                            node: node, 
-                            depth: 0, 
-                            onContextMenu: handleContextMenu
-                        }))
+                e('div', { className: 'vsc-view-pane-content' },
+                    !userId && e('p', { className: 'p-4 text-sm text-gray-500 text-center' }, 'Login to access files'),
+                    userId && fileTree.map(node => e(FileNode, { key: node.id, node, depth: 0, onContextMenu })),
+                    userId && contextMenu.visible && e('div', { className: 'context-menu', style: { position: 'fixed', top: contextMenu.y, left: contextMenu.x, zIndex: 1000 } },
+                         e('div', { className: 'context-menu-item p-2 cursor-pointer', onClick: () => fileActions.remove(contextMenu.node.id, contextMenu.node.type) }, 'Delete')
                     )
                 )
-            ),
-            
-            // 하단: 파일 상세 (탭 뷰)
-            userId && activeEditorFile && e('div', { className: 'vsc-view-pane' },
-                e('div', { className: 'vsc-view-pane-header flex justify-between' }, 
-                    e('div', { className: 'flex' },
-                        e('button', {
-                            className: `px-3 py-1 text-xs ${activeLowerPaneTab === 'quizzes' ? 'text-white bg-gray-600' : 'text-gray-400'}`,
-                            onClick: () => setActiveLowerPaneTab('quizzes')
-                        }, '퀴즈/기록'),
-                        e('button', {
-                            className: `px-3 py-1 text-xs ${activeLowerPaneTab === 'notes' ? 'text-white bg-gray-600' : 'text-gray-400'}`,
-                            onClick: () => setActiveLowerPaneTab('notes')
-                        }, '메모')
-                    )
-                ),
-                e('div', { className: `vsc-view-pane-content ${activeLowerPaneTab === 'notes' ? 'full' : ''}` },
-                    activeLowerPaneTab === 'quizzes' && e('div', null,
-                        e('h4', { className: 'text-md font-semibold mt-0 mb-2' }, '생성된 퀴즈'),
-                        fileQuizzes.length === 0 && e('p', { className: 'text-sm text-gray-400' }, '이 파일로 생성된 퀴즈가 없습니다.'),
-                        fileQuizzes.map(quiz => e('div', { 
-                            key: quiz.id, className: 'list-item',
-                            onClick: () => setModalContent(e(QuizTaker, { 
-                                quiz, 
-                                onClose: () => setModalContent(null),
-                                onQuizSubmit: handleQuizSubmit 
-                            }))
-                        }, e('div', { className: 'list-item-title' }, quiz.title))),
-                        
-                        e('h4', { className: 'text-md font-semibold mt-4 mb-2' }, '풀이 기록'),
-                        fileAttempts.length === 0 && e('p', { className: 'text-sm text-gray-400' }, '이 파일의 퀴즈 풀이 기록이 없습니다.'),
-                        fileAttempts.map(attempt => e('div', { 
-                            key: attempt.id, className: 'list-item',
-                            onClick: () => setModalContent(e(QuizResult, { 
-                                attempt, 
-                                quiz: quizzes.find(q => q.id === attempt.quizId), 
-                                onClose: () => setModalContent(null),
-                                userSettings,
-                                dispatchGradingTask
-                            }))
-                        }, e('div', { className: 'list-item-title' }, `${attempt.quizTitle} (${attempt.score}/${attempt.total})`)))
-                    ),
-                    activeLowerPaneTab === 'notes' && e(FileNotesEditor, {
-                        activeFile: activeEditorFile,
-                        fileActions: fileActions
-                    })
-                )
-            ),
-            
-            e(ContextMenu, {
-                menuData: contextMenu,
-                onClose: () => setContextMenu({ visible: false }),
-                handlers: contextMenuHandlers
-            })
-        );
-    };
-
-    // 뷰 2: 퀴즈 생성기
-    const QuizGeneratorView = ({ viewId }) => {
-      const { quizOptions, setQuizOptions } = useContext(AppContext);
-
-      const handleSubmit = (e) => { e.preventDefault(); };
-      
-      return e('form', { viewId, onSubmit: handleSubmit, className: 'flex flex-col h-full' },
-        e('h3', { className: 'view-header' }, '퀴즈 옵션'),
-        e('div', { className: 'view-content-scroll' },
-          e('div', { className: 'grid grid-cols-2 gap-4' },
-            e('div', { className: 'form-group' },
-              e('label', { htmlFor: 'num-questions', className: 'form-label' }, '질문 수'),
-              e('input', {
-                id: 'num-questions', type: 'number', className: 'form-input',
-                value: quizOptions.numQuestions, 
-                onChange: (ev) => setQuizOptions(o => ({...o, numQuestions: parseInt(ev.target.value, 10)}))
-              })
-            ),
-            e('div', { className: 'form-group' },
-              e('label', { htmlFor: 'difficulty', className: 'form-label' }, '난이도'),
-              e('select', { 
-                  id: 'difficulty', className: 'form-select',
-                  value: quizOptions.difficulty, 
-                  onChange: (ev) => setQuizOptions(o => ({...o, difficulty: ev.target.value}))
-                },
-                e('option', { value: 'Easy' }, '쉬움'),
-                e('option', { value: 'Medium' }, '보통'),
-                e('option', { value: 'Hard' }, '어려움')
-              )
-            )
-          ),
-          e('div', { className: 'form-group' },
-            e('label', { htmlFor: 'question-type', className: 'form-label' }, '질문 유형'),
-            e('select', {
-                id: 'question-type', className: 'form-select',
-                value: quizOptions.questionType, 
-                onChange: (ev) => setQuizOptions(o => ({...o, questionType: ev.target.value}))
-              },
-              Object.entries(QUESTION_TYPE_MAP).map(([value, label]) => 
-                  e('option', { key: value, value: value }, label)
-              )
-            )
-          ),
-          e('div', { className: 'form-group' },
-            e('label', { className: 'form-label' }, '추가 지침 (선택 사항)'),
-            e('input', {
-              type: 'text', className: 'form-input',
-              value: quizOptions.customInstructions, 
-              onChange: (ev) => setQuizOptions(o => ({...o, customInstructions: ev.target.value})),
-              placeholder: '예: 코드 예제에 집중하세요'
-            })
-          ),
-          e('div', { className: 'form-group space-y-2' },
-            e('label', { className: 'form-checkbox-label' },
-              e('input', {
-                type: 'checkbox', className: 'form-checkbox',
-                checked: quizOptions.includeSnippets, 
-                onChange: (ev) => setQuizOptions(o => ({...o, includeSnippets: ev.target.checked}))
-              }),
-              '코드 스니펫 포함'
-            ),
-            e('label', { className: 'form-checkbox-label' },
-              e('input', {
-                type: 'checkbox', className: 'form-checkbox',
-                checked: quizOptions.provideAnswerKey, 
-                onChange: (ev) => setQuizOptions(o => ({...o, provideAnswerKey: ev.target.checked}))
-              }),
-              '정답 키 제공'
-            )
-          )
-        )
-      );
-    };
-    
-    // 뷰 3: 퀴즈 기록
-    const QuizHistoryView = ({ viewId }) => {
-      const { quizzes, attempts, setModalContent, userSettings, dispatchGradingTask, userId } = useContext(AppContext);
-      
-      const showAttemptResult = (attempt) => {
-          setModalContent(e(QuizResult, { 
-              attempt, 
-              quiz: quizzes.find(q => q.id === attempt.quizId),
-              onClose: () => setModalContent(null),
-              userSettings,
-              dispatchGradingTask
-          }));
-      };
-      
-      return e('div', { viewId, className: 'flex flex-col h-full' },
-        e('h3', { className: 'view-header' }, '전체 풀이 기록'),
-        e('div', { className: 'view-content-scroll' },
-          !userId && e('p', { className: 'p-4 text-sm text-gray-400 text-center' }, '로그인(👤)하여 풀이 기록을 확인하세요.'),
-          userId && attempts.length === 0 && e('p', { className: 'text-sm text-gray-400' }, '풀이 기록이 없습니다.'),
-          userId && [...attempts].sort((a, b) => new Date(b.completedAt) - new Date(a.completedAt))
-          .map(attempt => e('div', { 
-              key: attempt.id, 
-              className: 'list-item',
-              onClick: () => showAttemptResult(attempt)
-            },
-            e('div', { className: 'list-item-title' }, attempt.quizTitle),
-            e('div', { className: 'flex justify-between' },
-                e('span', { className: 'list-item-sub' }, `점수: ${attempt.score} / ${attempt.total}`),
-                e('span', { className: 'list-item-sub' }, 
-                    new Date(attempt.completedAt).toLocaleDateString()
-                )
-            )
-          ))
-        )
-      );
-    };
-    
-    // 뷰 4: 작업 모니터
-    const TaskMonitorView = ({ viewId }) => {
-        const { taskQueue, userId } = useContext(AppContext);
-        
-        return e('div', { viewId, className: 'flex flex-col h-full' },
-            e('h3', { className: 'view-header' }, '작업 모니터'),
-            e('div', { className: 'view-content-scroll' },
-                !userId && e('p', { className: 'p-4 text-sm text-gray-400 text-center' }, '로그인(👤)하여 작업을 확인하세요.'),
-                userId && taskQueue.length === 0 && e('p', { className: 'text-sm text-gray-400' }, '활성 작업이 없습니다.'),
-                userId && taskQueue.map(task => e('div', { key: task.id, className: 'list-item' },
-                    e('div', { className: 'list-item-title' }, 
-                      task.taskType === 'grade' 
-                        ? `[채점] ${task.options.quizTitle}` 
-                        : `[생성] ${task.options.sourceFileName}`
-                    ),
-                    e('div', { className: 'flex justify-between items-center' },
-                        e('span', { className: 'list-item-sub' }, 
-                          task.taskType === 'grade'
-                            ? `퀴즈 채점 작업`
-                            : `유형: ${QUESTION_TYPE_MAP[task.options.questionType] || task.options.questionType} (${task.options.numQuestions} 문제)`
-                        ),
-                        task.status === 'processing' && e('span', { className: 'list-item-badge' }, '처리 중...'),
-                        task.status === 'success' && e('span', { className: 'list-item-badge success' }, '완료'),
-                        task.status === 'error' && e('span', { className: 'list-item-badge error' }, '오류')
-                    )
-                ))
             )
         );
     };
 
-    // (v12.0) 뷰어 모드 컴포넌트
     const MarkdownViewer = ({ markdownText }) => {
         const viewerRef = useRef(null);
-
-        // 1. 1차 파싱 (Markdown -> HTML)
         const { contentHtml, footnotesHtml } = useMemo(() => {
             if (!markdownText) return { contentHtml: '', footnotesHtml: '' };
-
-            const cleanedText = FootnoteManager.extractAndClean(markdownText);
-            let contentHtml = parseMarkdownWithExtensions(cleanedText);
-            
-            let footnotesHtml = '';
-            const footnoteOrder = FootnoteManager.getOrder();
-            if (footnoteOrder.length > 0) {
-                footnotesHtml += '<hr class="footnote-divider"><section class="footnotes"><ol>';
-                footnoteOrder.forEach(name => {
+            const cleaned = FootnoteManager.extractAndClean(markdownText);
+            let html = parseMarkdownWithExtensions(cleaned);
+            let fnHtml = '';
+            const fnOrder = FootnoteManager.getOrder();
+            if (fnOrder.length > 0) {
+                fnHtml += '<hr class="footnote-divider"><section class="footnotes"><ol>';
+                fnOrder.forEach(name => {
                     const note = FootnoteManager.getNote(name);
-                    if (note) {
-                        const backRef = `<a href="#fnref:${name}" class="footnote-backref" role="doc-backlink">↩</a>`;
-                        footnotesHtml += `<li id="fn:${name}"><p class="mr-2 font-mono text-xs text-slate-500">[${name}]:</p><div class="flex-1">${note.html}${backRef}</div></li>`;
-                    }
+                    if(note) fnHtml += `<li id="fn:${name}"><p>${note.html} <a href="#fnref:${name}" class="footnote-backref">↩</a></p></li>`;
                 });
-                footnotesHtml += '</ol></section>';
+                fnHtml += '</ol></section>';
             }
-            
-            // DOMPurify로 정화
-            const sanitizedContent = window.DOMPurify.sanitize(contentHtml, {
-                ALLOWED_TAGS: ['strong', 'em', 'p', 'br', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'a', 'code', 'pre', 'blockquote', 'table', 'thead', 'tbody', 'tr', 'th', 'td', 'mark', 'sup', 'hr'],
-                ALLOWED_ATTR: ['href', 'title', 'id', 'class', 'data-footnote-key']
-            });
-            const sanitizedFootnotes = window.DOMPurify.sanitize(footnotesHtml, {
-                ALLOWED_TAGS: ['strong', 'em', 'p', 'br', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'a', 'code', 'pre', 'blockquote', 'table', 'thead', 'tbody', 'tr', 'th', 'td', 'mark', 'sup', 'hr', 'section', 'div'],
-                ALLOWED_ATTR: ['href', 'title', 'id', 'class', 'role', 'data-footnote-key']
-            });
-
-            return { contentHtml: sanitizedContent, footnotesHtml: sanitizedFootnotes };
+            return { contentHtml: window.DOMPurify.sanitize(html), footnotesHtml: window.DOMPurify.sanitize(fnHtml) };
         }, [markdownText]);
-
-        // 2. 2차 후처리 (DOM 렌더링 후)
-        useEffect(() => {
-            if (viewerRef.current) {
-                applyPostRenderEffects(viewerRef.current);
-            }
-        }, [contentHtml, footnotesHtml]); // HTML이 변경될 때마다 후처리 실행
-
-        return e('div', { 
-                ref: viewerRef, 
-                className: 'prose-readable-wrapper prose-dark-theme' 
-            },
-            e('div', {
-                className: 'prose-readable',
-                dangerouslySetInnerHTML: { __html: contentHtml + footnotesHtml }
-            })
-        );
+        
+        useEffect(() => { if (viewerRef.current) applyPostRenderEffects(viewerRef.current); }, [contentHtml]);
+        return e('div', { ref: viewerRef, className: 'prose-readable-wrapper prose-dark-theme' }, e('div', { className: 'prose-readable', dangerouslySetInnerHTML: { __html: contentHtml + footnotesHtml } }));
     };
 
-
-    // (v12.0) 메인 컨텐츠 에디터 (뷰어 모드 토글 추가)
     const MainContentEditor = () => {
-        const { 
-            activeEditorFile, fileActions, 
-            dispatchTask, quizOptions,
-            userId,             // (v11.1) 로그인 상태 확인용
-            handleGoogleSignIn  // (v11.1) 로그인 함수
-        } = useContext(AppContext);
-        
+        const { activeEditorFile, fileActions, dispatchTask, quizOptions, userId, handleGoogleSignIn } = useContext(AppContext);
         const [content, setContent] = useState("");
-        const [saveStatus, setSaveStatus] = useState('saved');
-        const [isViewerMode, setIsViewerMode] = useState(false); // (v12.0) 뷰어 모드 상태
-        
+        const [mode, setMode] = useState('edit');
         const toast = useToast();
         
-        useEffect(() => {
-            if (activeEditorFile) {
-                setContent(activeEditorFile.content || "");
-                setSaveStatus('saved');
-            } else {
-                setContent("");
-                setSaveStatus('saved');
-            }
-            setIsViewerMode(false); // 파일 변경 시 항상 편집 모드로
-        }, [activeEditorFile]);
-        
-        const debouncedContent = useDebounce(content, 1000);
-        
-        useEffect(() => {
-            // (v11.1) fileActions가 비어있을 수 있으므로 확인
-            if (saveStatus === 'editing' && activeEditorFile && fileActions.updateContent && debouncedContent !== activeEditorFile.content) {
-                setSaveStatus('saving');
-                fileActions.updateContent(activeEditorFile.id, debouncedContent)
-                    .then(() => {
-                        setSaveStatus('saved');
-                    })
-                    .catch((err) => {
-                         console.error("저장 실패:", err);
-                         toast.show("❌ 파일 저장 실패.", 'error');
-                         setSaveStatus('editing'); 
-                    });
-            } else if (saveStatus === 'editing' && activeEditorFile && debouncedContent === activeEditorFile.content) {
-                setSaveStatus('saved');
-            }
-        }, [debouncedContent, activeEditorFile, fileActions, toast, saveStatus]);
+        useEffect(() => { setContent(activeEditorFile?.content || ""); setMode('edit'); }, [activeEditorFile]);
+        useEffect(() => { 
+            const timer = setTimeout(() => {
+                if(activeEditorFile && content !== activeEditorFile.content) fileActions.updateContent(activeEditorFile.id, content);
+            }, 1000);
+            return () => clearTimeout(timer);
+        }, [content, activeEditorFile]);
 
-        const handleGenerateQuiz = () => {
-            if (!activeEditorFile) return;
-            if (!content.trim()) {
-                toast.show("❌ 파일에 원문이 없습니다.", 'error');
-                return;
-            }
-            dispatchTask({
-                taskType: 'generate',
-                sourceText: content, 
-                options: {
-                    ...quizOptions,
-                    fileId: activeEditorFile.id,
-                    sourceFileName: activeEditorFile.name
-                }
-            });
-        };
-        
-        const statusMessages = {
-          'saved': '저장됨',
-          'editing': '수정 중...',
-          'saving': '저장 중...'
-        };
-        
-        // (v11.1) 로그인 상태가 아니면 로그인 버튼 표시
-        if (!userId) {
-            return e('div', { className: 'main-editor-placeholder flex-col' },
-                e('p', { className: 'mb-4' }, 'Google 계정(👤)으로 로그인하여 작업을 시작하세요.'),
-                e('button', {
-                    className: 'form-button !w-auto px-6',
-                    onClick: handleGoogleSignIn
-                }, 'Google 계정으로 로그인')
-            );
-        }
-
-        if (!activeEditorFile) {
-            return e('div', { className: 'main-editor-placeholder' }, '파일 탐색기(📄)에서 파일을 선택하세요.');
-        }
+        if (!userId) return e('div', { className: 'main-editor-placeholder' }, e('p', { className: 'mb-4' }, 'Authentication Required'), e('button', { className: 'form-button', onClick: handleGoogleSignIn }, 'Sign In with Google'));
+        if (!activeEditorFile) return e('div', { className: 'main-editor-placeholder' }, 'Select a file from the explorer');
 
         return e('div', { className: 'flex flex-col h-full' },
             e('div', { className: 'main-editor-header' },
                 e('span', { className: 'main-editor-title' }, activeEditorFile.name),
-                
-                // (v12.0) 편집/보기 토글 버튼
-                e('div', { className: 'editor-toggle-group' },
-                    e('button', {
-                        className: `editor-toggle-btn ${!isViewerMode ? 'active' : ''}`,
-                        onClick: () => setIsViewerMode(false)
-                    }, '편집'),
-                    e('button', {
-                        className: `editor-toggle-btn ${isViewerMode ? 'active' : ''}`,
-                        onClick: () => setIsViewerMode(true)
-                    }, '보기')
+                e('div', { className: 'editor-toggle-group mx-4' },
+                    e('button', { className: `editor-toggle-btn ${mode==='edit'?'active':''}`, onClick: ()=>setMode('edit') }, 'EDIT'),
+                    e('button', { className: `editor-toggle-btn ${mode==='view'?'active':''}`, onClick: ()=>setMode('view') }, 'PREVIEW')
                 ),
-                
-                e('button', { 
-                    className: 'main-editor-action-btn',
-                    onClick: handleGenerateQuiz,
-                    disabled: saveStatus !== 'saved' || !content.trim()
-                }, '✨ 퀴즈 생성')
+                e('button', { className: 'main-editor-action-btn', onClick: () => dispatchTask({ taskType: 'generate', sourceText: content, options: { ...quizOptions, fileId: activeEditorFile.id, sourceFileName: activeEditorFile.name } }) }, 'Generate Quiz')
             ),
+            mode === 'view' 
+              ? e('div', { className: 'flex-1 overflow-auto bg-black' }, e(MarkdownViewer, { markdownText: content }))
+              : e('textarea', { className: 'main-editor', value: content, onChange: e => setContent(e.target.value), spellCheck: false })
+        );
+    };
 
-            // (v12.0) 조건부 렌더링
-            isViewerMode
-                ? e(MarkdownViewer, { markdownText: content })
-                : e('textarea', {
-                    key: activeEditorFile.id,
-                    className: 'main-editor',
-                    value: content,
-                    onChange: (ev) => {
-                        setContent(ev.target.value);
-                        setSaveStatus('editing');
-                    }
-                  }),
+    const QuizGeneratorView = ({ viewId }) => {
+        const { quizOptions, setQuizOptions } = useContext(AppContext);
+        return e('div', { viewId, className: 'flex flex-col h-full' },
+            e('h3', { className: 'view-header' }, 'Generation Options'),
+            e('div', { className: 'view-content-scroll p-4' },
+                e('div', { className: 'form-group' }, e('label', { className: 'form-label' }, 'Question Count'), e('input', { type: 'number', className: 'form-input', value: quizOptions.numQuestions, onChange: e => setQuizOptions(o => ({...o, numQuestions: parseInt(e.target.value)})) })),
+                e('div', { className: 'form-group' }, e('label', { className: 'form-label' }, 'Difficulty'), e('select', { className: 'form-select', value: quizOptions.difficulty, onChange: e => setQuizOptions(o => ({...o, difficulty: e.target.value})) }, e('option', { value: 'Easy' }, 'Easy'), e('option', { value: 'Medium' }, 'Medium'), e('option', { value: 'Hard' }, 'Hard'))),
+                e('div', { className: 'form-group' }, e('label', { className: 'form-label' }, 'Type'), e('select', { className: 'form-select', value: quizOptions.questionType, onChange: e => setQuizOptions(o => ({...o, questionType: e.target.value})) }, e('option', { value: 'MultipleChoice' }, 'Multiple Choice'), e('option', { value: 'Essay' }, 'Essay')))
+            )
+        );
+    };
 
-            e('div', { className: 'main-editor-footer' }, statusMessages[saveStatus])
+    const QuizHistoryView = ({ viewId }) => {
+        const { attempts, quizzes, setModalContent, dispatchGradingTask, userSettings, userId } = useContext(AppContext);
+        if(!userId) return e('div', { viewId, className: 'p-4 text-center text-gray-500' }, 'Please Login');
+        return e('div', { viewId, className: 'flex flex-col h-full' },
+            e('h3', { className: 'view-header' }, 'History'),
+            e('div', { className: 'view-content-scroll p-4' },
+                attempts.map(a => e('div', { 
+                    key: a.id, className: 'list-item',
+                    onClick: () => setModalContent(e(QuizResult, { attempt: a, onClose: () => setModalContent(null), dispatchGradingTask, userSettings }))
+                }, e('div', { className: 'list-item-title' }, a.quizTitle), e('div', { className: 'list-item-sub' }, `Score: ${a.score}/${a.total}`)))
+            )
         );
     };
     
-    // 뷰 6: 설정 모달 (v12.0)
+    const QuizResult = ({ attempt, onClose, dispatchGradingTask, userSettings }) => {
+        const results = JSON.parse(attempt.answers);
+        return e('div', { className: 'modal-overlay', onClick: onClose },
+            e('div', { className: 'modal-container', onClick: e => e.stopPropagation() },
+                e('div', { className: 'modal-header' }, e('h2', null, 'Result: ' + attempt.quizTitle)),
+                e('div', { className: 'modal-body' },
+                    e('h3', { className: 'text-2xl font-light text-center mb-6' }, `${attempt.score} / ${attempt.total}`),
+                    results.map((r, i) => e('div', { key: i, className: 'quiz-question-card mb-4' },
+                        e('p', { className: 'font-medium mb-2' }, `${i+1}. ${r.questionText}`),
+                        r.isCorrect === null 
+                            ? e('p', { className: 'text-yellow-500 text-sm' }, 'Pending AI Grading...')
+                            : e('div', null, 
+                                e('p', { className: r.isCorrect ? 'text-green-400' : 'text-red-400' }, r.isCorrect ? 'Correct' : 'Incorrect'),
+                                r.feedback && e('p', { className: 'text-sm text-gray-400 mt-1 bg-black bg-opacity-30 p-2 rounded' }, `AI: ${r.feedback}`)
+                            )
+                    ))
+                ),
+                e('div', { className: 'modal-footer' },
+                    e('button', { className: 'modal-button-secondary', onClick: onClose }, 'Close'),
+                    results.some(r => r.isCorrect === null) && e('button', { className: 'modal-button-primary', onClick: () => { dispatchGradingTask(attempt); onClose(); } }, 'Grade with AI')
+                )
+            )
+        );
+    };
+    
+    const TaskMonitorView = ({ viewId }) => {
+        const { taskQueue } = useContext(AppContext);
+        return e('div', { viewId, className: 'flex flex-col h-full' },
+            e('h3', { className: 'view-header' }, 'Background Tasks'),
+            e('div', { className: 'view-content-scroll p-4' },
+                taskQueue.map(t => e('div', { key: t.id, className: 'list-item' },
+                    e('div', { className: 'list-item-title' }, t.taskType),
+                    e('div', { className: 'list-item-sub' }, t.status === 'processing' ? 'Processing...' : t.status)
+                ))
+            )
+        );
+    };
+    
     const SettingsModal = ({ onClose }) => {
         const { userSettings, saveSettings } = useContext(AppContext);
-        const [activeTab, setActiveTab] = useState('Quiz Defaults');
-        
-        const [apiKeys, setApiKeys] = useState([]);
-        const [newApiKey, setNewApiKey] = useState("");
-        const [quizSystemPrompt, setQuizSystemPrompt] = useState("");
-        const [gradingSystemPrompt, setGradingSystemPrompt] = useState("");
-        const [defaultSettings, setDefaultSettings] = useState({});
-        const [modelName, setModelName] = useState(""); // (v12.0) 모델명 상태
-
-        useEffect(() => {
-            if (userSettings) {
-                setApiKeys(userSettings.apiKeys || DEFAULT_SETTINGS.apiKeys);
-                setQuizSystemPrompt(userSettings.quizSystemPrompt || DEFAULT_SETTINGS.quizSystemPrompt);
-                setGradingSystemPrompt(userSettings.gradingSystemPrompt || DEFAULT_SETTINGS.gradingSystemPrompt);
-                setModelName(userSettings.modelName || DEFAULT_SETTINGS.modelName); // (v12.0) 모델명 로드
-                setDefaultSettings({
-                    defaultDifficulty: userSettings.defaultDifficulty || DEFAULT_SETTINGS.defaultDifficulty,
-                    defaultQuestionType: userSettings.defaultQuestionType || DEFAULT_SETTINGS.defaultQuestionType,
-                    defaultNumQuestions: userSettings.defaultNumQuestions || DEFAULT_SETTINGS.defaultNumQuestions
-                });
-            }
-        }, [userSettings]);
-        
-        const handleAddApiKey = () => {
-            if (newApiKey.trim()) {
-                setApiKeys([...apiKeys, { key: newApiKey.trim(), rpm: 60 }]);
-                setNewApiKey("");
-            }
-        };
-        
-        const handleRemoveApiKey = (index) => {
-            setApiKeys(apiKeys.filter((_, i) => i !== index));
-        };
-        
-        const handleDefaultChange = (key, value) => {
-            setDefaultSettings(prev => ({...prev, [key]: value}));
-        };
-
-        const handleSave = () => {
-            saveSettings({
-                apiKeys,
-                ...defaultSettings,
-                quizSystemPrompt,
-                gradingSystemPrompt,
-                modelName: modelName // (v12.0) 모델명 저장
-            });
-            onClose();
-        };
-
-        const renderTabContent = () => {
-            if (activeTab === 'API Keys') {
-                return e('div', null,
-                    e('h3', { className: 'text-lg font-semibold mb-4' }, 'API Configuration'),
-                    
-                    // (v12.0) 모델 이름 설정 UI 추가
-                    e('div', { className: 'form-group' },
-                        e('label', { htmlFor: 'model-name-input', className: 'form-label' }, 'Gemini Model Name'),
-                        e('input', { 
-                            id: 'model-name-input', type: 'text', className: 'form-input',
-                            value: modelName, 
-                            onChange: (ev) => setModelName(ev.target.value),
-                            placeholder: 'e.g., gemini-2.5-flash'
-                        }),
-                        e('p', { className: 'text-xs text-gray-400 mt-1' }, '사용할 Gemini 모델 ID를 입력하세요.')
-                    ),
-
-                    e('div', { className: 'form-group' },
-                        e('label', { htmlFor: 'api-key-input', className: 'form-label' }, 'New API Key'),
-                        e('div', { className: 'flex gap-2' },
-                            e('input', { 
-                                id: 'api-key-input', type: 'password', className: 'form-input flex-grow',
-                                value: newApiKey, onChange: (ev) => setNewApiKey(ev.target.value)
-                            }),
-                            e('button', { type: 'button', onClick: handleAddApiKey, className: 'modal-button-secondary' }, 'Add')
-                        )
-                    ),
-                    e('div', { className: 'mt-6' },
-                        e('label', { className: 'form-label' }, 'Saved Keys'),
-                        apiKeys.map((key, index) => e('div', { key: index, className: 'api-key-item' },
-                            e('span', { className: 'font-mono' }, `**********${key.key.slice(-4)}`),
-                            e('button', { onClick: () => handleRemoveApiKey(index), className: 'api-key-delete-btn' }, 'Remove')
-                        ))
-                    )
-                );
-            }
-            if (activeTab === 'Quiz Defaults') {
-                return e('div', null,
-                    e('h3', { className: 'text-lg font-semibold mb-4' }, 'Default Quiz Generation'),
-                    e('div', { className: 'grid grid-cols-2 gap-4' },
-                        e('div', { className: 'form-group' },
-                            e('label', { htmlFor: 'def-difficulty', className: 'form-label' }, 'Default Difficulty'),
-                            e('select', { 
-                                id: 'def-difficulty', className: 'form-select',
-                                value: defaultSettings.defaultDifficulty, 
-                                onChange: (ev) => handleDefaultChange('defaultDifficulty', ev.target.value)
-                            },
-                                e('option', { value: 'Easy' }, '쉬움'),
-                                e('option', { value: 'Medium' }, '보통'),
-                                e('option', { value: 'Hard' }, '어려움')
-                            )
-                        ),
-                        e('div', { className: 'form-group' },
-                            e('label', { htmlFor: 'def-q-type', className: 'form-label' }, 'Default Question Type'),
-                            e('select', {
-                                id: 'def-q-type', className: 'form-select',
-                                value: defaultSettings.defaultQuestionType, 
-                                onChange: (ev) => handleDefaultChange('defaultQuestionType', ev.target.value)
-                            },
-                                Object.entries(QUESTION_TYPE_MAP).map(([value, label]) => 
-                                    e('option', { key: value, value: value }, label)
-                                )
-                            )
-                        )
-                    ),
-                    e('div', { className: 'form-group' },
-                        e('label', { htmlFor: 'def-num-q', className: 'form-label' }, 'Default Number of Questions'),
-                        e('input', {
-                            id: 'def-num-q', type: 'number', className: 'form-input',
-                            value: defaultSettings.defaultNumQuestions, 
-                            onChange: (ev) => handleDefaultChange('defaultNumQuestions', parseInt(ev.target.value, 10))
-                        })
-                    )
-                );
-            }
-            if (activeTab === 'Prompts') {
-                return e('div', { className: 'flex flex-col h-full' },
-                    e('h3', { className: 'text-lg font-semibold mb-4' }, 'Quiz System Prompt'),
-                    e('p', { className: 'text-xs text-gray-500 mb-4' }, '변수: {{DIFFICULTY}}, {{QUESTION_TYPE}}, {{NUM_QUESTIONS}}, {{CUSTOM_INSTRUCTIONS}} 등'),
-                    e('textarea', {
-                        className: 'form-textarea flex-grow h-full',
-                        style: { height: '150px' },
-                        value: quizSystemPrompt,
-                        onChange: (e) => setQuizSystemPrompt(e.target.value)
-                    }),
-                    e('h3', { className: 'text-lg font-semibold mb-4 mt-6' }, 'Grading System Prompt'),
-                    e('p', { className: 'text-xs text-gray-500 mb-4' }, '변수: (UserQuery에서 자동 주입됨)'),
-                    e('textarea', {
-                        className: 'form-textarea flex-grow h-full',
-                        style: { height: '150px' },
-                        value: gradingSystemPrompt,
-                        onChange: (e) => setGradingSystemPrompt(e.target.value)
-                    })
-                );
-            }
-            return null;
-        };
-        
+        const [key, setKey] = useState(userSettings?.apiKeys?.[0]?.key || "");
+        const [model, setModel] = useState(userSettings?.modelName || "gemini-2.5-flash");
         return e('div', { className: 'modal-overlay', onClick: onClose },
-            e('div', { className: 'modal-container', onClick: (e) => e.stopPropagation() },
-                e('div', { className: 'modal-header' },
-                    e('h2', null, 'Settings'),
-                    e('button', { className: 'modal-close-btn', onClick: onClose }, '×')
-                ),
+            e('div', { className: 'modal-container', onClick: e => e.stopPropagation() },
+                e('div', { className: 'modal-header' }, e('h2', null, 'Settings')),
                 e('div', { className: 'modal-body' },
-                    e('nav', { className: 'settings-nav' },
-                        e('div', { 
-                            className: 'settings-nav-item', 'data-active': activeTab === 'Quiz Defaults',
-                            onClick: () => setActiveTab('Quiz Defaults')
-                        }, 'Quiz Defaults'),
-                        e('div', { 
-                            className: 'settings-nav-item', 'data-active': activeTab === 'API Keys',
-                            onClick: () => setActiveTab('API Keys')
-                        }, 'API Keys'),
-                        e('div', { 
-                            className: 'settings-nav-item', 'data-active': activeTab === 'Prompts',
-                            onClick: () => setActiveTab('Prompts')
-                        }, 'Prompts')
-                    ),
-                    e('div', { className: 'settings-content' }, renderTabContent())
+                    e('div', { className: 'form-group' }, e('label', { className: 'form-label' }, 'Gemini API Key'), e('input', { className: 'form-input', type: 'password', value: key, onChange: e => setKey(e.target.value) })),
+                    e('div', { className: 'form-group' }, e('label', { className: 'form-label' }, 'Model Name'), e('input', { className: 'form-input', value: model, onChange: e => setModel(e.target.value) }))
                 ),
                 e('div', { className: 'modal-footer' },
                     e('button', { className: 'modal-button-secondary', onClick: onClose }, 'Cancel'),
-                    e('button', { className: 'modal-button-primary', onClick: handleSave }, 'Save Changes')
+                    e('button', { className: 'modal-button-primary', onClick: () => { saveSettings({ ...userSettings, apiKeys: [{ key, rpm: 60 }], modelName: model }); onClose(); } }, 'Save')
                 )
             )
         );
     };
-    
-    // (v11.0) 파일 메모 에디터 (Firebase)
-    const FileNotesEditor = ({ activeFile, fileActions }) => {
-        const [notes, setNotes] = useState("");
-        useEffect(() => {
-            setNotes(activeFile?.metadata?.notes || "");
-        }, [activeFile]);
-        
-        const debouncedNotes = useDebounce(notes, 1000);
-        
-        useEffect(() => {
-            if (activeFile && fileActions.updateMetadata && debouncedNotes === notes && debouncedNotes !== (activeFile.metadata?.notes || "")) {
-                fileActions.updateMetadata(activeFile.id, { notes: debouncedNotes });
-            }
-        }, [debouncedNotes, notes, activeFile, fileActions]);
-        
-        return e('div', { className: 'h-full flex flex-col' },
-            e('textarea', {
-                key: activeFile.id,
-                className: 'main-editor !p-4',
-                style: { height: '100%' },
-                value: notes,
-                onChange: (ev) => setNotes(ev.target.value),
-                placeholder: '이 파일에 대한 요약, 메모 또는 메타데이터를 입력하세요...'
-            })
-        );
-    };
 
-
-    // (v10) 검색 뷰
-    const SearchView = ({ viewId }) => {
-        const { files, setActiveEditorFile, handleActivityChange, userId } = useContext(AppContext);
-        const [searchTerm, setSearchTerm] = useState("");
-        const [results, setResults] = useState([]);
-        const debouncedSearchTerm = useDebounce(searchTerm, 300);
+    const App = () => {
+        const [db, setDb] = useState(null);
+        const [auth, setAuth] = useState(null);
+        const [userId, setUserId] = useState(null);
+        const [userSettings, setUserSettings] = useState(DEFAULT_SETTINGS);
+        const [files, setFiles] = useState([]);
+        const [quizzes, setQuizzes] = useState([]);
+        const [attempts, setAttempts] = useState([]);
+        const [taskQueue, setTaskQueue] = useState([]);
+        const [activeViewId, setActiveViewId] = useState('files');
+        const [activeEditorFile, setActiveEditorFile] = useState(null);
+        const [modalContent, setModalContent] = useState(null);
+        const [editingNodeId, setEditingNodeId] = useState(null);
+        const [quizOptions, setQuizOptions] = useState({ numQuestions: 5, difficulty: 'Medium', questionType: 'MultipleChoice' });
         
-        useEffect(() => {
-            if (!debouncedSearchTerm || debouncedSearchTerm.length < 2 || !userId) {
-                setResults([]);
-                return;
-            }
-            const lowerTerm = debouncedSearchTerm.toLowerCase();
-            const searchResults = files.filter(f => {
-                if (f.type === 'folder') return false;
-                const inName = f.name.toLowerCase().includes(lowerTerm);
-                const inContent = f.content && f.content.toLowerCase().includes(lowerTerm);
-                const inNotes = f.metadata?.notes && f.metadata.notes.toLowerCase().includes(lowerTerm);
-                return inName || inContent || inNotes;
-            });
-            setResults(searchResults);
-        }, [debouncedSearchTerm, files, userId]);
-        
-        const handleResultClick = (file) => {
-            setActiveEditorFile(file);
-            if(handleActivityChange) {
-                handleActivityChange('files', true);
-            }
-        };
-        
-        return e('div', { viewId, className: 'flex flex-col h-full' },
-            e('h3', { className: 'view-header' }, '전체 검색'),
-            e('div', { className: 'view-content-full p-4' },
-                e('div', { className: 'form-group' },
-                    e('input', {
-                        type: 'text',
-                        className: 'form-input',
-                        placeholder: '파일 이름, 내용, 메모 검색...',
-                        value: searchTerm,
-                        onChange: (e) => setSearchTerm(e.target.value),
-                        autoFocus: true,
-                        disabled: !userId // (v11.1)
-                    })
-                ),
-                e('div', { className: 'mt-4' },
-                    !userId && e('p', { className: 'text-sm text-gray-400 text-center' }, '로그인(👤)하여 검색하세요.'),
-                    userId && results.length === 0 && debouncedSearchTerm.length > 1 &&
-                        e('p', { className: 'text-sm text-gray-400' }, '검색 결과가 없습니다.'),
-                    userId && results.map(file => e('div', {
-                        key: file.id,
-                        className: 'list-item',
-                        onClick: () => handleResultClick(file)
-                    },
-                        e('div', { className: 'list-item-title' }, file.name)
-                    ))
-                )
-            )
-        );
-    };
-    
-    // (v11.1) 사용자 뷰 (Google Auth)
-    const UserView = ({ viewId }) => {
-        const { userInfo, handleGoogleSignIn, handleSignOut } = useContext(AppContext);
+        const quizWorker = useMemo(() => new Worker(workerUrl), []);
 
-        if (userInfo) {
-            return e('div', { viewId, className: 'flex flex-col h-full' },
-                e('h3', { className: 'view-header' }, '사용자 프로필'),
-                e('div', { className: 'view-content-scroll flex flex-col items-center' },
-                    e('img', { 
-                        src: userInfo.photoURL || 'https://placehold.co/80x80/3c3c3c/cccccc?text=User',
-                        className: 'w-20 h-20 rounded-full mt-4 mb-2 border-2 border-gray-500',
-                        alt: 'User profile picture'
-                    }),
-                    e('p', { className: 'text-lg font-semibold text-white text-center' }, userInfo.displayName || 'User'),
-                    e('p', { className: 'text-xs text-gray-400 mb-4 break-all px-2 text-center' }, userInfo.uid),
-                    e('button', { 
-                        className: 'form-button !w-auto px-6 !bg-red-600 hover:!bg-red-700',
-                        onClick: handleSignOut 
-                    }, '로그아웃')
-                )
-            );
-        }
-
-        return e('div', { viewId, className: 'flex flex-col h-full' },
-            e('h3', { className: 'view-header' }, '로그인'),
-            e('div', { className: 'view-content-scroll flex flex-col items-center justify-center' },
-                e('p', { className: 'text-sm text-gray-400 mb-4 text-center' }, 'Google 계정으로 로그인하여<br/>작업물을 클라우드에 저장하세요.'),
-                e('button', { 
-                    className: 'form-button !w-auto px-6',
-                    onClick: handleGoogleSignIn 
-                }, 'Google 계정으로 로그인')
-            )
-        );
-    };
-    
-    // 뷰 8: 퀴즈 풀이 모달
-    const QuizTaker = ({ quiz, onClose, onQuizSubmit }) => {
-        const [questions, setQuestions] = useState([]);
-        const [currentAnswers, setCurrentAnswers] = useState({});
         useEffect(() => {
             try {
-                const parsedQuestions = JSON.parse(quiz.questions);
-                setQuestions(parsedQuestions);
-            } catch (e) { console.error("퀴즈 질문 파싱 오류:", e); }
-        }, [quiz]);
-        const handleAnswerChange = (qIndex, value) => {
-            setCurrentAnswers(prev => ({ ...prev, [qIndex]: value }));
-        };
-        const handleSubmit = () => {
-            let score = 0;
-            const userAnswers = questions.map((q, qIndex) => {
-                let isCorrect = false;
-                const selectedAnswer = currentAnswers[qIndex];
-                switch (q.questionType) {
-                    case 'MultipleChoice':
-                        isCorrect = (selectedAnswer === q.correctAnswerIndex);
-                        if (isCorrect) score++;
-                        break;
-                    default: 
-                        isCorrect = null;
-                        break;
-                }
-                return {
-                    questionType: q.questionType,
-                    questionText: q.questionText,
-                    options: q.options,
-                    selectedAnswer: selectedAnswer,
-                    correctAnswerIndex: q.correctAnswerIndex,
-                    gradingCriteria: q.gradingCriteria,
-                    isCorrect: isCorrect
-                };
-            });
-            const result = {
-                // (v11.0) id는 Firestore에서 자동 생성되므로 제거
-                quizId: quiz.id,
-                fileId: quiz.fileId,
-                quizTitle: quiz.title,
-                score: score,
-                total: questions.length,
-                answers: JSON.stringify(userAnswers),
-                completedAt: new Date().toISOString()
-            };
-            onQuizSubmit(result);
-        };
-        const renderQuestion = (q, qIndex) => {
-            switch (q.questionType) {
-                case 'MultipleChoice':
-                    return e('div', { className: 'options-container' },
-                        (q.options || []).map((option, oIndex) => e('label', { key: oIndex, className: 'quiz-option-label' },
-                            e('input', {
-                                type: 'radio',
-                                name: `question-${qIndex}`,
-                                checked: currentAnswers[qIndex] === oIndex,
-                                onChange: () => handleAnswerChange(qIndex, oIndex)
-                            }),
-                            option
-                        ))
-                    );
-                default:
-                    return e('div', { className: 'form-group' },
-                        e('textarea', { // input에서 textarea로 변경
-                            className: 'form-input',
-                            rows: 3,
-                            value: currentAnswers[qIndex] || "",
-                            onChange: (ev) => handleAnswerChange(qIndex, ev.target.value)
-                        })
-                    );
-            }
-        };
-        return e('div', { className: 'modal-overlay', onClick: onClose },
-            e('div', { className: 'modal-container', style: { maxWidth: '800px' }, onClick: (e) => e.stopPropagation() },
-                e('div', { className: 'modal-header' },
-                    e('h2', null, quiz.title)
-                ),
-                e('div', { className: 'modal-body', style: { padding: '24px', display: 'block' } },
-                    questions.map((q, qIndex) => e('div', { key: qIndex, className: 'quiz-question-card' },
-                        e('p', { className: 'quiz-question-text' }, `${qIndex + 1}. ${q.questionText}`),
-                        renderQuestion(q, qIndex)
-                    ))
-                ),
-                e('div', { className: 'modal-footer' },
-                    e('button', { className: 'modal-button-secondary', onClick: onClose }, '취소'),
-                    e('button', { className: 'modal-button-primary', onClick: handleSubmit }, '퀴즈 제출')
-                )
-            )
-        );
-    };
-    
-    // 뷰 9: 퀴즈 결과 모달
-    const QuizResult = ({ attempt, quiz, onClose, dispatchGradingTask }) => {
-        const { setModalContent } = useContext(AppContext);
-        const toast = useToast();
-        const [results, setResults] = useState([]);
+                const c = JSON.parse(window.__firebase_config);
+                const app = initializeApp(c);
+                setDb(getFirestore(app));
+                setAuth(getAuth(app));
+                onAuthStateChanged(getAuth(app), u => setUserId(u ? u.uid : null));
+            } catch(e) { console.error(e); }
+        }, []);
+
         useEffect(() => {
-            try { setResults(JSON.parse(attempt.answers)); }
-            catch(e) { console.error("결과 파싱 오류", e); }
-        }, [attempt]);
-        
-        const handleGradeAllSubjective = async () => {
-            dispatchGradingTask(attempt);
-            toast.show("AI 채점을 시작합니다. (작업 모니터 📊)", 'info');
-            onClose();
-        };
-        
-        const retryIncorrect = () => {
-            toast.show("오답 다시 풀기 기능은 구현 중입니다.", 'info');
-        };
-        
-        const renderResultAnswer = (res, index) => {
-            if (res.isCorrect === null) {
-                return e(React.Fragment, null,
-                    e('p', { className: 'result-answer yours' }, 
-                        `제출한 답: ${res.selectedAnswer || 'N/A'}`
-                    ),
-                    e('p', { className: 'result-answer correct text-xs mt-2' }, 
-                        `[채점 기준] ${res.gradingCriteria || 'N/A'}`
-                    ),
-                    e('p', { className: 'text-sm text-yellow-400 mt-2' }, 'AI 채점 대기 중...')
-                );
+            if(!db || !userId) return;
+            const unsubF = onSnapshot(query(collection(db, `artifacts/${window.__app_id}/users/${userId}/files`)), s => setFiles(s.docs.map(d => ({id:d.id, ...d.data()}))));
+            const unsubQ = onSnapshot(query(collection(db, `artifacts/${window.__app_id}/users/${userId}/quizzes`)), s => setQuizzes(s.docs.map(d => ({id:d.id, ...d.data()}))));
+            const unsubA = onSnapshot(query(collection(db, `artifacts/${window.__app_id}/users/${userId}/quizAttempts`)), s => setAttempts(s.docs.map(d => ({id:d.id, ...d.data()}))));
+            const unsubS = onSnapshot(doc(db, `artifacts/${window.__app_id}/users/${userId}/settings/userConfig`), s => s.exists() && setUserSettings(s.data()));
+            return () => { unsubF(); unsubQ(); unsubA(); unsubS(); };
+        }, [db, userId]);
+
+        useEffect(() => {
+            quizWorker.onmessage = (e) => {
+                const { status, taskId, taskType, quizData, updatedAttempt } = e.data;
+                setTaskQueue(q => q.map(t => t.id === taskId ? { ...t, status } : t));
+                if(status === 'success' && taskType === 'generate') addDoc(collection(db, `artifacts/${window.__app_id}/users/${userId}/quizzes`), { ...quizData, userId, createdAt: new Date().toISOString() });
+                if(status === 'success' && taskType === 'grade') updateDoc(doc(db, `artifacts/${window.__app_id}/users/${userId}/quizAttempts`, updatedAttempt.id), updatedAttempt);
+            };
+        }, [quizWorker, db, userId]);
+
+        // Destructure custom hook results at the top level of the component
+        const { fileTree, fileActions } = useFileSystem(files, db, userId, window.__app_id);
+
+        const contextValue = {
+            db, userId, 
+            fileTree, 
+            fileActions,
+            activeEditorFile, setActiveEditorFile, dispatchTask: (data) => {
+                const id = crypto.randomUUID();
+                setTaskQueue(p => [{...data, id, status: 'processing'}, ...p]);
+                quizWorker.postMessage({ ...data, id, settings: userSettings });
+            },
+            quizOptions, setQuizOptions, attempts, quizzes, setModalContent, userSettings,
+            saveSettings: (s) => setDoc(doc(db, `artifacts/${window.__app_id}/users/${userId}/settings/userConfig`), s, {merge: true}),
+            handleGoogleSignIn: () => signInWithPopup(auth, new GoogleAuthProvider()),
+            handleSignOut: () => signOut(auth),
+            editingNodeId, setEditingNodeId,
+            dispatchGradingTask: (a) => {
+                const id = crypto.randomUUID();
+                setTaskQueue(p => [{taskType: 'grade', id, status: 'processing'}, ...p]);
+                quizWorker.postMessage({ taskType: 'grade', id, attempt: a, settings: userSettings });
             }
-            let answerContent;
-            switch(res.questionType) {
-                case 'MultipleChoice':
-                    answerContent = e(React.Fragment, null,
-                        e('p', { className: 'result-answer correct' }, 
-                            `정답: ${res.options[res.correctAnswerIndex]}`
-                        ),
-                        !res.isCorrect && e('p', { className: 'result-answer yours' }, 
-                            `선택한 답: ${res.options[res.selectedAnswer] || 'N/A'}`
-                        )
-                    );
-                    break;
-                default:
-                    answerContent = e(React.Fragment, null,
-                        e('p', { className: 'result-answer correct' }, 
-                            `채점 기준: ${res.gradingCriteria || 'N/A'}`
-                        ),
-                        e('p', { className: 'result-answer yours' }, 
-                            `제출한 답: ${res.selectedAnswer || 'N/A'}`
-                        )
-                    );
-                    break;
-            }
-            return e(React.Fragment, null, 
-                answerContent,
-                res.feedback && e('div', { className: 'mt-2 p-2 bg-gray-800 rounded' },
-                    e('p', { className: 'text-xs font-semibold text-blue-300' }, 'AI 첨삭:'),
-                    e('p', { className: 'text-sm' }, res.feedback)
-                )
-            );
         };
-        const hasSubjectiveToGrade = useMemo(() => {
-            return results.some(r => r.isCorrect === null);
-        }, [results]);
-        return e('div', { className: 'modal-overlay', onClick: onClose },
-            e('div', { className: 'modal-container', onClick: (e) => e.stopPropagation() },
-                e('div', { className: 'modal-header' },
-                    e('h2', null, '퀴즈 결과: ' + attempt.quizTitle),
-                    e('button', { className: 'modal-close-btn', onClick: onClose }, '×')
+
+        const sidebarItems = [
+            { id: 'files', icon: '📂' }, { id: 'search', icon: '🔍' }, { id: 'quiz-generator', icon: '✨' },
+            { id: 'history', icon: '📚' }, { id: 'tasks', icon: '📊' }, { id: 'settings', icon: '⚙️', isBottom: true },
+            { id: 'user', icon: '👤', isBottom: true }
+        ];
+        
+        const handleActiveChange = (id) => {
+            if (id === 'settings') setModalContent(e(SettingsModal, { onClose: () => setModalContent(null) }));
+            else if (id === 'user' && userId) signOut(auth);
+            else setActiveViewId(id);
+        };
+
+        return e(AppContext.Provider, { value: contextValue },
+            e('div', { className: 'flex h-screen' },
+                e(ReactVscodeSidebar, { items: sidebarItems, onActiveChange: handleActiveChange, activeId: activeViewId, isVisible: true },
+                    e(FileManagerView, { viewId: 'files' }),
+                    e(QuizGeneratorView, { viewId: 'quiz-generator' }),
+                    e(QuizHistoryView, { viewId: 'history' }),
+                    e(TaskMonitorView, { viewId: 'tasks' })
                 ),
-                e('div', { className: 'modal-body quiz-result-body', style: { display: 'block' } },
-                    e('div', { className: 'quiz-result-score mb-6' }, 
-                        `점수: ${attempt.score} / ${attempt.total}`
-                    ),
-                    results.map((res, index) => e('div', { 
-                        key: index, 
-                        className: `result-question ${res.isCorrect === true ? 'result-question-correct' : (res.isCorrect === false ? 'result-question-incorrect' : 'bg-gray-700')}`
-                    },
-                        e('p', { className: 'result-question-text' }, `${index + 1}. ${res.questionText}`),
-                        renderResultAnswer(res, index)
-                    ))
-                ),
-                e('div', { className: 'modal-footer' },
-                    e('button', { className: 'modal-button-secondary', onClick: retryIncorrect }, '틀린 문제 다시 풀기'),
-                    hasSubjectiveToGrade && e('button', { 
-                        className: 'modal-button-primary', 
-                        onClick: handleGradeAllSubjective,
-                    }, '✨ 전체 AI 채점'),
-                    e('button', { className: 'modal-button-primary', onClick: onClose }, '닫기')
-                )
+                e('div', { className: 'main-content' }, e(MainContentEditor)),
+                modalContent
             )
         );
     };
 
-
-    // --- 5. 메인 앱 컴포넌트 (v11.1 - Google Auth) ---
-    const App = () => {
-      const toast = useToast(); 
-      const [isLoading, setIsLoading] = useState(true);
-      const [userSettings, setUserSettings] = useState(DEFAULT_SETTINGS);
-      const [modalContent, setModalContent] = useState(null);
-      const [activeViewId, setActiveViewId] = useState('files');
-      const [isSidebarVisible, setIsSidebarVisible] = useState(true);
-      const [activeEditorFile, setActiveEditorFile] = useState(null);
-      const [editingNodeId, setEditingNodeId] = useState(null);
-      
-      // (v11.0) Firebase 상태
-      const [db, setDb] = useState(null);
-      const [auth, setAuth] = useState(null);
-      const [userId, setUserId] = useState(null);
-      const [appId, setAppId] = useState('default-app-id');
-      
-      // (v11.1) 사용자 정보 상태 (프로필 사진, 이름 등)
-      const [userInfo, setUserInfo] = useState(null);
-      const authAttempted = useRef(false); // (v11.1) 커스텀 토큰 재시도 방지
-      
-      const QUIZ_OPTIONS_STORAGE_KEY = 'aiQuiz_quizOptions_v10';
-      const getInitialQuizOptions = (settings) => {
-          try {
-              const savedOptions = localStorage.getItem(QUIZ_OPTIONS_STORAGE_KEY);
-              if (savedOptions) {
-                  return JSON.parse(savedOptions);
-              }
-          } catch (e) { console.error("Failed to parse saved quiz options", e); }
-          return {
-              numQuestions: settings.defaultNumQuestions || 10,
-              difficulty: settings.defaultDifficulty || "Medium",
-              questionType: settings.defaultQuestionType || "MultipleChoice",
-              includeSnippets: false,
-              provideAnswerKey: true,
-              customInstructions: ""
-          };
-      };
-      const [quizOptions, _setQuizOptions] = useState(() => getInitialQuizOptions(DEFAULT_SETTINGS));
-      const setQuizOptions = useCallback((updater) => {
-          _setQuizOptions(prev => {
-              const newState = typeof updater === 'function' ? updater(prev) : updater;
-              localStorage.setItem(QUIZ_OPTIONS_STORAGE_KEY, JSON.stringify(newState));
-              return newState;
-          });
-      }, []);
-      
-      const quizWorker = useMemo(() => new Worker(workerUrl), []);
-      const [taskQueue, setTaskQueue] = useState([]);
-      const [files, setFiles] = useState([]);
-      const [quizzes, setQuizzes] = useState([]);
-      const [attempts, setAttempts] = useState([]);
-
-      // (v11.1) Firebase 초기화 및 인증 로직 수정
-      useEffect(() => {
-        const currentAppId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const firebaseConfigStr = typeof __firebase_config !== 'undefined' ? __firebase_config : null;
-        
-        if (!firebaseConfigStr) {
-            console.error("Firebase config is missing.");
-            toast.show("❌ Firebase 설정 오류", "error");
-            setIsLoading(false);
-            return;
-        }
-        
-        try {
-            const firebaseConfig = JSON.parse(firebaseConfigStr);
-            const fbApp = initializeApp(firebaseConfig);
-            const fbAuth = getAuth(fbApp);
-            const fbDb = getFirestore(fbApp);
-            
-            setLogLevel('Debug'); // Firestore 로깅
-            
-            setDb(fbDb);
-            setAuth(fbAuth);
-            setAppId(currentAppId);
-
-            onAuthStateChanged(fbAuth, async (user) => {
-                if (user) {
-                    // 로그인 성공
-                    console.log("Firebase Auth: User signed in.", user.uid, user.displayName);
-                    setUserId(user.uid);
-                    setUserInfo({ // (v11.1) 전체 사용자 정보 저장
-                        uid: user.uid,
-                        displayName: user.displayName,
-                        email: user.email,
-                        photoURL: user.photoURL
-                    });
-                    setIsLoading(false);
-                } else {
-                    // 로그아웃 상태
-                    console.log("Firebase Auth: No user.");
-                    setUserId(null);
-                    setUserInfo(null);
-                    
-                    // (v11.1) 커스텀 토큰이 있으면 1회 시도, 없으면 그냥 로그아웃 상태로 로딩 완료
-                    if (typeof __initial_auth_token !== 'undefined' && !authAttempted.current) {
-                        authAttempted.current = true; // 중복 시도 방지
-                        try {
-                            console.log("Firebase Auth: Attempting custom token sign-in...");
-                            await signInWithCustomToken(fbAuth, __initial_auth_token);
-                            // 성공하면 onAuthStateChanged가 'user'와 함께 다시 호출됨
-                        } catch (authError) {
-                            console.error("Firebase Auth: Custom token sign-in failed", authError);
-                            toast.show(`❌ 토큰 인증 실패: ${authError.message}`, "error");
-                            setIsLoading(false); // 토큰 실패 시에도 로딩 완료
-                        }
-                    } else {
-                        // 커스텀 토큰이 없거나 이미 시도했으면, 로그아웃 상태로 로딩 완료
-                        setIsLoading(false);
-                    }
-                }
-            });
-        } catch (e) {
-            console.error("Firebase initialization failed:", e);
-            toast.show(`❌ Firebase 초기화 실패: ${e.message}`, "error");
-            setIsLoading(false);
-        }
-      }, [toast]); // (v11.1) 의존성 배열에서 toast 제거 (함수가 아니므로) -> 아님, 훅이므로 유지
-      
-      // (v11.0) Firestore 실시간 리스너
-      useEffect(() => {
-        // (v11.1) userId가 null이면(로그아웃) 리스너를 설정하지 않고, 기존 데이터 클린업
-        if (!db || !userId) {
-            setFiles([]);
-            setQuizzes([]);
-            setAttempts([]);
-            setTaskQueue([]);
-            setActiveEditorFile(null);
-            return; // 리스너 설정 중단
-        }
-
-        console.log(`Setting up snapshots for user: ${userId}, app: ${appId}`);
-
-        const getCollectionRef = (collName) => collection(db, `artifacts/${appId}/users/${userId}/${collName}`);
-
-        // 1. Files listener
-        const filesQuery = query(getCollectionRef('files'));
-        const filesUnsub = onSnapshot(filesQuery, (querySnapshot) => {
-            const filesData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            setFiles(filesData);
-            console.log("Snapshot: Files updated", filesData.length);
-        }, (error) => console.error("Snapshot Error (Files):", error));
-        
-        // 2. Quizzes listener
-        const quizzesQuery = query(getCollectionRef('quizzes'));
-        const quizzesUnsub = onSnapshot(quizzesQuery, (querySnapshot) => {
-            const quizzesData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            setQuizzes(quizzesData);
-            console.log("Snapshot: Quizzes updated", quizzesData.length);
-        }, (error) => console.error("Snapshot Error (Quizzes):", error));
-
-        // 3. Attempts listener
-        const attemptsQuery = query(getCollectionRef('quizAttempts'));
-        const attemptsUnsub = onSnapshot(attemptsQuery, (querySnapshot) => {
-            const attemptsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            setAttempts(attemptsData);
-            console.log("Snapshot: Attempts updated", attemptsData.length);
-        }, (error) => console.error("Snapshot Error (Attempts):", error));
-
-        // 4. Settings listener
-        const settingsRef = doc(db, `artifacts/${appId}/users/${userId}/settings/userConfig`);
-        const settingsUnsub = onSnapshot(settingsRef, (docSnap) => {
-            if (docSnap.exists()) {
-                const settingsData = docSnap.data();
-                setUserSettings(settingsData);
-                _setQuizOptions(getInitialQuizOptions(settingsData)); 
-                console.log("Snapshot: Settings updated");
-            } else {
-                setUserSettings(DEFAULT_SETTINGS);
-                _setQuizOptions(getInitialQuizOptions(DEFAULT_SETTINGS));
-                console.log("Snapshot: No settings found, using default.");
-            }
-        }, (error) => console.error("Snapshot Error (Settings):", error));
-
-        // Cleanup function
-        return () => {
-            console.log("Cleaning up snapshots...");
-            filesUnsub();
-            quizzesUnsub();
-            attemptsUnsub();
-            settingsUnsub();
-        };
-      }, [db, userId, appId]);
-      
-      const { fileTree, fileActions } = useFileSystem(files, db, userId, appId);
-      
-      // Worker (퀴즈 생성/채점) 콜백
-      useEffect(() => {
-        quizWorker.onmessage = (e) => {
-          if (!userId) return; // (v11.1) 로그아웃 상태면 메시지 무시
-          
-          const { status, taskId, taskType, quizData, updatedAttempt, error, options } = e.data; 
-          
-          setTaskQueue(prev => prev.map(task => 
-              task.id === taskId ? { ...task, status, error } : task
-          ));
-          
-          if (status === 'success') {
-            if (taskType === 'grade' && updatedAttempt) {
-                // (v11.0) Firestore에 채점 결과 업데이트
-                const attemptRef = doc(db, `artifacts/${appId}/users/${userId}/quizAttempts`, updatedAttempt.id);
-                updateDoc(attemptRef, updatedAttempt)
-                    .then(() => toast.show('✅ AI 채점이 완료되었습니다.', 'success'))
-                    .catch(err => toast.show(`❌ 채점 결과 저장 실패: ${err.message}`, 'error'));
-                
-            } else if (taskType === 'generate' && quizData) {
-                // (v11.0) Firestore에 새 퀴즈 추가
-                const newQuiz = {
-                    // id는 Firestore가 자동 생성
-                    title: quizData.title,
-                    sourceText: "N/A", 
-                    fileId: options.fileId, 
-                    sourceFileName: options.sourceFileName,
-                    questions: JSON.stringify(quizData.questions),
-                    createdAt: new Date().toISOString(),
-                    questionCount: quizData.questions.length,
-                    options: options,
-                    userId: userId
-                };
-                addDoc(collection(db, `artifacts/${appId}/users/${userId}/quizzes`), newQuiz)
-                    .then(() => toast.show('✨ 퀴즈 생성이 완료되었습니다.', 'success'))
-                    .catch(err => toast.show(`❌ 퀴즈 저장 실패: ${err.message}`, 'error'));
-            }
-          } else if (status === 'error') {
-              console.error(`Task ${taskId} (${taskType}) failed: ${error}`);
-              if (toast) toast.show(`❌ 작업 실패: ${error}`, 'error');
-          }
-        };
-        return () => { quizWorker.onmessage = null; };
-      }, [quizWorker, db, userId, appId, toast]);
-      
-      // (v12.0) 설정 저장 (Firestore) - 모델명 저장 로직 포함
-      const handleSaveSettings = useCallback(async (newSettings) => {
-          if (!db || !userId) {
-              toast.show('❌ 로그인이 필요합니다.', 'error');
-              return;
-          }
-          const settingsRef = doc(db, `artifacts/${appId}/users/${userId}/settings/userConfig`);
-          try {
-              // newSettings에 modelName이 포함되어 있는지 확인
-              const settingsToSave = {
-                  ...newSettings,
-                  modelName: newSettings.modelName || DEFAULT_SETTINGS.modelName
-              };
-              await setDoc(settingsRef, settingsToSave, { merge: true });
-              toast.show('✅ 설정이 저장되었습니다.', 'success');
-              // onSnapshot이 자동으로 userSettings를 업데이트
-          } catch (e) {
-              console.error("설정 저장 실패:", e);
-              toast.show(`❌ 설정 저장 실패: ${e.message}`, 'error');
-          }
-      }, [db, userId, appId, toast]);
-
-      const handleActivityChange = (id, forceVisible = false) => {
-          if (id === 'settings') {
-              if (!userId) { // (v11.1) 로그인 확인
-                  toast.show('설정을 보려면 먼저 로그인(👤)하세요.', 'info');
-                  handleActivityChange('user');
-                  return;
-              }
-              setModalContent(e(SettingsModal, { onClose: () => setModalContent(null) }));
-              return;
-          }
-          if (id === activeViewId && isSidebarVisible && !forceVisible) setIsSidebarVisible(false);
-          else { setIsSidebarVisible(true); setActiveViewId(id); }
-      };
-      
-      const dispatchTask = useCallback((taskData) => {
-          if (!userId) { // (v11.1) 로그인 확인
-              toast.show('❌ 로그인이 필요합니다.', 'error');
-              return;
-          }
-          const taskId = crypto.randomUUID();
-          const newTask = { ...taskData, id: taskId, status: 'processing', taskType: 'generate' };
-          setTaskQueue(prev => [newTask, ...prev]);
-          quizWorker.postMessage({ ...newTask, settings: userSettings, DEFAULT_SETTINGS });
-          handleActivityChange('tasks');
-          if (toast) toast.show('✨ 퀴즈 생성을 시작합니다.', 'info');
-      }, [quizWorker, userSettings, toast, userId]);
-      
-      const dispatchGradingTask = useCallback((attempt) => {
-          if (!userId) { // (v11.1) 로그인 확인
-              toast.show('❌ 로그인이 필요합니다.', 'error');
-              return;
-          }
-          const taskId = crypto.randomUUID();
-          const newTask = { 
-              id: taskId, 
-              status: 'processing', 
-              taskType: 'grade',
-              options: { quizTitle: attempt.quizTitle }
-          };
-          setTaskQueue(prev => [newTask, ...prev]);
-          quizWorker.postMessage({ ...newTask, attempt, settings: userSettings, DEFAULT_SETTINGS });
-          handleActivityChange('tasks');
-      }, [quizWorker, userSettings, userId]);
-
-      // (v11.0) 퀴즈 제출 (Firestore)
-      const handleQuizSubmit = async (result) => {
-          if (!db || !userId) {
-              toast.show('❌ 로그인이 필요합니다.', 'error');
-              return;
-          }
-          
-          try {
-              const attemptWithUser = { ...result, userId: userId };
-              const docRef = await addDoc(collection(db, `artifacts/${appId}/users/${userId}/quizAttempts`), attemptWithUser);
-              
-              const newAttempt = { ...attemptWithUser, id: docRef.id };
-              
-              setModalContent(e(QuizResult, {
-                  attempt: newAttempt,
-                  quiz: quizzes.find(q => q.id === newAttempt.quizId),
-                  onClose: () => setModalContent(null),
-                  userSettings,
-                  dispatchGradingTask
-              }));
-          } catch (err) { 
-              console.error("퀴즈 제출 오류:", err); 
-              toast.show(`❌ 퀴즈 제출 실패: ${err.message}`, 'error');
-          }
-      };
-      
-      // (v11.1) Google 로그인/로그아웃 함수
-      const handleGoogleSignIn = async () => {
-          if (!auth) return;
-          const provider = new GoogleAuthProvider();
-          try {
-              await signInWithPopup(auth, provider);
-              // onAuthStateChanged가 결과를 처리
-              toast.show('✅ 로그인 성공!', 'success');
-              handleActivityChange('files'); // 로그인 후 파일 뷰로 이동
-          } catch (error) {
-              console.error("Google Sign-In Error:", error);
-              toast.show(`❌ 로그인 실패: ${error.message}`, 'error');
-          }
-      };
-
-      const handleSignOut = async () => {
-          if (!auth) return;
-          try {
-              await signOut(auth);
-              // onAuthStateChanged가 결과를 처리 (userId=null)
-              toast.show('로그아웃되었습니다.', 'info');
-              setActiveEditorFile(null); // (v11.1) 로그아웃 시 활성 파일 닫기
-          } catch (error) {
-              console.error("Sign-Out Error:", error);
-              toast.show(`❌ 로그아웃 실패: ${error.message}`, 'error');
-          }
-      };
-
-      const contextValue = {
-          db,
-          userId,
-          userInfo, // (v11.1)
-          appId,
-          userSettings,
-          saveSettings: handleSaveSettings,
-          files,
-          quizzes,
-          attempts,
-          taskQueue,
-          dispatchTask,
-          dispatchGradingTask,
-          fileTree,
-          fileActions,
-          activeEditorFile,
-          setActiveEditorFile,
-          setModalContent,
-          editingNodeId,
-          setEditingNodeId,
-          quizOptions, 
-          setQuizOptions,
-          handleQuizSubmit,
-          toast,
-          handleActivityChange,
-          handleGoogleSignIn, // (v11.1)
-          handleSignOut       // (v11.1)
-      };
-
-      const sidebarItems = [
-        { id: 'files', label: '파일 탐색기', icon: '📄' },
-        { id: 'search', label: '검색', icon: '🔍' },
-        { id: 'quiz-generator', label: '퀴즈 생성 옵션', icon: '✨' },
-        { id: 'history', label: '전체 풀이 기록', icon: '📚' },
-        { id: 'tasks', label: '작업 모니터', icon: '📊' },
-        { id: 'user', label: '사용자', icon: '👤', isBottom: true },
-        { id: 'settings', label: '설정', icon: '⚙️', isBottom: true },
-      ];
-      
-      if (isLoading) {
-        return e('div', { className: 'flex items-center justify-center h-screen' }, 
-            e(Spinner),
-            e('p', { className: 'ml-4' }, 'Firebase 인증 확인 중...')
-        );
-      }
-
-      return e(AppContext.Provider, { value: contextValue },
-        e('div', { className: 'flex h-screen' },
-          e(ReactVscodeSidebar, {
-            items: sidebarItems,
-            onActiveChange: handleActivityChange,
-            activeId: activeViewId,
-            isVisible: isSidebarVisible
-          },
-            // 뷰 컨텐츠 (Children)
-            e(FileManagerView, { viewId: 'files' }),
-            e(SearchView, { viewId: 'search' }),
-            e(QuizGeneratorView, { viewId: 'quiz-generator' }),
-            e(QuizHistoryView, { viewId: 'history' }),
-            e(TaskMonitorView, { viewId: 'tasks' }),
-            e(UserView, { viewId: 'user' }) // (v11.1) 이 뷰가 이제 로그인/로그아웃 UI를 처리
-          ),
-          
-          e('div', { className: 'main-content' }, 
-            e(MainContentEditor, null)
-          ),
-          
-          modalContent
-        )
-      );
-    };
-
-    // --- 6. 앱 마운트 ---
-    const root = createRoot(document.getElementById('root'));
-    root.render(e(ToastProvider, null, e(App)));
-    
+    createRoot(document.getElementById('root')).render(e(ToastProvider, null, e(App)));
   </script>
 </body>
 </html>
