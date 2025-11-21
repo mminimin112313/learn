@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AI Quiz Obsidian (v20.5 - Delete Feature)</title>
+  <title>AI Quiz Obsidian (v20.11 - Fixed & Complete)</title>
 
   <!-- Fonts & Icons -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -15,6 +15,7 @@
   <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- JSZip for Zip Handling -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 
   <!-- Markdown & Math -->
@@ -119,6 +120,11 @@
     .quiz-card:hover { border-color: rgba(59, 130, 246, 0.5); background: rgba(255,255,255,0.05); }
 
     .lower-pane-header { padding: 8px 12px; font-size: 0.75rem; font-weight: bold; color: #666; text-transform: uppercase; letter-spacing: 0.05em; display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.05); }
+    
+    /* Loading Overlay */
+    .loading-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.7); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 50; backdrop-filter: blur(2px); }
+    .spinner { width: 40px; height: 40px; border: 4px solid rgba(255,255,255,0.1); border-left-color: var(--accent-blue); border-radius: 50%; animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
   </style>
 </head>
 <body>
@@ -151,28 +157,6 @@
       return { route, navigate };
     };
 
-    // DEFAULT PROMPT TEMPLATE (XML Format)
-    const DEFAULT_PROMPT = `
-<AIFramework_V3>
-    <Cognitive_Core>
-        <Persona>Dr. Elias Thorne, Chief Assessment Architect. Expert in high-stakes educational assessment.</Persona>
-        <Prime_Directive>Create professional assessment questions based on SOURCE_TEXT.</Prime_Directive>
-    </Cognitive_Core>
-    <Operational_Cortex>
-        <Directive_Protocol>
-            <Rules>
-                <Rule name="Output Format">Output ONLY valid JSON matching the schema.</Rule>
-                <Rule name="Snippets">{{INCLUDE_SNIPPETS}}</Rule>
-                <Rule name="Grading">{{PROVIDE_ANSWER_KEY}}</Rule>
-                <Rule name="Custom">{{CUSTOM_INSTRUCTIONS}}</Rule>
-                <Rule name="SpecificType">Generate questions of type: {{QUESTION_TYPE}}</Rule>
-                <Rule name="Difficulty">Target difficulty level: {{DIFFICULTY}}</Rule>
-                <Rule name="Quantity">Generate exactly {{NUM_QUESTIONS}} questions.</Rule>
-            </Rules>
-        </Directive_Protocol>
-    </Operational_Cortex>
-</AIFramework_V3>`;
-
     /* --- WORKER SCRIPT --- */
     const workerScript = `
       const fetchWithRetry = async (url, options, retries = 3) => {
@@ -193,7 +177,6 @@
 
           if (taskType === 'generate') {
              let baseTemplate = options.promptTemplate || "No Template Provided";
-             
              let systemInstruction = baseTemplate
                 .replace('{{DIFFICULTY}}', options.difficulty)
                 .replace('{{QUESTION_TYPE}}', options.questionType)
@@ -264,14 +247,53 @@
         );
     };
 
-    const InputModalContent = ({ label, placeholder, value, onChange }) => e('div', { className: 'flex flex-col gap-2' }, e('label', { className: 'text-xs text-gray-400 font-bold' }, label), e('input', { className: 'input-std', placeholder, value, onChange: e=>onChange(e.target.value), autoFocus: true }));
+    const PromptModal = ({ label, placeholder, onSubmit, onCancel }) => {
+        const [value, setValue] = useState('');
+        const [isSubmitting, setIsSubmitting] = useState(false);
+        const handleSubmit = async () => {
+            if (isSubmitting || !value.trim()) return;
+            setIsSubmitting(true);
+            await onSubmit(value);
+        };
+        return e('div', { className: 'flex flex-col gap-4' },
+            e('div', { className: 'flex flex-col gap-2' },
+                e('label', { className: 'text-xs text-gray-400 font-bold' }, label),
+                e('input', { className: 'input-std', value, onChange: e => setValue(e.target.value), placeholder, autoFocus: true, disabled: isSubmitting, onKeyDown: e => { if (e.key === 'Enter') handleSubmit(); } })
+            ),
+            e('div', { className: 'flex justify-end gap-2' },
+                e('button', { className: 'glass-btn px-4 py-2 rounded text-gray-300', onClick: onCancel, disabled: isSubmitting }, 'Cancel'),
+                e('button', { className: 'btn-primary px-4 py-2 rounded', onClick: handleSubmit, disabled: isSubmitting }, isSubmitting ? 'Creating...' : 'Create')
+            )
+        );
+    };
+
+    // DEFAULT PROMPT TEMPLATE
+    const DEFAULT_PROMPT = `
+<AIFramework_V3>
+    <Cognitive_Core>
+        <Persona>Dr. Elias Thorne, Chief Assessment Architect. Expert in high-stakes educational assessment.</Persona>
+        <Prime_Directive>Create professional assessment questions based on SOURCE_TEXT.</Prime_Directive>
+    </Cognitive_Core>
+    <Operational_Cortex>
+        <Directive_Protocol>
+            <Rules>
+                <Rule name="Output Format">Output ONLY valid JSON matching the schema.</Rule>
+                <Rule name="Snippets">{{INCLUDE_SNIPPETS}}</Rule>
+                <Rule name="Grading">{{PROVIDE_ANSWER_KEY}}</Rule>
+                <Rule name="Custom">{{CUSTOM_INSTRUCTIONS}}</Rule>
+                <Rule name="SpecificType">Generate questions of type: {{QUESTION_TYPE}}</Rule>
+                <Rule name="Difficulty">Target difficulty level: {{DIFFICULTY}}</Rule>
+                <Rule name="Quantity">Generate exactly {{NUM_QUESTIONS}} questions.</Rule>
+            </Rules>
+        </Directive_Protocol>
+    </Operational_Cortex>
+</AIFramework_V3>`;
 
     /* --- APP COMPONENTS --- */
     const QuizTaker = ({ quiz, onClose, onSubmit }) => {
         const [questions] = useState(() => { try { return JSON.parse(quiz.questions); } catch(e) { return []; } });
         const [answers, setAnswers] = useState({});
         const [visibleHints, setVisibleHints] = useState({}); 
-
         const handleSubmit = () => {
             const results = questions.map((q, idx) => {
                 const userAns = answers[idx];
@@ -286,21 +308,8 @@
         return e('div', { className: 'flex flex-col gap-6' },
             questions.map((q, idx) => e('div', { key: idx, className: 'quiz-question border-b border-white/10 pb-4' },
                 e('div', { className: 'flex gap-3 mb-3' }, e('span', { className: 'text-blue-400 font-bold' }, `Q${idx+1}`), e('div', { className: 'text-lg text-gray-200' }, q.questionText)),
-                q.contextSnippet && e('div', { className: 'mb-4' },
-                    !visibleHints[idx] 
-                        ? e('button', { className: 'text-xs text-gray-500 hover:text-blue-400 flex items-center gap-1', onClick: () => setVisibleHints(p => ({...p, [idx]: true})) }, e('i', { className: 'bi bi-eye' }), 'Show Hint (Context)')
-                        : e('div', null,
-                             e('pre', { className: 'bg-black/30 p-3 rounded text-sm text-gray-400 font-mono overflow-x-auto relative' }, 
-                                 q.contextSnippet,
-                                 e('button', { className: 'absolute top-2 right-2 text-gray-500 hover:text-white', onClick: () => setVisibleHints(p => ({...p, [idx]: false})) }, e('i', { className: 'bi bi-eye-slash' }))
-                             )
-                        )
-                ),
-                (q.questionType === 'MultipleChoice') ? (
-                    e('div', { className: 'flex flex-col gap-2' }, (q.options || []).map((opt, oIdx) => e('label', { key: oIdx, className: 'quiz-option bg-white/5 rounded p-3 cursor-pointer hover:bg-white/10 flex items-center gap-3' }, e('input', { type: 'radio', name: `q${idx}`, checked: answers[idx] == oIdx, onChange: () => setAnswers(p => ({...p, [idx]: oIdx})) }), e('span', { className: 'text-gray-300' }, opt))))
-                ) : (
-                    e('textarea', { className: 'input-std h-24 resize-none', placeholder: 'Answer...', value: answers[idx]||'', onChange: e => setAnswers(p => ({...p, [idx]: e.target.value})) })
-                )
+                q.contextSnippet && e('div', { className: 'mb-4' }, !visibleHints[idx] ? e('button', { className: 'text-xs text-gray-500 hover:text-blue-400 flex items-center gap-1', onClick: () => setVisibleHints(p => ({...p, [idx]: true})) }, e('i', { className: 'bi bi-eye' }), 'Show Hint (Context)') : e('div', null, e('pre', { className: 'bg-black/30 p-3 rounded text-sm text-gray-400 font-mono overflow-x-auto relative' }, q.contextSnippet, e('button', { className: 'absolute top-2 right-2 text-gray-500 hover:text-white', onClick: () => setVisibleHints(p => ({...p, [idx]: false})) }, e('i', { className: 'bi bi-eye-slash' }))))),
+                (q.questionType === 'MultipleChoice') ? (e('div', { className: 'flex flex-col gap-2' }, (q.options || []).map((opt, oIdx) => e('label', { key: oIdx, className: 'quiz-option bg-white/5 rounded p-3 cursor-pointer hover:bg-white/10 flex items-center gap-3' }, e('input', { type: 'radio', name: `q${idx}`, checked: answers[idx] == oIdx, onChange: () => setAnswers(p => ({...p, [idx]: oIdx})) }), e('span', { className: 'text-gray-300' }, opt))))) : (e('textarea', { className: 'input-std h-24 resize-none', placeholder: 'Answer...', value: answers[idx]||'', onChange: e => setAnswers(p => ({...p, [idx]: e.target.value})) }))
             )),
             e('div', { className: 'flex justify-end mt-4' }, e('button', { className: 'btn-primary px-8 py-2', onClick: handleSubmit }, 'Submit'))
         );
@@ -310,25 +319,129 @@
         const results = JSON.parse(attempt.answers);
         return e('div', { className: 'flex flex-col gap-6' },
             e('div', { className: 'text-center p-6 bg-white/5 rounded-xl border border-white/10' }, e('div', { className: 'text-4xl font-bold text-white mb-2' }, `${attempt.score} / ${attempt.total}`), e('div', { className: 'text-sm text-gray-400' }, 'SCORE')),
-            results.map((r, idx) => e('div', { key: idx, className: 'p-4 bg-white/5 rounded-lg' },
-                e('div', { className: 'flex justify-between mb-2' }, e('span', { className: 'font-bold text-gray-200' }, `Q${idx+1}. ${r.questionText}`), r.isCorrect === true ? e('span', { className: 'text-green-400' }, 'Correct') : r.isCorrect === false ? e('span', { className: 'text-red-400' }, 'Incorrect') : e('span', { className: 'text-yellow-400' }, 'Pending')),
-                e('div', { className: 'text-sm text-gray-400 ml-4' }, `Your Answer: ${r.options ? r.options[r.selectedAnswer] : r.selectedAnswer}`),
-                r.isCorrect === false && r.options && e('div', { className: 'text-sm text-green-400 ml-4 mt-1' }, `Correct Answer: ${r.options[r.correctAnswerIndex]}`),
-                r.feedback && e('div', { className: 'mt-3 p-3 bg-blue-900/20 border-l-2 border-blue-500 text-sm text-blue-200' }, e('strong', null, 'AI Feedback: '), r.feedback)
-            )),
+            results.map((r, idx) => e('div', { key: idx, className: 'p-4 bg-white/5 rounded-lg' }, e('div', { className: 'flex justify-between mb-2' }, e('span', { className: 'font-bold text-gray-200' }, `Q${idx+1}. ${r.questionText}`), r.isCorrect === true ? e('span', { className: 'text-green-400' }, 'Correct') : r.isCorrect === false ? e('span', { className: 'text-red-400' }, 'Incorrect') : e('span', { className: 'text-yellow-400' }, 'Pending')), e('div', { className: 'text-sm text-gray-400 ml-4' }, `Your Answer: ${r.options ? r.options[r.selectedAnswer] : r.selectedAnswer}`), r.isCorrect === false && r.options && e('div', { className: 'text-sm text-green-400 ml-4 mt-1' }, `Correct Answer: ${r.options[r.correctAnswerIndex]}`), r.feedback && e('div', { className: 'mt-3 p-3 bg-blue-900/20 border-l-2 border-blue-500 text-sm text-blue-200' }, e('strong', null, 'AI Feedback: '), r.feedback))),
             onGradeAI && results.some(r => r.isCorrect === null) && e('div', { className: 'flex justify-center mt-4' }, e('button', { className: 'btn-primary flex items-center gap-2', onClick: onGradeAI }, e('i', { className: 'bi bi-stars' }), 'Grade with AI'))
         );
     };
 
     const FileManagerView = () => {
-        const { fileTree, fileActions, userId, setEditingNodeId, quizzes, activeEditorFile, setActiveEditorFile, openModalWrapper, handleQuizSubmit, dispatchTask, quizOptions, updateQuizTitle, handleGenerateQuiz, expandedFolders, toggleFolder, deleteQuiz } = useContext(AppContext);
-        const { openModal } = useModal();
+        const { fileTree, fileActions, userId, setEditingNodeId, quizzes, activeEditorFile, setActiveEditorFile, openModalWrapper, handleQuizSubmit, dispatchTask, quizOptions, updateQuizTitle, handleGenerateQuiz, expandedFolders, toggleFolder, deleteQuiz, activeProjectId, projects, setActiveProjectId, files } = useContext(AppContext);
+        const { openModal, closeModal } = useModal();
         const [contextMenu, setContextMenu] = useState(null);
+        const [dragOverId, setDragOverId] = useState(null); 
+        const [isUploading, setIsUploading] = useState(false); 
         
-        const handleCreate = (type, pid='root') => { let n=''; openModal({ title: `New ${type}`, content: e(InputModalContent, { label: 'Name', placeholder: 'Name...', value: n, onChange: v=>n=v }), onConfirm: async()=>{ if(n.trim()) await fileActions.create(pid, type, n.trim()); } }); };
-        const handleRenameQuiz = (quiz) => { let n = quiz.title; openModal({ title: 'Rename Quiz', content: e(InputModalContent, { label: 'New Title', placeholder: 'Title...', value: n, onChange: v=>n=v }), onConfirm: () => updateQuizTitle(quiz.id, n) }); };
+        const currentProject = projects.find(p => p.id === activeProjectId);
+
+        /* --- FILE PROCESSING LOGIC --- */
+        const ALLOWED_EXTS = ['txt', 'md', 'srt', 'csv', 'json', 'js', 'html', 'css', 'py', 'java', 'c', 'cpp'];
+
+        const readFileContent = (file) => new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = (e) => resolve(e.target.result);
+            reader.readAsText(file);
+        });
+
+        // Recursive folder creation logic for ZIP paths
+        const ensureFolderPath = async (pathParts, rootId) => {
+            let currentParentId = rootId;
+            let localCreatedFolders = []; 
+
+            for (const part of pathParts) {
+                // Check in global files OR locally created ones
+                let existing = files.find(f => f.name === part && f.type === 'folder' && f.parentId === currentParentId) 
+                               || localCreatedFolders.find(f => f.name === part && f.parentId === currentParentId);
+
+                if (existing) {
+                    currentParentId = existing.id;
+                } else {
+                    // Create new folder
+                    const docRef = await fileActions.create(currentParentId, 'folder', part);
+                    currentParentId = docRef.id; // fileActions.create returns docRef
+                    localCreatedFolders.push({ id: docRef.id, name: part, parentId: currentParentId, type: 'folder' });
+                    toggleFolder(docRef.id, true); // Auto-expand
+                }
+            }
+            return currentParentId;
+        };
+
+        const processZip = async (file, rootId) => {
+            const zip = await JSZip.loadAsync(file);
+            const entries = Object.keys(zip.files).map(name => zip.files[name]);
+            
+            for (const entry of entries) {
+                if (entry.dir) continue; // We handle dirs implicitly via file paths
+                
+                const pathParts = entry.name.split('/');
+                const fileName = pathParts.pop();
+                const ext = fileName.split('.').pop().toLowerCase();
+                
+                if (ALLOWED_EXTS.includes(ext)) {
+                    // Ensure folders exist
+                    const targetFolderId = await ensureFolderPath(pathParts, rootId);
+                    // Read content
+                    const content = await entry.async('string');
+                    // Create file
+                    await fileActions.create(targetFolderId, 'file', fileName, content);
+                }
+            }
+        };
+
+        const handleExternalDrop = async (e, targetNodeId) => {
+            e.preventDefault();
+            setDragOverId(null);
+            
+            if (!e.dataTransfer.files || e.dataTransfer.files.length === 0) return; // Internal drop handled by FileNode
+
+            setIsUploading(true);
+            try {
+                const items = Array.from(e.dataTransfer.files);
+                for (const file of items) {
+                    const ext = file.name.split('.').pop().toLowerCase();
+                    
+                    if (ext === 'zip') {
+                        await processZip(file, targetNodeId);
+                    } else if (ALLOWED_EXTS.includes(ext)) {
+                        const content = await readFileContent(file);
+                        await fileActions.create(targetNodeId, 'file', file.name, content);
+                    }
+                }
+            } catch (err) {
+                console.error(err);
+                alert("Error processing files: " + err.message);
+            } finally {
+                setIsUploading(false);
+            }
+        };
+
+        const handleInternalDrop = async (e, targetNodeId) => {
+            e.preventDefault();
+            setDragOverId(null);
+            const draggedId = e.dataTransfer.getData('nodeId');
+            if (!draggedId || draggedId === targetNodeId) return;
+
+            const isDescendant = (parentId, childId) => {
+                if (parentId === 'root') return false;
+                if (parentId === childId) return true;
+                let current = files.find(f => f.id === parentId);
+                while (current && current.parentId !== 'root') {
+                    if (current.parentId === childId) return true;
+                    current = files.find(f => f.id === current.parentId);
+                }
+                return false;
+            };
+
+            if (isDescendant(targetNodeId, draggedId)) return; 
+            await fileActions.move(draggedId, targetNodeId);
+            if(targetNodeId !== 'root') toggleFolder(targetNodeId, true);
+        };
+
+        // --- EXISTING HANDLERS ---
+        const handleCreate = (type, pid='root') => { 
+            openModal({ title: `New ${type}`, content: e(PromptModal, { label: 'Name', placeholder: `Enter ${type} name...`, onSubmit: async(name)=>{ if(name.trim()) { await fileActions.create(pid, type, name.trim()); if(pid !== 'root') toggleFolder(pid, true); } closeModal(); }, onCancel: closeModal }) }); 
+        };
+        const handleRenameQuiz = (quiz) => { let n = quiz.title; openModal({ title: 'Rename Quiz', content: e(PromptModal, { label: 'New Title', placeholder: 'Title...', onSubmit: (v) => { updateQuizTitle(quiz.id, v); closeModal(); }, onCancel: closeModal }) }); };
         const handleContextMenu = (e, node) => { e.preventDefault(); e.stopPropagation(); setContextMenu({ x: e.clientX, y: e.clientY, node }); };
-        
         const getActions = () => {
             const { node } = contextMenu; const actions = [];
             if (!node) { actions.push({ label: 'New Folder', icon: 'bi-folder-plus', action: () => handleCreate('folder') }); actions.push({ label: 'New File', icon: 'bi-file-earmark-plus', action: () => handleCreate('file') }); return actions; }
@@ -346,13 +459,60 @@
             const isEditing = editingNodeId === node.id;
             const handleRename = async (e) => { e.preventDefault(); e.stopPropagation(); if(editName.trim() && editName!==node.name) await fileActions.rename(node.id, editName); setEditingNodeId(null); };
             const handleClick = (e) => { e.stopPropagation(); if (node.type === 'folder') { toggleFolder(node.id); } else { setActiveEditorFile(node); } };
-            return e(React.Fragment, null, e('div', { className: 'file-node', style: { paddingLeft: `${depth*12+12}px` }, 'data-active': activeEditorFile?.id===node.id, onClick: handleClick, onContextMenu: (e)=>handleContextMenu(e, node) }, e('i', { className: `bi mr-2 ${node.type==='folder'?(isOpen?'bi-folder2-open text-yellow-600':'bi-folder-fill text-yellow-600'):'bi-file-earmark-text text-gray-400'}` }), isEditing ? e('input', { className: 'input-std text-sm py-0 h-6', value: editName, onChange: e=>setEditName(e.target.value), onBlur: handleRename, autoFocus: true, onClick: e=>e.stopPropagation() }) : e('span', { className: 'truncate select-none' }, node.name)), isOpen && node.children?.map(c => e(FileNode, { key: c.id, node: c, depth: depth+1 })));
+            const isFolder = node.type === 'folder';
+            const chevronClass = isOpen ? 'bi-chevron-down' : 'bi-chevron-right';
+            const iconClass = isFolder ? (isOpen ? 'bi-folder2-open text-yellow-600' : 'bi-folder-fill text-yellow-600') : 'bi-file-earmark-text text-gray-400';
+            const isDragOver = dragOverId === node.id;
+
+            return e(React.Fragment, null, 
+                e('div', { 
+                    className: 'file-node', 
+                    style: { paddingLeft: `${depth*12+12}px` }, 
+                    'data-active': activeEditorFile?.id===node.id, 
+                    'data-drag-over': isDragOver,
+                    draggable: true,
+                    onDragStart: (e) => { e.dataTransfer.setData('nodeId', node.id); e.dataTransfer.setData('type', node.type); },
+                    onDragOver: (e) => { e.preventDefault(); if(node.type === 'folder' && node.id !== e.dataTransfer.getData('nodeId')) setDragOverId(node.id); },
+                    onDrop: (e) => { 
+                        if (!isFolder) return;
+                        // Check if files are being dropped (external) or nodes (internal)
+                        if (e.dataTransfer.files.length > 0) handleExternalDrop(e, node.id);
+                        else handleInternalDrop(e, node.id);
+                    },
+                    onDragLeave: (e) => setDragOverId(null),
+                    onClick: handleClick, 
+                    onContextMenu: (e)=>handleContextMenu(e, node) 
+                }, 
+                    e('span', { className: 'mr-2 text-gray-500 text-xs w-4 text-center flex justify-center' }, isFolder && e('i', { className: `bi ${chevronClass}` })),
+                    e('i', { className: `bi mr-2 ${iconClass}` }), 
+                    isEditing ? e('input', { className: 'input-std text-sm py-0 h-6', value: editName, onChange: e=>setEditName(e.target.value), onBlur: handleRename, autoFocus: true, onClick: e=>e.stopPropagation() }) : e('span', { className: 'truncate select-none' }, node.name)
+                ), 
+                isOpen && node.children?.map(c => e(FileNode, { key: c.id, node: c, depth: depth+1 }))
+            );
         };
 
         const fileQuizzes = activeEditorFile ? quizzes.filter(q => q.fileId === activeEditorFile.id) : [];
         
-        return e('div', { className: 'flex flex-col h-full', onClick: ()=>setContextMenu(null) },
-            e('div', { className: 'flex-1 overflow-y-auto p-2 border-b border-white/10', onContextMenu: (e)=>handleContextMenu(e, null) },
+        return e('div', { className: 'flex flex-col h-full relative', onClick: ()=>setContextMenu(null) },
+            // Loading Overlay
+            isUploading && e('div', { className: 'loading-overlay' }, e('div', { className: 'spinner' }), e('div', { className: 'mt-4 text-white font-bold' }, 'Processing Files...')),
+            
+            e('div', { 
+                className: 'flex-1 overflow-y-auto flex flex-col border-b border-white/10', 
+                onContextMenu: (e)=>handleContextMenu(e, null),
+                onDragOver: (e) => { e.preventDefault(); setDragOverId('root'); },
+                onDrop: (e) => { 
+                    if(e.target === e.currentTarget) {
+                        if (e.dataTransfer.files.length > 0) handleExternalDrop(e, 'root');
+                        else handleInternalDrop(e, 'root');
+                    }
+                }
+            },
+                e('div', { className: 'p-3 font-bold text-white border-b border-white/10 flex justify-between items-center bg-black/20 cursor-pointer hover:bg-white/10', onClick: () => setActiveProjectId(null) }, 
+                    e('span', null, currentProject?.name || 'Project'),
+                    e('i', { className: 'bi bi-folder2-open text-blue-400' })
+                ),
+                userId && fileTree.length === 0 && e('div', { className: 'flex flex-col items-center justify-center h-40 text-gray-500 gap-3' }, e('i', { className: 'bi bi-folder-plus text-3xl opacity-50' }), e('div', { className: 'text-sm' }, 'No files found'), e('button', { className: 'btn-secondary text-xs', onClick: () => handleCreate('file') }, 'Create New File')),
                 !userId && e('div', { className: 'text-center mt-10 text-gray-500' }, 'Sign in required'),
                 userId && fileTree.map(n => e(FileNode, { key: n.id, node: n, depth: 0 }))
             ),
@@ -360,13 +520,9 @@
                 e('div', { className: 'lower-pane-header' }, `Quizzes: ${activeEditorFile.name}`),
                 e('div', { className: 'flex-1 overflow-y-auto p-2' },
                     fileQuizzes.length === 0 && e('div', { className: 'text-xs text-gray-500 text-center p-4' }, 'No quizzes for this file.'),
-                    fileQuizzes.map(q => e('div', { key: q.id, className: 'quiz-card flex justify-between items-center group' },
-                        e('div', { onClick: () => openModalWrapper({ title: q.title, content: e(QuizTaker, { quiz: q, onClose: null, onSubmit: handleQuizSubmit }) }) }, e('div', { className: 'font-bold text-white text-sm' }, q.title), e('div', { className: 'text-xs text-gray-500' }, `${q.questionCount} Qs`)),
-                        e('div', { className: 'flex gap-2' },
-                            e('button', { className: 'text-gray-500 hover:text-white opacity-0 group-hover:opacity-100', onClick: (e) => { e.stopPropagation(); handleRenameQuiz(q); } }, e('i', { className: 'bi bi-pencil' })),
-                            // FIX: Added Delete Button
-                            e('button', { className: 'text-red-500 hover:text-red-300 opacity-0 group-hover:opacity-100', onClick: (e) => { e.stopPropagation(); deleteQuiz(q.id); } }, e('i', { className: 'bi bi-trash' }))
-                        )
+                    fileQuizzes.map(q => e('div', { key: q.id, className: 'quiz-card flex justify-between items-center group', onClick: () => openModalWrapper({ title: q.title, content: e(QuizTaker, { quiz: q, onClose: null, onSubmit: handleQuizSubmit }) }) },
+                        e('div', null, e('div', { className: 'font-bold text-white text-sm' }, q.title), e('div', { className: 'text-xs text-gray-500' }, `${q.questionCount} Qs`)),
+                        e('div', { className: 'flex gap-2' }, e('button', { className: 'text-gray-500 hover:text-white opacity-0 group-hover:opacity-100', onClick: (e) => { e.stopPropagation(); handleRenameQuiz(q); } }, e('i', { className: 'bi bi-pencil' })), e('button', { className: 'text-red-500 hover:text-red-300 opacity-0 group-hover:opacity-100', onClick: (e) => { e.stopPropagation(); deleteQuiz(q.id); } }, e('i', { className: 'bi bi-trash' })))
                     ))
                 )
             ),
@@ -379,48 +535,10 @@
         const [newKey, setNewKey] = useState('');
         const [selectedPromptType, setSelectedPromptType] = useState('MultipleChoice');
         const [promptEdits, setPromptEdits] = useState(userSettings.prompts || {});
-
         const handleAddKey = () => { if(!newKey.trim()) return; updateSettings({ ...userSettings, apiKeys: [...(userSettings.apiKeys||[]), {key:newKey.trim(),isActive:!(userSettings.apiKeys||[]).length}] }); setNewKey(''); toast.show('Key Added','success'); };
-        
-        const handleSavePrompts = () => {
-            updateSettings({ ...userSettings, prompts: promptEdits });
-            toast.show('Prompts Saved', 'success');
-        };
-
-        const handleResetPrompt = () => {
-            setPromptEdits(prev => ({ ...prev, [selectedPromptType]: DEFAULT_PROMPT }));
-        };
-
-        return e('div', { className: 'flex flex-col h-full p-4' }, 
-            e('h2', { className: 'text-lg font-semibold mb-6 flex items-center gap-2' }, e('i', { className: 'bi bi-gear-fill text-gray-400' }), 'Settings'), 
-            
-            e('div', { className: 'glass-panel rounded-xl p-5 mb-6' }, 
-                e('h3', { className: 'text-sm font-bold text-white mb-4' }, 'API Keys'), 
-                (userSettings.apiKeys||[]).map((k,i)=>e('div', { key: i, className: 'p-3 rounded border border-white/10 mb-2 flex justify-between items-center' }, e('span', { className: 'text-xs text-gray-400' }, k.key.substring(0,8)+'...'), e('div', { className: 'flex gap-2' }, e('button', { className: `text-xs px-2 ${k.isActive?'text-green-400':'text-gray-400'}`, onClick:()=>{const nk=[...userSettings.apiKeys];nk.forEach((kk,idx)=>kk.isActive=idx===i);updateSettings({...userSettings,apiKeys:nk})} }, k.isActive?'Active':'Activate'), e('button', { className: 'text-xs text-red-400', onClick:()=>{const nk=[...userSettings.apiKeys];nk.splice(i,1);updateSettings({...userSettings,apiKeys:nk})} }, 'Del')))), 
-                e('div', { className: 'flex gap-2' }, e('input', { className: 'input-std text-sm flex-grow', placeholder: 'New Gemini Key', type: 'password', value: newKey, onChange: e=>setNewKey(e.target.value) }), e('button', { className: 'btn-primary', onClick: handleAddKey }, 'Add'))
-            ), 
-            
-            e('div', { className: 'glass-panel rounded-xl p-5 mb-6' }, 
-                e('h3', { className: 'text-sm font-bold text-white mb-3' }, 'AI Model'), 
-                e('select', { className: 'input-std bg-black/20', value: userSettings.modelName||'gemini-2.5-flash', onChange: e=>updateSettings({...userSettings,modelName:e.target.value}) }, ['gemini-2.5-flash','gemini-2.5-flash-preview','gemini-2.5-pro','gemini-3.0-pro-preview'].map(m=>e('option',{key:m,value:m},m)))
-            ),
-
-            e('div', { className: 'glass-panel rounded-xl p-5 flex flex-col flex-1 overflow-hidden' }, 
-                e('h3', { className: 'text-sm font-bold text-white mb-3' }, 'Prompt Engineering'),
-                e('div', { className: 'flex gap-2 mb-3' },
-                    e('select', { className: 'input-std bg-black/20', value: selectedPromptType, onChange: e=>setSelectedPromptType(e.target.value) }, 
-                        ['MultipleChoice','TrueFalse','ShortAnswer','Essay'].map(t=>e('option',{key:t,value:t}, t))
-                    ),
-                    e('button', { className: 'btn-secondary', onClick: handleResetPrompt }, 'Reset to Default')
-                ),
-                e('textarea', { 
-                    className: 'input-std bg-black/20 flex-1 resize-none font-mono text-xs mb-3', 
-                    value: promptEdits[selectedPromptType] || DEFAULT_PROMPT, 
-                    onChange: e => setPromptEdits(prev => ({ ...prev, [selectedPromptType]: e.target.value })) 
-                }),
-                e('button', { className: 'btn-primary', onClick: handleSavePrompts }, 'Save All Prompts')
-            )
-        );
+        const handleSavePrompts = () => { updateSettings({ ...userSettings, prompts: promptEdits }); toast.show('Prompts Saved', 'success'); };
+        const handleResetPrompt = () => { setPromptEdits(prev => ({ ...prev, [selectedPromptType]: DEFAULT_PROMPT })); };
+        return e('div', { className: 'flex flex-col h-full p-4' }, e('h2', { className: 'text-lg font-semibold mb-6 flex items-center gap-2' }, e('i', { className: 'bi bi-gear-fill text-gray-400' }), 'Settings'), e('div', { className: 'glass-panel rounded-xl p-5 mb-6' }, e('h3', { className: 'text-sm font-bold text-white mb-4' }, 'API Keys'), (userSettings.apiKeys||[]).map((k,i)=>e('div', { key: i, className: 'p-3 rounded border border-white/10 mb-2 flex justify-between items-center' }, e('span', { className: 'text-xs text-gray-400' }, k.key.substring(0,8)+'...'), e('div', { className: 'flex gap-2' }, e('button', { className: `text-xs px-2 ${k.isActive?'text-green-400':'text-gray-400'}`, onClick:()=>{const nk=[...userSettings.apiKeys];nk.forEach((kk,idx)=>kk.isActive=idx===i);updateSettings({...userSettings,apiKeys:nk})} }, k.isActive?'Active':'Activate'), e('button', { className: 'text-xs text-red-400', onClick:()=>{const nk=[...userSettings.apiKeys];nk.splice(i,1);updateSettings({...userSettings,apiKeys:nk})} }, 'Del')))), e('div', { className: 'flex gap-2' }, e('input', { className: 'input-std text-sm flex-grow', placeholder: 'New Gemini Key', type: 'password', value: newKey, onChange: e=>setNewKey(e.target.value) }), e('button', { className: 'btn-primary', onClick: handleAddKey }, 'Add'))), e('div', { className: 'glass-panel rounded-xl p-5 mb-6' }, e('h3', { className: 'text-sm font-bold text-white mb-3' }, 'AI Model'), e('select', { className: 'input-std bg-black/20', value: userSettings.modelName||'gemini-2.5-flash', onChange: e=>updateSettings({...userSettings,modelName:e.target.value}) }, ['gemini-2.5-flash','gemini-2.5-flash-preview','gemini-2.5-pro','gemini-3.0-pro-preview'].map(m=>e('option',{key:m,value:m},m)))), e('div', { className: 'glass-panel rounded-xl p-5 flex flex-col flex-1 overflow-hidden' }, e('h3', { className: 'text-sm font-bold text-white mb-3' }, 'Prompt Engineering'), e('div', { className: 'flex gap-2 mb-3' }, e('select', { className: 'input-std bg-black/20', value: selectedPromptType, onChange: e=>setSelectedPromptType(e.target.value) }, ['MultipleChoice','TrueFalse','ShortAnswer','Essay'].map(t=>e('option',{key:t,value:t}, t))), e('button', { className: 'btn-secondary', onClick: handleResetPrompt }, 'Reset to Default')), e('textarea', { className: 'input-std bg-black/20 flex-1 resize-none font-mono text-xs mb-3', value: promptEdits[selectedPromptType] || DEFAULT_PROMPT, onChange: e => setPromptEdits(prev => ({ ...prev, [selectedPromptType]: e.target.value })) }), e('button', { className: 'btn-primary', onClick: handleSavePrompts }, 'Save All Prompts')));
     };
 
     const QuizGeneratorView = () => {
@@ -530,16 +648,14 @@
         );
     };
 
+    /* --- APP --- */
     const App = () => {
         const [db, setDb] = useState(null);
         const [auth, setAuth] = useState(null);
         const [userId, setUserId] = useState(null);
-        
         const [activeProjectId, setActiveProjectId] = useState(() => localStorage.getItem('activeProjectId'));
         useEffect(() => { if(activeProjectId) localStorage.setItem('activeProjectId', activeProjectId); else localStorage.removeItem('activeProjectId'); }, [activeProjectId]);
-
         const { route: activeView, navigate } = useHashRoute();
-
         const [projects, setProjects] = useState([]);
         const [files, setFiles] = useState([]);
         const [quizzes, setQuizzes] = useState([]);
@@ -550,127 +666,26 @@
         const [expandedFolders, setExpandedFolders] = useState(new Set());
         const [quizOptions, setQuizOptionsState] = useState({ numQuestions: 5, difficulty: 'Medium', questionType: 'MultipleChoice', includeSnippets: false, provideAnswerKey: true });
         const [userSettings, setUserSettings] = useState({ apiKeys: [], modelName: "gemini-2.5-flash", prompts: {} }); 
-        
         const { openModal, closeModal } = useModal();
         const toast = useToast();
         const quizWorker = useMemo(() => new Worker(workerUrl), []);
+        const toggleFolder = (id, forceOpen = false) => { setExpandedFolders(prev => { const next = new Set(prev); if (forceOpen) { next.add(id); } else { if (next.has(id)) next.delete(id); else next.add(id); } return next; }); };
+        const deleteQuiz = (id) => { openModal({ title: 'Delete Quiz', content: e('div', { className: 'text-gray-300' }, 'Are you sure you want to delete this quiz?'), footer: e('div', { className: 'flex gap-2' }, e('button', { className: 'glass-btn px-4 py-2 rounded text-gray-300', onClick: closeModal }, 'Cancel'), e('button', { className: 'btn-primary bg-red-600 hover:bg-red-500 px-4 py-2 rounded text-white', onClick: async () => { await deleteDoc(doc(db, `artifacts/${window.__app_id}/users/${userId}/quizzes`, id)); closeModal(); toast.show('Quiz deleted', 'success'); }}, 'Delete')) }); };
 
-        const toggleFolder = (id) => { setExpandedFolders(prev => { const next = new Set(prev); if (next.has(id)) next.delete(id); else next.add(id); return next; }); };
-
-        // FIX: Added Delete Quiz Function
-        const deleteQuiz = (id) => {
-            openModal({
-                title: 'Delete Quiz',
-                content: e('div', { className: 'text-gray-300' }, 'Are you sure you want to delete this quiz? This action cannot be undone.'),
-                footer: e('div', { className: 'flex gap-2' },
-                    e('button', { className: 'glass-btn px-4 py-2 rounded text-gray-300', onClick: closeModal }, 'Cancel'),
-                    e('button', { className: 'btn-primary bg-red-600 hover:bg-red-500 px-4 py-2 rounded text-white', onClick: async () => {
-                        await deleteDoc(doc(db, `artifacts/${window.__app_id}/users/${userId}/quizzes`, id));
-                        closeModal();
-                        toast.show('Quiz deleted', 'success');
-                    }}, 'Delete')
-                )
-            });
-        };
-
-        useEffect(() => {
-            const conf = JSON.parse(window.__firebase_config);
-            const app = initializeApp(conf);
-            setDb(getFirestore(app));
-            setAuth(getAuth(app));
-            onAuthStateChanged(getAuth(app), u => { setUserId(u ? u.uid : null); if (!u) { setActiveProjectId(null); setFiles([]); setQuizzes([]); setAttempts([]); } });
-        }, []);
-
-        useEffect(() => {
-            if (!db || !userId) return;
-            const loadProjects = onSnapshot(collection(db, `artifacts/${window.__app_id}/users/${userId}/projects`), s => {
-                const data = s.docs.map(d => ({id:d.id, ...d.data()}));
-                data.sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
-                setProjects(data);
-            });
-            const loadSettings = onSnapshot(doc(db, `artifacts/${window.__app_id}/users/${userId}/settings/userConfig`), s => { if(s.exists()) setUserSettings(s.data()); });
-            return () => { loadProjects(); loadSettings(); };
-        }, [db, userId]);
-
-        useEffect(() => {
-            if (!db || !userId || !activeProjectId) { setFiles([]); setQuizzes([]); setAttempts([]); return; }
-            const colPath = `artifacts/${window.__app_id}/users/${userId}`;
-            const unsubFiles = onSnapshot(query(collection(db, `${colPath}/files`), where('projectId', '==', activeProjectId)), s => setFiles(s.docs.map(d => ({id:d.id, ...d.data()}))));
-            const unsubQuizzes = onSnapshot(collection(db, `${colPath}/quizzes`), s => { const data = s.docs.map(d => ({id:d.id, ...d.data()})); data.sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt)); setQuizzes(data); });
-            const unsubAttempts = onSnapshot(collection(db, `${colPath}/quizAttempts`), s => { const data = s.docs.map(d => ({id:d.id, ...d.data()})); data.sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt)); setAttempts(data); });
-            return () => { unsubFiles(); unsubQuizzes(); unsubAttempts(); };
-        }, [db, userId, activeProjectId]);
-
-        useEffect(() => {
-            quizWorker.onmessage = (e) => {
-                const { status, taskId, quizData, updatedAttempt, error, options } = e.data;
-                setTaskQueue(q => q.map(t => t.id === taskId ? { ...t, status: status==='success'?'success':'failed' } : t));
-                if (status === 'success') {
-                    if (quizData) {
-                        addDoc(collection(db, `artifacts/${window.__app_id}/users/${userId}/quizzes`), {
-                            title: quizData.title, questions: JSON.stringify(quizData.questions), fileId: options.fileId, userId, createdAt: new Date().toISOString(), questionCount: quizData.questions.length, options
-                        });
-                        toast.show('Quiz Generated!', 'success');
-                    }
-                    if (updatedAttempt) {
-                        updateDoc(doc(db, `artifacts/${window.__app_id}/users/${userId}/quizAttempts`, updatedAttempt.id), updatedAttempt);
-                        toast.show('Grading Complete!', 'success');
-                        openModal({ title: 'Result', content: e(QuizResult, { attempt: updatedAttempt }) });
-                    }
-                } else { toast.show(`Error: ${error}`, 'error'); }
-            };
-        }, [quizWorker, db, userId, toast, openModal]);
+        useEffect(() => { const conf = JSON.parse(window.__firebase_config); const app = initializeApp(conf); setDb(getFirestore(app)); setAuth(getAuth(app)); onAuthStateChanged(getAuth(app), u => { setUserId(u ? u.uid : null); if (!u) { setActiveProjectId(null); setFiles([]); setQuizzes([]); setAttempts([]); } }); }, []);
+        useEffect(() => { if (!db || !userId) return; const loadProjects = onSnapshot(collection(db, `artifacts/${window.__app_id}/users/${userId}/projects`), s => { const data = s.docs.map(d => ({id:d.id, ...d.data()})); data.sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt)); setProjects(data); }); const loadSettings = onSnapshot(doc(db, `artifacts/${window.__app_id}/users/${userId}/settings/userConfig`), s => { if(s.exists()) setUserSettings(s.data()); }); return () => { loadProjects(); loadSettings(); }; }, [db, userId]);
+        useEffect(() => { if (!db || !userId || !activeProjectId) { setFiles([]); setQuizzes([]); setAttempts([]); return; } const colPath = `artifacts/${window.__app_id}/users/${userId}`; const unsubFiles = onSnapshot(query(collection(db, `${colPath}/files`), where('projectId', '==', activeProjectId)), s => setFiles(s.docs.map(d => ({id:d.id, ...d.data()})))); const unsubQuizzes = onSnapshot(collection(db, `${colPath}/quizzes`), s => { const data = s.docs.map(d => ({id:d.id, ...d.data()})); data.sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt)); setQuizzes(data); }); const unsubAttempts = onSnapshot(collection(db, `${colPath}/quizAttempts`), s => { const data = s.docs.map(d => ({id:d.id, ...d.data()})); data.sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt)); setAttempts(data); }); return () => { unsubFiles(); unsubQuizzes(); unsubAttempts(); }; }, [db, userId, activeProjectId]);
+        useEffect(() => { quizWorker.onmessage = (e) => { const { status, taskId, quizData, updatedAttempt, error, options } = e.data; setTaskQueue(q => q.map(t => t.id === taskId ? { ...t, status: status==='success'?'success':'failed' } : t)); if (status === 'success') { if (quizData) { addDoc(collection(db, `artifacts/${window.__app_id}/users/${userId}/quizzes`), { title: quizData.title, questions: JSON.stringify(quizData.questions), fileId: options.fileId, userId, createdAt: new Date().toISOString(), questionCount: quizData.questions.length, options }); toast.show('Quiz Generated!', 'success'); } if (updatedAttempt) { updateDoc(doc(db, `artifacts/${window.__app_id}/users/${userId}/quizAttempts`, updatedAttempt.id), updatedAttempt); toast.show('Grading Complete!', 'success'); openModal({ title: 'Result', content: e(QuizResult, { attempt: updatedAttempt }) }); } } else { toast.show(`Error: ${error}`, 'error'); } }; }, [quizWorker, db, userId, toast, openModal]);
 
         const dispatchTask = (task) => { const id=Date.now().toString(); setTaskQueue(p=>[{...task,id,status:'processing'},...p]); quizWorker.postMessage({...task,id,settings:userSettings}); };
         const handleQuizSubmit = async (result) => { const docRef = await addDoc(collection(db, `artifacts/${window.__app_id}/users/${userId}/quizAttempts`), {...result, userId, projectId:activeProjectId}); openModal({ title: 'Result', content: e(QuizResult, { attempt: {...result, id:docRef.id}, onGradeAI:()=>dispatchGrading({...result, id:docRef.id}) }) }); };
         const dispatchGrading = (attempt) => { closeModal(); dispatchTask({ taskType: 'grade', attempt }); toast.show('AI Grading Started','info'); };
         const updateQuizTitle = async (id, title) => { if(!db||!userId) return; await updateDoc(doc(db, `artifacts/${window.__app_id}/users/${userId}/quizzes`, id), { title }); };
+        const handleGenerateQuiz = (fileNode) => { if (!fileNode || !fileNode.content) return toast.show("Empty File", 'error'); const hasKey = (userSettings.apiKeys||[]).some(k=>k.isActive); if (!hasKey) return toast.show("No Active API Key", 'error'); const selectedTemplate = (userSettings.prompts && userSettings.prompts[quizOptions.questionType]) || DEFAULT_PROMPT; dispatchTask({ taskType: 'generate', sourceText: fileNode.content, options: { ...quizOptions, fileId: fileNode.id, sourceFileName: fileNode.name, promptTemplate: selectedTemplate } }); toast.show('Started Generation...', 'info'); };
 
-        // FIX: Use custom prompt from settings
-        const handleGenerateQuiz = (fileNode) => {
-             if (!fileNode || !fileNode.content) return toast.show("Empty File", 'error');
-             const hasKey = (userSettings.apiKeys||[]).some(k=>k.isActive);
-             if (!hasKey) return toast.show("No Active API Key", 'error');
-             
-             // Select the correct template or default
-             const selectedTemplate = (userSettings.prompts && userSettings.prompts[quizOptions.questionType]) || DEFAULT_PROMPT;
-
-             dispatchTask({ 
-                 taskType: 'generate', 
-                 sourceText: fileNode.content, 
-                 options: { 
-                     ...quizOptions, 
-                     fileId: fileNode.id, 
-                     sourceFileName: fileNode.name,
-                     promptTemplate: selectedTemplate // Pass the template to worker
-                 } 
-             });
-             toast.show('Started Generation...', 'info');
-        };
-
-        const fileActions = useMemo(() => {
-            if (!db || !userId || !activeProjectId) return {};
-            const colRef = collection(db, `artifacts/${window.__app_id}/users/${userId}/files`);
-            return {
-                create: async (pid, type, name, content='') => addDoc(colRef, { parentId: pid, type, name, content, projectId: activeProjectId, userId, createdAt: new Date().toISOString() }),
-                rename: async (id, name) => updateDoc(doc(colRef, id), { name }),
-                remove: async (id) => deleteDoc(doc(colRef, id)),
-                updateContent: async (id, content) => updateDoc(doc(colRef, id), { content }),
-                move: async (id, pid) => updateDoc(doc(colRef, id), { parentId: pid })
-            };
-        }, [db, userId, activeProjectId]);
-
-        const fileTree = useMemo(() => {
-            const map = {}; const roots = [];
-            files.forEach(f => map[f.id] = { ...f, children: [] });
-            Object.values(map).forEach(n => { if (n.parentId === 'root' || !map[n.parentId]) roots.push(n); else map[n.parentId].children.push(n); });
-            const sortFn = (a,b) => (a.type===b.type ? a.name.localeCompare(b.name) : (a.type==='folder'?-1:1));
-            const sortNode = (l) => { l.sort(sortFn); l.forEach(c => sortNode(c.children)); };
-            sortNode(roots); return roots;
-        }, [files]);
-
-        const ctx = { db, userId, fileTree, fileActions, files, activeEditorFile, setActiveEditorFile, editingNodeId, setEditingNodeId, quizOptions, setQuizOptions: setQuizOptionsState, taskQueue, dispatchTask, handleGoogleSignIn: async () => { if (auth) await signInWithPopup(auth, new GoogleAuthProvider()); }, toast, userSettings, updateSettings: (s) => { setUserSettings(s); if(userId) setDoc(doc(db, `artifacts/${window.__app_id}/users/${userId}/settings/userConfig`), s); }, quizzes, attempts, openModalWrapper: ({title, content}) => openModal({title, content}), handleQuizSubmit, dispatchGrading, updateQuizTitle, handleGenerateQuiz, expandedFolders, toggleFolder, deleteQuiz };
-
+        const fileActions = useMemo(() => { if (!db || !userId || !activeProjectId) return {}; const colRef = collection(db, `artifacts/${window.__app_id}/users/${userId}/files`); return { create: async (pid, type, name, content='') => addDoc(colRef, { parentId: pid, type, name, content, projectId: activeProjectId, userId, createdAt: new Date().toISOString() }), rename: async (id, name) => updateDoc(doc(colRef, id), { name }), remove: async (id) => deleteDoc(doc(colRef, id)), updateContent: async (id, content) => updateDoc(doc(colRef, id), { content }), move: async (id, pid) => updateDoc(doc(colRef, id), { parentId: pid }) }; }, [db, userId, activeProjectId]);
+        const fileTree = useMemo(() => { const map = {}; const roots = []; files.forEach(f => map[f.id] = { ...f, children: [] }); Object.values(map).forEach(n => { if (n.parentId === 'root' || !map[n.parentId]) roots.push(n); else map[n.parentId].children.push(n); }); const sortFn = (a,b) => (a.type===b.type ? a.name.localeCompare(b.name) : (a.type==='folder'?-1:1)); const sortNode = (l) => { l.sort(sortFn); l.forEach(c => sortNode(c.children)); }; sortNode(roots); return roots; }, [files]);
+        const ctx = { db, userId, fileTree, fileActions, files, activeEditorFile, setActiveEditorFile, editingNodeId, setEditingNodeId, quizOptions, setQuizOptions: setQuizOptionsState, taskQueue, dispatchTask, handleGoogleSignIn: async () => { if (auth) await signInWithPopup(auth, new GoogleAuthProvider()); }, toast, userSettings, updateSettings: (s) => { setUserSettings(s); if(userId) setDoc(doc(db, `artifacts/${window.__app_id}/users/${userId}/settings/userConfig`), s); }, quizzes, attempts, openModalWrapper: ({title, content}) => openModal({title, content}), handleQuizSubmit, dispatchGrading, updateQuizTitle, handleGenerateQuiz, expandedFolders, toggleFolder, deleteQuiz, activeProjectId, projects, setActiveProjectId };
         const navItems = [ { id: 'files', icon: 'bi-files' }, { id: 'quiz', icon: 'bi-lightning-charge' }, { id: 'history', icon: 'bi-collection-play' }, { id: 'settings', icon: 'bi-gear' }, { id: 'tasks', icon: 'bi-activity' } ];
         
         if (userId && !activeProjectId) return e(ProjectDashboard, { projects, onCreate: async (n) => addDoc(collection(db, `artifacts/${window.__app_id}/users/${userId}/projects`), { name: n, createdAt: new Date().toISOString() }), onSelect: setActiveProjectId, onDelete: (id) => deleteDoc(doc(db, `artifacts/${window.__app_id}/users/${userId}/projects`, id)) });
