@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AI Quiz Obsidian (v20.0 - Router & Stable)</title>
+  <title>AI Quiz Obsidian (v20.5 - Delete Feature)</title>
 
   <!-- Fonts & Icons -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -20,9 +20,11 @@
   <!-- Markdown & Math -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.8/purify.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
-  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+  
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 
@@ -69,25 +71,21 @@
     }
     body { font-family: var(--font-main); background-color: var(--bg-dark); color: #e5e5e5; height: 100vh; overflow: hidden; margin: 0; }
     
-    /* Custom Scrollbar */
     ::-webkit-scrollbar { width: 6px; height: 6px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
     ::-webkit-scrollbar-thumb:hover { background: #555; }
 
-    /* Glassmorphism & Panels */
     .glass-panel { background: rgba(255, 255, 255, 0.03); border: var(--border-glass); }
     .glass-modal { background: #1a1a1a; border: 1px solid rgba(255,255,255,0.15); box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); }
     .glass-btn { background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255,255,255,0.1); transition: all 0.2s; }
     .glass-btn:hover { background: rgba(255, 255, 255, 0.1); border-color: rgba(255,255,255,0.3); }
     
-    /* Layout */
     .app-container { display: flex; height: 100vh; }
     .sidebar-container { width: 50px; display: flex; flex-direction: column; border-right: var(--border-glass); background: var(--bg-panel); z-index: 20; }
     .sidebar-view { width: 320px; background: var(--bg-panel); border-right: var(--border-glass); display: flex; flex-direction: column; transition: width 0.3s; flex-shrink: 0; }
     .main-area { flex-grow: 1; display: flex; flex-direction: column; background: var(--bg-dark); position: relative; overflow: hidden; }
     
-    /* Components */
     .file-node { padding: 4px 8px; display: flex; align-items: center; cursor: pointer; border-radius: 4px; color: #a3a3a3; user-select: none; }
     .file-node:hover { background: rgba(255,255,255,0.05); color: #fff; }
     .file-node[data-active='true'] { background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
@@ -98,31 +96,29 @@
     
     .btn-primary { background: var(--accent-blue); color: white; padding: 6px 16px; border-radius: 4px; font-weight: 500; transition: 0.2s; }
     .btn-primary:hover { filter: brightness(1.1); }
+
+    .btn-secondary { background: rgba(255,255,255,0.1); color: #ccc; padding: 6px 12px; border-radius: 4px; font-size: 0.8rem; transition: 0.2s; }
+    .btn-secondary:hover { background: rgba(255,255,255,0.2); color: white; }
     
-    /* Markdown */
     .markdown-body { font-family: var(--font-main); color: #e5e5e5; line-height: 1.7; padding: 40px; overflow-y: auto; height: 100%; }
     .markdown-body h1 { font-size: 2em; border-bottom: 1px solid #333; padding-bottom: 0.3em; margin-top: 1.5em; color: #fff; }
     .markdown-body code { background: rgba(255,255,255,0.1); padding: 0.2em 0.4em; border-radius: 3px; font-family: monospace; }
     .markdown-body pre { background: #1e1e1e; padding: 1em; border-radius: 8px; overflow-x: auto; }
     
-    /* Modal */
     .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 50; animation: fadeIn 0.2s; }
     .modal-content { animation: scaleIn 0.2s cubic-bezier(0.16, 1, 0.3, 1); }
     @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     @keyframes scaleIn { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 
-    /* Context Menu */
     .context-menu { position: fixed; z-index: 1000; background: #252526; border: 1px solid #454545; box-shadow: 0 4px 12px rgba(0,0,0,0.5); border-radius: 6px; min-width: 160px; padding: 4px; }
     .context-item { padding: 6px 12px; cursor: pointer; font-size: 13px; color: #ccc; border-radius: 4px; display: flex; align-items: center; gap: 8px; }
     .context-item:hover { background: #094771; color: white; }
     .context-divider { height: 1px; background: #454545; margin: 4px 0; }
 
-    /* Quiz Cards */
     .quiz-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); padding: 12px; border-radius: 6px; margin-bottom: 8px; cursor: pointer; transition: all 0.2s; }
     .quiz-card:hover { border-color: rgba(59, 130, 246, 0.5); background: rgba(255,255,255,0.05); }
 
-    /* Split Pane */
-    .lower-pane-header { padding: 8px 12px; font-size: 0.75rem; font-weight: bold; color: #666; text-transform: uppercase; letter-spacing: 0.05em; display: flex; justify-content: space-between; }
+    .lower-pane-header { padding: 8px 12px; font-size: 0.75rem; font-weight: bold; color: #666; text-transform: uppercase; letter-spacing: 0.05em; display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.05); }
   </style>
 </head>
 <body>
@@ -144,7 +140,6 @@
     const useToast = () => useContext(ToastContext);
     const useModal = () => useContext(ModalContext);
 
-    /* --- ROUTING HOOK (New) --- */
     const useHashRoute = () => {
       const [route, setRoute] = useState(window.location.hash.slice(1) || 'files');
       useEffect(() => {
@@ -156,15 +151,8 @@
       return { route, navigate };
     };
 
-    /* --- WORKER SCRIPT --- */
-    const workerScript = `
-      const fetchWithRetry = async (url, options, retries = 3) => {
-        for (let i = 0; i < retries; i++) {
-          try { const res = await fetch(url, options); if (!res.ok) throw new Error(res.status); return res.json(); } 
-          catch (e) { if (i < retries - 1) await new Promise(r => setTimeout(r, 1000 * Math.pow(2, i))); else throw e; }
-        }
-      };
-      const SYSTEM_PROMPT = \`
+    // DEFAULT PROMPT TEMPLATE (XML Format)
+    const DEFAULT_PROMPT = `
 <AIFramework_V3>
     <Cognitive_Core>
         <Persona>Dr. Elias Thorne, Chief Assessment Architect. Expert in high-stakes educational assessment.</Persona>
@@ -177,10 +165,22 @@
                 <Rule name="Snippets">{{INCLUDE_SNIPPETS}}</Rule>
                 <Rule name="Grading">{{PROVIDE_ANSWER_KEY}}</Rule>
                 <Rule name="Custom">{{CUSTOM_INSTRUCTIONS}}</Rule>
+                <Rule name="SpecificType">Generate questions of type: {{QUESTION_TYPE}}</Rule>
+                <Rule name="Difficulty">Target difficulty level: {{DIFFICULTY}}</Rule>
+                <Rule name="Quantity">Generate exactly {{NUM_QUESTIONS}} questions.</Rule>
             </Rules>
         </Directive_Protocol>
     </Operational_Cortex>
-</AIFramework_V3>\`;
+</AIFramework_V3>`;
+
+    /* --- WORKER SCRIPT --- */
+    const workerScript = `
+      const fetchWithRetry = async (url, options, retries = 3) => {
+        for (let i = 0; i < retries; i++) {
+          try { const res = await fetch(url, options); if (!res.ok) throw new Error(res.status); return res.json(); } 
+          catch (e) { if (i < retries - 1) await new Promise(r => setTimeout(r, 1000 * Math.pow(2, i))); else throw e; }
+        }
+      };
 
       self.onmessage = async (e) => {
         const { id, taskType, sourceText, options, settings, attempt } = e.data;
@@ -192,9 +192,13 @@
           const baseUrl = \`https://generativelanguage.googleapis.com/v1beta/models/\${model}:generateContent?key=\${activeKey}\`;
 
           if (taskType === 'generate') {
-             let systemInstruction = SYSTEM_PROMPT
-                .replace('{{DIFFICULTY}}', options.difficulty).replace('{{QUESTION_TYPE}}', options.questionType).replace('{{NUM_QUESTIONS}}', options.numQuestions)
-                .replace('{{INCLUDE_SNIPPETS}}', options.includeSnippets ? "Include code snippets." : "")
+             let baseTemplate = options.promptTemplate || "No Template Provided";
+             
+             let systemInstruction = baseTemplate
+                .replace('{{DIFFICULTY}}', options.difficulty)
+                .replace('{{QUESTION_TYPE}}', options.questionType)
+                .replace('{{NUM_QUESTIONS}}', options.numQuestions)
+                .replace('{{INCLUDE_SNIPPETS}}', options.includeSnippets ? "Include code snippets." : "Do NOT include code snippets/source text in questions.")
                 .replace('{{PROVIDE_ANSWER_KEY}}', options.provideAnswerKey ? "Set correctAnswerIndex." : "")
                 .replace('{{CUSTOM_INSTRUCTIONS}}', options.customInstructions || "");
              
@@ -232,7 +236,7 @@
             children,
             modal && e('div', { className: 'modal-overlay', onClick: () => setModal(null) },
                 e('div', { className: 'glass-modal modal-content rounded-xl p-0 w-full max-w-3xl flex flex-col max-h-[85vh] overflow-hidden', onClick: e => e.stopPropagation() },
-                     e('div', { className: 'flex justify-between items-center p-4 border-b border-white/10 bg-black/40' },
+                      e('div', { className: 'flex justify-between items-center p-4 border-b border-white/10 bg-black/40' },
                         e('h3', { className: 'text-lg font-semibold text-white' }, modal.title),
                         e('button', { onClick: () => setModal(null), className: 'text-gray-400 hover:text-white' }, e('i', { className: 'bi bi-x-lg' }))
                     ),
@@ -262,12 +266,12 @@
 
     const InputModalContent = ({ label, placeholder, value, onChange }) => e('div', { className: 'flex flex-col gap-2' }, e('label', { className: 'text-xs text-gray-400 font-bold' }, label), e('input', { className: 'input-std', placeholder, value, onChange: e=>onChange(e.target.value), autoFocus: true }));
 
-    /* --- APP COMPONENT DEFINITIONS (ORDER MATTERS) --- */
-
-    // 1. Quiz Components
+    /* --- APP COMPONENTS --- */
     const QuizTaker = ({ quiz, onClose, onSubmit }) => {
         const [questions] = useState(() => { try { return JSON.parse(quiz.questions); } catch(e) { return []; } });
         const [answers, setAnswers] = useState({});
+        const [visibleHints, setVisibleHints] = useState({}); 
+
         const handleSubmit = () => {
             const results = questions.map((q, idx) => {
                 const userAns = answers[idx];
@@ -282,7 +286,16 @@
         return e('div', { className: 'flex flex-col gap-6' },
             questions.map((q, idx) => e('div', { key: idx, className: 'quiz-question border-b border-white/10 pb-4' },
                 e('div', { className: 'flex gap-3 mb-3' }, e('span', { className: 'text-blue-400 font-bold' }, `Q${idx+1}`), e('div', { className: 'text-lg text-gray-200' }, q.questionText)),
-                q.contextSnippet && e('pre', { className: 'bg-black/30 p-3 rounded text-sm text-gray-400 mb-4 font-mono overflow-x-auto' }, q.contextSnippet),
+                q.contextSnippet && e('div', { className: 'mb-4' },
+                    !visibleHints[idx] 
+                        ? e('button', { className: 'text-xs text-gray-500 hover:text-blue-400 flex items-center gap-1', onClick: () => setVisibleHints(p => ({...p, [idx]: true})) }, e('i', { className: 'bi bi-eye' }), 'Show Hint (Context)')
+                        : e('div', null,
+                             e('pre', { className: 'bg-black/30 p-3 rounded text-sm text-gray-400 font-mono overflow-x-auto relative' }, 
+                                 q.contextSnippet,
+                                 e('button', { className: 'absolute top-2 right-2 text-gray-500 hover:text-white', onClick: () => setVisibleHints(p => ({...p, [idx]: false})) }, e('i', { className: 'bi bi-eye-slash' }))
+                             )
+                        )
+                ),
                 (q.questionType === 'MultipleChoice') ? (
                     e('div', { className: 'flex flex-col gap-2' }, (q.options || []).map((opt, oIdx) => e('label', { key: oIdx, className: 'quiz-option bg-white/5 rounded p-3 cursor-pointer hover:bg-white/10 flex items-center gap-3' }, e('input', { type: 'radio', name: `q${idx}`, checked: answers[idx] == oIdx, onChange: () => setAnswers(p => ({...p, [idx]: oIdx})) }), e('span', { className: 'text-gray-300' }, opt))))
                 ) : (
@@ -307,49 +320,53 @@
         );
     };
 
-    // 2. View Components
     const FileManagerView = () => {
-        const { fileTree, fileActions, userId, setEditingNodeId, quizzes, activeEditorFile, setActiveEditorFile, openModalWrapper, handleQuizSubmit, dispatchTask, quizOptions, updateQuizTitle } = useContext(AppContext);
+        const { fileTree, fileActions, userId, setEditingNodeId, quizzes, activeEditorFile, setActiveEditorFile, openModalWrapper, handleQuizSubmit, dispatchTask, quizOptions, updateQuizTitle, handleGenerateQuiz, expandedFolders, toggleFolder, deleteQuiz } = useContext(AppContext);
         const { openModal } = useModal();
         const [contextMenu, setContextMenu] = useState(null);
-        const [isRootDragOver, setIsRootDragOver] = useState(false);
         
         const handleCreate = (type, pid='root') => { let n=''; openModal({ title: `New ${type}`, content: e(InputModalContent, { label: 'Name', placeholder: 'Name...', value: n, onChange: v=>n=v }), onConfirm: async()=>{ if(n.trim()) await fileActions.create(pid, type, n.trim()); } }); };
-        const handleGenerate = (node) => { if (!node.content) return alert("Empty File"); dispatchTask({ taskType: 'generate', sourceText: node.content, options: { ...quizOptions, fileId: node.id, sourceFileName: node.name } }); };
         const handleRenameQuiz = (quiz) => { let n = quiz.title; openModal({ title: 'Rename Quiz', content: e(InputModalContent, { label: 'New Title', placeholder: 'Title...', value: n, onChange: v=>n=v }), onConfirm: () => updateQuizTitle(quiz.id, n) }); };
         const handleContextMenu = (e, node) => { e.preventDefault(); e.stopPropagation(); setContextMenu({ x: e.clientX, y: e.clientY, node }); };
+        
         const getActions = () => {
             const { node } = contextMenu; const actions = [];
             if (!node) { actions.push({ label: 'New Folder', icon: 'bi-folder-plus', action: () => handleCreate('folder') }); actions.push({ label: 'New File', icon: 'bi-file-earmark-plus', action: () => handleCreate('file') }); return actions; }
             if (node.type === 'folder') { actions.push({ label: 'New File', icon: 'bi-file-earmark-plus', action: () => handleCreate('file', node.id) }); actions.push({ label: 'New Folder', icon: 'bi-folder-plus', action: () => handleCreate('folder', node.id) }); actions.push('divider'); }
-            if (node.type === 'file') { actions.push({ label: 'Generate Quiz', icon: 'bi-lightning-fill', action: () => handleGenerate(node) }); actions.push('divider'); }
+            if (node.type === 'file') { actions.push({ label: 'Generate Quiz', icon: 'bi-lightning-fill', action: () => handleGenerateQuiz(node) }); actions.push('divider'); }
             actions.push({ label: 'Rename', icon: 'bi-pencil', action: () => setEditingNodeId(node.id) });
             actions.push({ label: 'Delete', icon: 'bi-trash', action: () => fileActions.remove(node.id, node.type) });
             return actions;
         };
 
         const FileNode = ({ node, depth }) => {
-            const { activeEditorFile, editingNodeId, setEditingNodeId, fileActions } = useContext(AppContext);
-            const [isOpen, setIsOpen] = useState(false);
+            const { activeEditorFile, editingNodeId, setEditingNodeId, fileActions, expandedFolders, toggleFolder } = useContext(AppContext);
+            const isOpen = expandedFolders.has(node.id);
             const [editName, setEditName] = useState(node.name);
             const isEditing = editingNodeId === node.id;
             const handleRename = async (e) => { e.preventDefault(); e.stopPropagation(); if(editName.trim() && editName!==node.name) await fileActions.rename(node.id, editName); setEditingNodeId(null); };
-            return e(React.Fragment, null, e('div', { className: 'file-node', style: { paddingLeft: `${depth*12+12}px` }, 'data-active': activeEditorFile?.id===node.id, onClick: (e)=>{e.stopPropagation();node.type==='folder'?setIsOpen(!isOpen):setActiveEditorFile(node)}, onContextMenu: (e)=>handleContextMenu(e, node) }, e('i', { className: `bi mr-2 ${node.type==='folder'?(isOpen?'bi-folder2-open text-yellow-600':'bi-folder-fill text-yellow-600'):'bi-file-earmark-text text-gray-400'}` }), isEditing ? e('input', { className: 'input-std text-sm py-0 h-6', value: editName, onChange: e=>setEditName(e.target.value), onBlur: handleRename, autoFocus: true, onClick: e=>e.stopPropagation() }) : e('span', { className: 'truncate select-none' }, node.name)), isOpen && node.children?.map(c => e(FileNode, { key: c.id, node: c, depth: depth+1 })));
+            const handleClick = (e) => { e.stopPropagation(); if (node.type === 'folder') { toggleFolder(node.id); } else { setActiveEditorFile(node); } };
+            return e(React.Fragment, null, e('div', { className: 'file-node', style: { paddingLeft: `${depth*12+12}px` }, 'data-active': activeEditorFile?.id===node.id, onClick: handleClick, onContextMenu: (e)=>handleContextMenu(e, node) }, e('i', { className: `bi mr-2 ${node.type==='folder'?(isOpen?'bi-folder2-open text-yellow-600':'bi-folder-fill text-yellow-600'):'bi-file-earmark-text text-gray-400'}` }), isEditing ? e('input', { className: 'input-std text-sm py-0 h-6', value: editName, onChange: e=>setEditName(e.target.value), onBlur: handleRename, autoFocus: true, onClick: e=>e.stopPropagation() }) : e('span', { className: 'truncate select-none' }, node.name)), isOpen && node.children?.map(c => e(FileNode, { key: c.id, node: c, depth: depth+1 })));
         };
 
         const fileQuizzes = activeEditorFile ? quizzes.filter(q => q.fileId === activeEditorFile.id) : [];
+        
         return e('div', { className: 'flex flex-col h-full', onClick: ()=>setContextMenu(null) },
             e('div', { className: 'flex-1 overflow-y-auto p-2 border-b border-white/10', onContextMenu: (e)=>handleContextMenu(e, null) },
                 !userId && e('div', { className: 'text-center mt-10 text-gray-500' }, 'Sign in required'),
                 userId && fileTree.map(n => e(FileNode, { key: n.id, node: n, depth: 0 }))
             ),
             activeEditorFile && e('div', { className: 'h-1/3 flex flex-col bg-black/20' },
-                e('div', { className: 'lower-pane-header' }, 'Generated Quizzes'),
+                e('div', { className: 'lower-pane-header' }, `Quizzes: ${activeEditorFile.name}`),
                 e('div', { className: 'flex-1 overflow-y-auto p-2' },
-                    fileQuizzes.length === 0 && e('div', { className: 'text-xs text-gray-500 text-center p-4' }, 'No quizzes yet.'),
+                    fileQuizzes.length === 0 && e('div', { className: 'text-xs text-gray-500 text-center p-4' }, 'No quizzes for this file.'),
                     fileQuizzes.map(q => e('div', { key: q.id, className: 'quiz-card flex justify-between items-center group' },
                         e('div', { onClick: () => openModalWrapper({ title: q.title, content: e(QuizTaker, { quiz: q, onClose: null, onSubmit: handleQuizSubmit }) }) }, e('div', { className: 'font-bold text-white text-sm' }, q.title), e('div', { className: 'text-xs text-gray-500' }, `${q.questionCount} Qs`)),
-                        e('button', { className: 'text-gray-500 hover:text-white opacity-0 group-hover:opacity-100', onClick: (e) => { e.stopPropagation(); handleRenameQuiz(q); } }, e('i', { className: 'bi bi-pencil' }))
+                        e('div', { className: 'flex gap-2' },
+                            e('button', { className: 'text-gray-500 hover:text-white opacity-0 group-hover:opacity-100', onClick: (e) => { e.stopPropagation(); handleRenameQuiz(q); } }, e('i', { className: 'bi bi-pencil' })),
+                            // FIX: Added Delete Button
+                            e('button', { className: 'text-red-500 hover:text-red-300 opacity-0 group-hover:opacity-100', onClick: (e) => { e.stopPropagation(); deleteQuiz(q.id); } }, e('i', { className: 'bi bi-trash' }))
+                        )
                     ))
                 )
             ),
@@ -360,15 +377,85 @@
     const SettingsView = () => {
         const { userSettings, updateSettings, toast } = useContext(AppContext);
         const [newKey, setNewKey] = useState('');
+        const [selectedPromptType, setSelectedPromptType] = useState('MultipleChoice');
+        const [promptEdits, setPromptEdits] = useState(userSettings.prompts || {});
+
         const handleAddKey = () => { if(!newKey.trim()) return; updateSettings({ ...userSettings, apiKeys: [...(userSettings.apiKeys||[]), {key:newKey.trim(),isActive:!(userSettings.apiKeys||[]).length}] }); setNewKey(''); toast.show('Key Added','success'); };
-        return e('div', { className: 'flex flex-col h-full p-4' }, e('h2', { className: 'text-lg font-semibold mb-6 flex items-center gap-2' }, e('i', { className: 'bi bi-gear-fill text-gray-400' }), 'Settings'), e('div', { className: 'glass-panel rounded-xl p-5 mb-6' }, e('h3', { className: 'text-sm font-bold text-white mb-4' }, 'API Keys'), (userSettings.apiKeys||[]).map((k,i)=>e('div', { key: i, className: 'p-3 rounded border border-white/10 mb-2 flex justify-between items-center' }, e('span', { className: 'text-xs text-gray-400' }, k.key.substring(0,8)+'...'), e('div', { className: 'flex gap-2' }, e('button', { className: `text-xs px-2 ${k.isActive?'text-green-400':'text-gray-400'}`, onClick:()=>{const nk=[...userSettings.apiKeys];nk.forEach((kk,idx)=>kk.isActive=idx===i);updateSettings({...userSettings,apiKeys:nk})} }, k.isActive?'Active':'Activate'), e('button', { className: 'text-xs text-red-400', onClick:()=>{const nk=[...userSettings.apiKeys];nk.splice(i,1);updateSettings({...userSettings,apiKeys:nk})} }, 'Del')))), e('div', { className: 'flex gap-2' }, e('input', { className: 'input-std text-sm flex-grow', placeholder: 'New Gemini Key', type: 'password', value: newKey, onChange: e=>setNewKey(e.target.value) }), e('button', { className: 'btn-primary', onClick: handleAddKey }, 'Add'))), e('div', { className: 'glass-panel rounded-xl p-5' }, e('h3', { className: 'text-sm font-bold text-white mb-3' }, 'AI Model'), e('select', { className: 'input-std bg-black/20', value: userSettings.modelName||'gemini-2.5-flash', onChange: e=>updateSettings({...userSettings,modelName:e.target.value}) }, ['gemini-2.5-flash','gemini-2.5-flash-preview','gemini-2.5-pro','gemini-3.0-pro-preview'].map(m=>e('option',{key:m,value:m},m)))));
+        
+        const handleSavePrompts = () => {
+            updateSettings({ ...userSettings, prompts: promptEdits });
+            toast.show('Prompts Saved', 'success');
+        };
+
+        const handleResetPrompt = () => {
+            setPromptEdits(prev => ({ ...prev, [selectedPromptType]: DEFAULT_PROMPT }));
+        };
+
+        return e('div', { className: 'flex flex-col h-full p-4' }, 
+            e('h2', { className: 'text-lg font-semibold mb-6 flex items-center gap-2' }, e('i', { className: 'bi bi-gear-fill text-gray-400' }), 'Settings'), 
+            
+            e('div', { className: 'glass-panel rounded-xl p-5 mb-6' }, 
+                e('h3', { className: 'text-sm font-bold text-white mb-4' }, 'API Keys'), 
+                (userSettings.apiKeys||[]).map((k,i)=>e('div', { key: i, className: 'p-3 rounded border border-white/10 mb-2 flex justify-between items-center' }, e('span', { className: 'text-xs text-gray-400' }, k.key.substring(0,8)+'...'), e('div', { className: 'flex gap-2' }, e('button', { className: `text-xs px-2 ${k.isActive?'text-green-400':'text-gray-400'}`, onClick:()=>{const nk=[...userSettings.apiKeys];nk.forEach((kk,idx)=>kk.isActive=idx===i);updateSettings({...userSettings,apiKeys:nk})} }, k.isActive?'Active':'Activate'), e('button', { className: 'text-xs text-red-400', onClick:()=>{const nk=[...userSettings.apiKeys];nk.splice(i,1);updateSettings({...userSettings,apiKeys:nk})} }, 'Del')))), 
+                e('div', { className: 'flex gap-2' }, e('input', { className: 'input-std text-sm flex-grow', placeholder: 'New Gemini Key', type: 'password', value: newKey, onChange: e=>setNewKey(e.target.value) }), e('button', { className: 'btn-primary', onClick: handleAddKey }, 'Add'))
+            ), 
+            
+            e('div', { className: 'glass-panel rounded-xl p-5 mb-6' }, 
+                e('h3', { className: 'text-sm font-bold text-white mb-3' }, 'AI Model'), 
+                e('select', { className: 'input-std bg-black/20', value: userSettings.modelName||'gemini-2.5-flash', onChange: e=>updateSettings({...userSettings,modelName:e.target.value}) }, ['gemini-2.5-flash','gemini-2.5-flash-preview','gemini-2.5-pro','gemini-3.0-pro-preview'].map(m=>e('option',{key:m,value:m},m)))
+            ),
+
+            e('div', { className: 'glass-panel rounded-xl p-5 flex flex-col flex-1 overflow-hidden' }, 
+                e('h3', { className: 'text-sm font-bold text-white mb-3' }, 'Prompt Engineering'),
+                e('div', { className: 'flex gap-2 mb-3' },
+                    e('select', { className: 'input-std bg-black/20', value: selectedPromptType, onChange: e=>setSelectedPromptType(e.target.value) }, 
+                        ['MultipleChoice','TrueFalse','ShortAnswer','Essay'].map(t=>e('option',{key:t,value:t}, t))
+                    ),
+                    e('button', { className: 'btn-secondary', onClick: handleResetPrompt }, 'Reset to Default')
+                ),
+                e('textarea', { 
+                    className: 'input-std bg-black/20 flex-1 resize-none font-mono text-xs mb-3', 
+                    value: promptEdits[selectedPromptType] || DEFAULT_PROMPT, 
+                    onChange: e => setPromptEdits(prev => ({ ...prev, [selectedPromptType]: e.target.value })) 
+                }),
+                e('button', { className: 'btn-primary', onClick: handleSavePrompts }, 'Save All Prompts')
+            )
+        );
     };
 
     const QuizGeneratorView = () => {
-        const { quizOptions, setQuizOptions, activeEditorFile, dispatchTask, toast, userSettings } = useContext(AppContext);
+        const { quizOptions, setQuizOptions, activeEditorFile, handleGenerateQuiz, userSettings, quizzes, openModalWrapper, handleQuizSubmit, deleteQuiz } = useContext(AppContext);
         const hasApiKey = (userSettings.apiKeys||[]).some(k=>k.isActive);
-        const handleGenerate = () => { if(!activeEditorFile) return toast.show('Select a file first','error'); if(!hasApiKey) return toast.show('No Active API Key','error'); dispatchTask({ taskType: 'generate', sourceText: activeEditorFile.content, options: { ...quizOptions, fileId: activeEditorFile.id, sourceFileName: activeEditorFile.name } }); toast.show('Started generation','info'); };
-        return e('div', { className: 'flex flex-col h-full p-4' }, e('h2', { className: 'text-lg font-semibold mb-6 flex items-center gap-2' }, e('i', { className: 'bi bi-stars text-yellow-400' }), 'Quiz Generator'), e('div', { className: 'glass-panel rounded-xl p-5 flex flex-col gap-4' }, e('div', null, e('label', { className: 'block text-xs text-gray-400 font-bold mb-2' }, 'Difficulty'), e('div', { className: 'grid grid-cols-3 gap-2' }, ['Easy','Medium','Hard'].map(l=>e('button', { key: l, className: `py-2 rounded text-sm border ${quizOptions.difficulty===l?'bg-blue-600 border-blue-500 text-white':'border-white/10 text-gray-400'}`, onClick:()=>setQuizOptions(o=>({...o,difficulty:l}))}, l)))), e('div', null, e('label', { className: 'block text-xs text-gray-400 font-bold mb-2' }, 'Type'), e('select', { className: 'input-std bg-black/20', value: quizOptions.questionType, onChange: e=>setQuizOptions(o=>({...o,questionType:e.target.value})) }, ['MultipleChoice','TrueFalse','ShortAnswer','Essay'].map(t=>e('option',{key:t,value:t},t)))), e('div', null, e('label', { className: 'block text-xs text-gray-400 font-bold mb-2' }, 'Instructions'), e('textarea', { className: 'input-std bg-black/20 h-20 resize-none', value: quizOptions.customInstructions||'', onChange: e=>setQuizOptions(o=>({...o,customInstructions:e.target.value})) })), e('button', { className: `mt-4 py-3 rounded-lg font-bold shadow-lg ${hasApiKey?'bg-gradient-to-r from-blue-600 to-purple-600 text-white':'bg-gray-700 text-gray-400 cursor-not-allowed'}`, disabled: !hasApiKey, onClick: handleGenerate }, 'Generate Quiz')));
+        const handleGenerate = () => { 
+            if(!activeEditorFile) return alert('Please select a file first.');
+            handleGenerateQuiz(activeEditorFile); 
+        };
+
+        return e('div', { className: 'flex flex-col h-full p-4' }, 
+            e('h2', { className: 'text-lg font-semibold mb-6 flex items-center gap-2' }, e('i', { className: 'bi bi-stars text-yellow-400' }), 'Quiz Generator'), 
+            e('div', { className: 'glass-panel rounded-xl p-5 flex flex-col gap-4 mb-6' }, 
+                e('div', null, e('label', { className: 'block text-xs text-gray-400 font-bold mb-2' }, 'Difficulty'), e('div', { className: 'grid grid-cols-3 gap-2' }, ['Easy','Medium','Hard'].map(l=>e('button', { key: l, className: `py-2 rounded text-sm border ${quizOptions.difficulty===l?'bg-blue-600 border-blue-500 text-white':'border-white/10 text-gray-400'}`, onClick:()=>setQuizOptions(o=>({...o,difficulty:l}))}, l)))), 
+                e('div', null, e('label', { className: 'block text-xs text-gray-400 font-bold mb-2' }, 'Type'), e('select', { className: 'input-std bg-black/20', value: quizOptions.questionType, onChange: e=>setQuizOptions(o=>({...o,questionType:e.target.value})) }, ['MultipleChoice','TrueFalse','ShortAnswer','Essay'].map(t=>e('option',{key:t,value:t},t)))), 
+                e('div', null, e('label', { className: 'block text-xs text-gray-400 font-bold mb-2' }, 'Instructions'), e('textarea', { className: 'input-std bg-black/20 h-20 resize-none', value: quizOptions.customInstructions||'', onChange: e=>setQuizOptions(o=>({...o,customInstructions:e.target.value})) })), 
+                e('div', { className: 'flex items-center gap-2 mt-2' },
+                    e('input', { type: 'checkbox', id: 'incSnip', checked: quizOptions.includeSnippets, onChange: e=>setQuizOptions(o=>({...o,includeSnippets:e.target.checked})) }),
+                    e('label', { htmlFor: 'incSnip', className: 'text-xs text-gray-400 cursor-pointer select-none' }, 'Include Source Snippets (Context)')
+                ),
+                e('button', { className: `mt-4 py-3 rounded-lg font-bold shadow-lg ${hasApiKey?'bg-gradient-to-r from-blue-600 to-purple-600 text-white':'bg-gray-700 text-gray-400 cursor-not-allowed'}`, disabled: !hasApiKey, onClick: handleGenerate }, 'Generate Quiz from Selected File')
+            ),
+            e('h3', { className: 'text-sm font-bold text-gray-400 mb-2 uppercase' }, 'Recent Generated Quizzes'),
+            e('div', { className: 'flex-1 overflow-y-auto' },
+                quizzes.length === 0 && e('div', { className: 'text-gray-500 text-sm' }, 'No generated quizzes yet.'),
+                quizzes.map(q => e('div', { key: q.id, className: 'quiz-card flex justify-between items-center group', onClick: () => openModalWrapper({ title: q.title, content: e(QuizTaker, { quiz: q, onClose: null, onSubmit: handleQuizSubmit }) }) },
+                    e('div', null, e('div', { className: 'font-bold text-white text-sm' }, q.title), e('div', { className: 'text-xs text-gray-500' }, new Date(q.createdAt).toLocaleDateString())),
+                    e('div', { className: 'flex gap-2 items-center' },
+                        e('span', { className: 'text-xs bg-blue-900/50 text-blue-400 px-2 py-1 rounded mr-2' }, `${q.questionCount} Qs`),
+                        // FIX: Added Delete Button
+                        e('button', { className: 'text-red-500 hover:text-red-300 opacity-0 group-hover:opacity-100', onClick: (e) => { e.stopPropagation(); deleteQuiz(q.id); } }, e('i', { className: 'bi bi-trash' }))
+                    )
+                ))
+            )
+        );
     };
 
     const TaskMonitorView = () => { const { taskQueue } = useContext(AppContext); return e('div', { className: 'flex flex-col h-full p-4' }, e('h3', { className: 'text-sm font-bold text-gray-400 mb-4' }, 'Tasks'), e('div', { className: 'flex-1 overflow-y-auto flex flex-col gap-2' }, (taskQueue||[]).map(t => e('div', { key: t.id, className: 'glass-panel p-3 rounded flex justify-between' }, e('div', null, e('div', { className: 'font-medium text-sm' }, t.taskType), e('div', { className: 'text-xs text-gray-500' }, t.id.substring(0,8))), e('div', { className: `text-xs px-2 py-1 rounded ${t.status==='processing'?'bg-blue-500/20 text-blue-400':t.status==='success'?'bg-green-500/20 text-green-400':'bg-red-500/20 text-red-400'}` }, t.status))))); };
@@ -376,19 +463,54 @@
     const QuizHistoryView = () => { const { attempts, openModalWrapper, dispatchGrading } = useContext(AppContext); return e('div', { className: 'flex flex-col h-full p-4' }, e('h2', { className: 'text-lg font-semibold mb-4 flex items-center gap-2' }, e('i', { className: 'bi bi-collection-play' }), 'History'), e('div', { className: 'flex-1 overflow-y-auto' }, attempts.map(a => e('div', { key: a.id, className: 'quiz-card', onClick: () => openModalWrapper({ title: 'Result', content: e(QuizResult, { attempt: a, onGradeAI: () => dispatchGrading(a) }) }) }, e('div', { className: 'flex justify-between items-center' }, e('div', { className: 'font-bold text-white' }, a.quizTitle), e('div', { className: 'text-xl font-bold text-blue-400' }, `${a.score}/${a.total}`)), e('div', { className: 'text-xs text-gray-500 mt-2' }, new Date(a.createdAt).toLocaleString()))))); };
 
     const MainEditor = () => {
-        const { activeEditorFile, fileActions, userId, handleGoogleSignIn } = useContext(AppContext);
+        const { activeEditorFile, fileActions, userId, handleGoogleSignIn, handleGenerateQuiz } = useContext(AppContext);
         const [content, setContent] = useState("");
         const [viewMode, setViewMode] = useState('edit');
+        const previewRef = useRef(null);
+
         useEffect(() => { setContent(activeEditorFile?.content||""); }, [activeEditorFile]);
         useEffect(() => { if(!activeEditorFile || content===activeEditorFile.content) return; const t=setTimeout(()=>fileActions.updateContent(activeEditorFile.id, content),2000); return ()=>clearTimeout(t); }, [content, activeEditorFile, fileActions]);
-        useEffect(() => { if(viewMode==='preview'){renderMathInElement(document.body,{delimiters:[{left:"$$",right:"$$",display:true},{left:"$",right:"$",display:false}]});hljs.highlightAll();} }, [viewMode, content]);
+        useEffect(() => { 
+            if(viewMode==='preview' && previewRef.current){
+                if(window.renderMathInElement && window.katex) {
+                    try {
+                        renderMathInElement(previewRef.current, {
+                            delimiters:[
+                                {left:"$$",right:"$$",display:true},
+                                {left:"$",right:"$",display:false},
+                                {left:"\\(",right:"\\)",display:false},
+                                {left:"\\[",right:"\\]",display:true}
+                            ]
+                        });
+                    } catch (e) { console.error("Katex Error:", e); }
+                }
+                if(window.hljs) hljs.highlightAll();
+            } 
+        }, [viewMode, content]);
+        
         const rendered = useMemo(() => viewMode==='preview' ? DOMPurify.sanitize(marked.parse(content||"")) : null, [content, viewMode]);
+        
         if (!userId) return e('div', { className: 'flex flex-col items-center justify-center h-full text-gray-500' }, e('i', { className: 'bi bi-shield-lock text-6xl mb-6' }), e('button', { className: 'btn-primary flex gap-2 items-center', onClick: handleGoogleSignIn }, e('i', { className: 'bi bi-google' }), 'Sign in'));
         if (!activeEditorFile) return e('div', { className: 'flex flex-col items-center justify-center h-full text-gray-500' }, e('i', { className: 'bi bi-code-square text-6xl mb-4 opacity-20' }), 'Select a file');
-        return e('div', { className: 'flex flex-col h-full' }, e('div', { className: 'h-12 border-b border-white/10 flex items-center px-4 justify-between bg-black/40' }, e('span', { className: 'text-sm text-gray-300' }, activeEditorFile.name), e('div', { className: 'flex bg-white/5 p-1 rounded-lg' }, e('button', { className: `px-3 py-1 rounded text-xs ${viewMode==='edit'?'bg-blue-600 text-white':'text-gray-400'}`, onClick:()=>setViewMode('edit') }, 'Edit'), e('button', { className: `px-3 py-1 rounded text-xs ${viewMode==='preview'?'bg-blue-600 text-white':'text-gray-400'}`, onClick:()=>setViewMode('preview') }, 'Preview'))), viewMode==='edit' ? e('textarea', { className: 'flex-1 bg-transparent border-none resize-none p-8 outline-none font-mono text-sm text-gray-200', value: content, onChange: e=>setContent(e.target.value) }) : e('div', { className: 'flex-1 p-0 overflow-hidden' }, e('div', { className: 'markdown-body', dangerouslySetInnerHTML: { __html: rendered } })));
+        
+        return e('div', { className: 'flex flex-col h-full' }, 
+            e('div', { className: 'h-12 border-b border-white/10 flex items-center px-4 justify-between bg-black/40' }, 
+                e('span', { className: 'text-sm text-gray-300 flex items-center gap-2' }, e('i', { className: 'bi bi-file-earmark-text' }), activeEditorFile.name), 
+                e('div', { className: 'flex gap-2 items-center' }, 
+                    e('button', { className: 'btn-secondary flex items-center gap-2 text-yellow-400', onClick: () => handleGenerateQuiz(activeEditorFile) }, e('i', { className: 'bi bi-lightning-fill' }), 'Generate Quiz'),
+                    e('div', { className: 'w-px h-4 bg-white/10 mx-1' }),
+                    e('div', { className: 'flex bg-white/5 p-1 rounded-lg' }, 
+                        e('button', { className: `px-3 py-1 rounded text-xs ${viewMode==='edit'?'bg-blue-600 text-white':'text-gray-400'}`, onClick:()=>setViewMode('edit') }, 'Edit'), 
+                        e('button', { className: `px-3 py-1 rounded text-xs ${viewMode==='preview'?'bg-blue-600 text-white':'text-gray-400'}`, onClick:()=>setViewMode('preview') }, 'Preview')
+                    )
+                )
+            ), 
+            viewMode==='edit' 
+                ? e('textarea', { className: 'flex-1 bg-transparent border-none resize-none p-8 outline-none font-mono text-sm text-gray-200', value: content, onChange: e=>setContent(e.target.value) }) 
+                : e('div', { className: 'flex-1 p-0 overflow-hidden' }, e('div', { ref: previewRef, className: 'markdown-body', dangerouslySetInnerHTML: { __html: rendered } }))
+        );
     };
 
-    // 3. Project Dashboard (Must be defined before App)
     const ProjectDashboard = ({ projects, onCreate, onSelect, onDelete }) => {
         const [name, setName] = useState('');
         const [creating, setCreating] = useState(false);
@@ -408,13 +530,11 @@
         );
     };
 
-    /* --- APP --- */
     const App = () => {
         const [db, setDb] = useState(null);
         const [auth, setAuth] = useState(null);
         const [userId, setUserId] = useState(null);
         
-        // Persistent Project State
         const [activeProjectId, setActiveProjectId] = useState(() => localStorage.getItem('activeProjectId'));
         useEffect(() => { if(activeProjectId) localStorage.setItem('activeProjectId', activeProjectId); else localStorage.removeItem('activeProjectId'); }, [activeProjectId]);
 
@@ -427,12 +547,31 @@
         const [taskQueue, setTaskQueue] = useState([]);
         const [activeEditorFile, setActiveEditorFile] = useState(null);
         const [editingNodeId, setEditingNodeId] = useState(null);
+        const [expandedFolders, setExpandedFolders] = useState(new Set());
         const [quizOptions, setQuizOptionsState] = useState({ numQuestions: 5, difficulty: 'Medium', questionType: 'MultipleChoice', includeSnippets: false, provideAnswerKey: true });
-        const [userSettings, setUserSettings] = useState({ apiKeys: [], modelName: "gemini-2.5-flash" });
+        const [userSettings, setUserSettings] = useState({ apiKeys: [], modelName: "gemini-2.5-flash", prompts: {} }); 
         
         const { openModal, closeModal } = useModal();
         const toast = useToast();
         const quizWorker = useMemo(() => new Worker(workerUrl), []);
+
+        const toggleFolder = (id) => { setExpandedFolders(prev => { const next = new Set(prev); if (next.has(id)) next.delete(id); else next.add(id); return next; }); };
+
+        // FIX: Added Delete Quiz Function
+        const deleteQuiz = (id) => {
+            openModal({
+                title: 'Delete Quiz',
+                content: e('div', { className: 'text-gray-300' }, 'Are you sure you want to delete this quiz? This action cannot be undone.'),
+                footer: e('div', { className: 'flex gap-2' },
+                    e('button', { className: 'glass-btn px-4 py-2 rounded text-gray-300', onClick: closeModal }, 'Cancel'),
+                    e('button', { className: 'btn-primary bg-red-600 hover:bg-red-500 px-4 py-2 rounded text-white', onClick: async () => {
+                        await deleteDoc(doc(db, `artifacts/${window.__app_id}/users/${userId}/quizzes`, id));
+                        closeModal();
+                        toast.show('Quiz deleted', 'success');
+                    }}, 'Delete')
+                )
+            });
+        };
 
         useEffect(() => {
             const conf = JSON.parse(window.__firebase_config);
@@ -444,7 +583,11 @@
 
         useEffect(() => {
             if (!db || !userId) return;
-            const loadProjects = onSnapshot(query(collection(db, `artifacts/${window.__app_id}/users/${userId}/projects`), orderBy('createdAt', 'desc')), s => setProjects(s.docs.map(d => ({id:d.id, ...d.data()}))));
+            const loadProjects = onSnapshot(collection(db, `artifacts/${window.__app_id}/users/${userId}/projects`), s => {
+                const data = s.docs.map(d => ({id:d.id, ...d.data()}));
+                data.sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
+                setProjects(data);
+            });
             const loadSettings = onSnapshot(doc(db, `artifacts/${window.__app_id}/users/${userId}/settings/userConfig`), s => { if(s.exists()) setUserSettings(s.data()); });
             return () => { loadProjects(); loadSettings(); };
         }, [db, userId]);
@@ -453,8 +596,8 @@
             if (!db || !userId || !activeProjectId) { setFiles([]); setQuizzes([]); setAttempts([]); return; }
             const colPath = `artifacts/${window.__app_id}/users/${userId}`;
             const unsubFiles = onSnapshot(query(collection(db, `${colPath}/files`), where('projectId', '==', activeProjectId)), s => setFiles(s.docs.map(d => ({id:d.id, ...d.data()}))));
-            const unsubQuizzes = onSnapshot(query(collection(db, `${colPath}/quizzes`), where('userId', '==', userId), orderBy('createdAt', 'desc')), s => setQuizzes(s.docs.map(d => ({id:d.id, ...d.data()}))));
-            const unsubAttempts = onSnapshot(query(collection(db, `${colPath}/quizAttempts`), where('userId', '==', userId), orderBy('createdAt', 'desc')), s => setAttempts(s.docs.map(d => ({id:d.id, ...d.data()}))));
+            const unsubQuizzes = onSnapshot(collection(db, `${colPath}/quizzes`), s => { const data = s.docs.map(d => ({id:d.id, ...d.data()})); data.sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt)); setQuizzes(data); });
+            const unsubAttempts = onSnapshot(collection(db, `${colPath}/quizAttempts`), s => { const data = s.docs.map(d => ({id:d.id, ...d.data()})); data.sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt)); setAttempts(data); });
             return () => { unsubFiles(); unsubQuizzes(); unsubAttempts(); };
         }, [db, userId, activeProjectId]);
 
@@ -483,6 +626,28 @@
         const dispatchGrading = (attempt) => { closeModal(); dispatchTask({ taskType: 'grade', attempt }); toast.show('AI Grading Started','info'); };
         const updateQuizTitle = async (id, title) => { if(!db||!userId) return; await updateDoc(doc(db, `artifacts/${window.__app_id}/users/${userId}/quizzes`, id), { title }); };
 
+        // FIX: Use custom prompt from settings
+        const handleGenerateQuiz = (fileNode) => {
+             if (!fileNode || !fileNode.content) return toast.show("Empty File", 'error');
+             const hasKey = (userSettings.apiKeys||[]).some(k=>k.isActive);
+             if (!hasKey) return toast.show("No Active API Key", 'error');
+             
+             // Select the correct template or default
+             const selectedTemplate = (userSettings.prompts && userSettings.prompts[quizOptions.questionType]) || DEFAULT_PROMPT;
+
+             dispatchTask({ 
+                 taskType: 'generate', 
+                 sourceText: fileNode.content, 
+                 options: { 
+                     ...quizOptions, 
+                     fileId: fileNode.id, 
+                     sourceFileName: fileNode.name,
+                     promptTemplate: selectedTemplate // Pass the template to worker
+                 } 
+             });
+             toast.show('Started Generation...', 'info');
+        };
+
         const fileActions = useMemo(() => {
             if (!db || !userId || !activeProjectId) return {};
             const colRef = collection(db, `artifacts/${window.__app_id}/users/${userId}/files`);
@@ -504,7 +669,7 @@
             sortNode(roots); return roots;
         }, [files]);
 
-        const ctx = { db, userId, fileTree, fileActions, files, activeEditorFile, setActiveEditorFile, editingNodeId, setEditingNodeId, quizOptions, setQuizOptions: setQuizOptionsState, taskQueue, dispatchTask, handleGoogleSignIn: async () => { if (auth) await signInWithPopup(auth, new GoogleAuthProvider()); }, toast, userSettings, updateSettings: (s) => { setUserSettings(s); if(userId) setDoc(doc(db, `artifacts/${window.__app_id}/users/${userId}/settings/userConfig`), s); }, quizzes, attempts, openModalWrapper: ({title, content}) => openModal({title, content}), handleQuizSubmit, dispatchGrading, updateQuizTitle };
+        const ctx = { db, userId, fileTree, fileActions, files, activeEditorFile, setActiveEditorFile, editingNodeId, setEditingNodeId, quizOptions, setQuizOptions: setQuizOptionsState, taskQueue, dispatchTask, handleGoogleSignIn: async () => { if (auth) await signInWithPopup(auth, new GoogleAuthProvider()); }, toast, userSettings, updateSettings: (s) => { setUserSettings(s); if(userId) setDoc(doc(db, `artifacts/${window.__app_id}/users/${userId}/settings/userConfig`), s); }, quizzes, attempts, openModalWrapper: ({title, content}) => openModal({title, content}), handleQuizSubmit, dispatchGrading, updateQuizTitle, handleGenerateQuiz, expandedFolders, toggleFolder, deleteQuiz };
 
         const navItems = [ { id: 'files', icon: 'bi-files' }, { id: 'quiz', icon: 'bi-lightning-charge' }, { id: 'history', icon: 'bi-collection-play' }, { id: 'settings', icon: 'bi-gear' }, { id: 'tasks', icon: 'bi-activity' } ];
         
